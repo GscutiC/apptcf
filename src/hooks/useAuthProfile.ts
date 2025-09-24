@@ -23,7 +23,28 @@ export const useAuthProfile = () => {
         setLoading(true);
         setError(null);
         
-        const profile = await authService.getCurrentUser(getToken);
+        // Intentar sincronizar con el backend
+        let profile = await authService.syncUserWithBackend(getToken);
+        
+        // Si no funciona la sincronización normal, usar el método de debug
+        if (!profile && clerkUser) {
+          console.log('🔧 Usando método de debug para crear usuario...');
+          const debugResult = await authService.debugCreateUser({
+            clerk_id: clerkUser.id,
+            email: clerkUser.primaryEmailAddress?.emailAddress || '',
+            first_name: clerkUser.firstName || '',
+            last_name: clerkUser.lastName || '', 
+            full_name: clerkUser.fullName || '',
+            image_url: clerkUser.imageUrl || undefined,
+            phone_number: clerkUser.primaryPhoneNumber?.phoneNumber || undefined
+          });
+          
+          if (debugResult.success) {
+            // Intentar obtener el perfil completo después de crear
+            profile = await authService.syncUserWithBackend(getToken);
+          }
+        }
+        
         setUserProfile(profile);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error cargando perfil');
@@ -42,7 +63,7 @@ export const useAuthProfile = () => {
     try {
       setLoading(true);
       setError(null);
-      const profile = await authService.getCurrentUser(getToken);
+      const profile = await authService.syncUserWithBackend(getToken);
       setUserProfile(profile);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error actualizando perfil');

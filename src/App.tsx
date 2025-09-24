@@ -2,28 +2,61 @@ import React, { useState } from 'react';
 import { 
   SignInButton, 
   SignUpButton, 
-  UserButton,
   useUser 
 } from '@clerk/clerk-react';
-import './styles/App.css';
 import HelloWorld from './components/HelloWorld';
 import AIChat from './components/AIChat';
 import UserManagement from './components/UserManagement';
-
-type ActiveView = 'home' | 'chat' | 'users';
+import UserProfile from './components/UserProfile';
+import { UsersPage } from './modules/user-management/pages/UsersPage';
+import { RoleProvider } from './modules/user-management/context/RoleContext';
+import { NotificationProvider } from './shared/components/ui/Notifications';
+import { Layout, Dashboard, type ModulePage } from './shared/components/layout';
 
 function App() {
-  const [activeView, setActiveView] = useState<ActiveView>('home');
+  const [currentPage, setCurrentPage] = useState<ModulePage>('dashboard');
   const { user, isSignedIn } = useUser();
 
-  const renderView = () => {
-    switch (activeView) {
+  const renderCurrentPage = () => {
+    switch (currentPage) {
+      case 'dashboard':
+        return <Dashboard onNavigate={setCurrentPage} />;
       case 'chat':
         return <AIChat />;
-      case 'users':
+      case 'users-legacy':
         return <UserManagement />;
+      case 'users-management':
+        return <UsersPage />;
+      case 'profile':
+        return <UserProfile />;
+      case 'roles-management':
+        return (
+          <div className="p-6">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <h2 className="text-lg font-semibold text-yellow-800 mb-2">
+                🚧 Módulo en Desarrollo
+              </h2>
+              <p className="text-yellow-700">
+                La gestión de roles está en desarrollo. Pronto estará disponible.
+              </p>
+            </div>
+          </div>
+        );
+      case 'settings':
+        return (
+          <div className="p-6">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h2 className="text-lg font-semibold text-blue-800 mb-2">
+                ⚙️ Configuración del Sistema
+              </h2>
+              <p className="text-blue-700">
+                Panel de configuración en desarrollo.
+              </p>
+            </div>
+          </div>
+        );
       default:
-        return <HelloWorld />;
+        return <Dashboard onNavigate={setCurrentPage} />;
     }
   };
 
@@ -64,64 +97,15 @@ function App() {
 
   // Usuario autenticado - mostrar aplicación completa
   return (
-    <div className="App">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 bg-white shadow-lg z-50">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(to right, #3b82f6, #9333ea)' }}>
-                <span className="text-white font-bold text-sm">MA</span>
-              </div>
-              <h1 className="text-xl font-bold text-gray-800">Mi App Completa</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              {/* Navigation Menu */}
-              <div className="flex space-x-1">
-                <button
-                  onClick={() => setActiveView('home')}
-                  className={`px-4 py-2 rounded-lg transition-colors duration-200 ${
-                    activeView === 'home'
-                      ? 'bg-blue-500 text-white'
-                      : 'text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
-                  🏠 Inicio
-                </button>
-                <button
-                  onClick={() => setActiveView('chat')}
-                  className={`px-4 py-2 rounded-lg transition-colors duration-200 ${
-                    activeView === 'chat'
-                      ? 'bg-blue-500 text-white'
-                      : 'text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
-                  💬 Chat IA
-                </button>
-                <button
-                  onClick={() => setActiveView('users')}
-                  className={`px-4 py-2 rounded-lg transition-colors duration-200 ${
-                    activeView === 'users'
-                      ? 'bg-blue-500 text-white'
-                      : 'text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
-                  👥 Usuarios
-                </button>
-              </div>
-              
-              {/* User Button */}
-              <UserButton afterSignOutUrl="/" />
-            </div>
-          </div>
+    <NotificationProvider>
+      <RoleProvider>
+        <div className="min-h-screen bg-gray-50">
+          <Layout currentPage={currentPage} onPageChange={setCurrentPage}>
+            {renderCurrentPage()}
+          </Layout>
         </div>
-      </nav>
-
-      {/* Main Content */}
-      <div style={{ paddingTop: '64px' }}>
-        {renderView()}
-      </div>
-    </div>
+      </RoleProvider>
+    </NotificationProvider>
   );
 }
 
