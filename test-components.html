@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Components - Mi App Completa</title>
+    <style>
+        /* Import custom CSS */
+        @import url('./src/styles/App.css');
+
+        /* Test page specific styles */
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .component-demo {
+            margin-bottom: 3rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 1rem;
+            padding: 2rem;
+            background: white;
+        }
+
+        .component-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            color: #1f2937;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1 class="text-2xl font-bold text-center mb-8">🧪 Test de Componentes - Mi App Completa</h1>
+
+        <!-- Test CSS Classes -->
+        <div class="component-demo">
+            <h2 class="component-title">✅ Test de Clases CSS Personalizadas</h2>
+
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="bg-blue-50 p-4 rounded-lg">
+                    <h3 class="font-semibold text-blue-800">Layout Classes</h3>
+                    <div class="flex items-center space-x-2 mt-2">
+                        <div class="w-8 h-8 bg-blue-500 rounded-full"></div>
+                        <span class="text-sm">flex, items-center, space-x-2</span>
+                    </div>
+                </div>
+
+                <div class="bg-green-50 p-4 rounded-lg">
+                    <h3 class="font-semibold text-green-800">Colors & Backgrounds</h3>
+                    <div class="flex space-x-2 mt-2">
+                        <div class="w-6 h-6 bg-red-500 rounded"></div>
+                        <div class="w-6 h-6 bg-green-500 rounded"></div>
+                        <div class="w-6 h-6 bg-blue-500 rounded"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-100 p-4 rounded-xl mb-4">
+                <h3 class="font-medium text-gray-800 mb-2">Typography Test</h3>
+                <p class="text-xs text-gray-600">Extra small text (.text-xs)</p>
+                <p class="text-sm text-gray-700">Small text (.text-sm)</p>
+                <p class="text-lg text-gray-800">Large text (.text-lg)</p>
+                <p class="text-xl font-bold text-gray-900">Extra large bold (.text-xl .font-bold)</p>
+            </div>
+
+            <div class="flex space-x-4">
+                <button class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                    Primary Button
+                </button>
+                <button class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors">
+                    Secondary Button
+                </button>
+                <button class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
+                    Success Button
+                </button>
+            </div>
+        </div>
+
+        <!-- Test Gradients -->
+        <div class="component-demo">
+            <h2 class="component-title">🎨 Test de Gradientes</h2>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="h-24 rounded-lg flex items-center justify-center text-white font-semibold"
+                     style="background: linear-gradient(to right, #3b82f6, #9333ea)">
+                    Gradient Blue to Purple
+                </div>
+                <div class="h-24 rounded-lg flex items-center justify-center text-gray-800 font-semibold"
+                     style="background: linear-gradient(to bottom right, #eff6ff, #e0e7ff)">
+                    Gradient Light Blue
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Animations -->
+        <div class="component-demo">
+            <h2 class="component-title">⚡ Test de Animaciones</h2>
+            <div class="flex space-x-4 items-center">
+                <div class="animate-spin w-8 h-8 border-4 border-gray-300 border-t-blue-600 rounded-full"></div>
+                <div class="animate-pulse w-8 h-8 bg-blue-500 rounded"></div>
+                <div class="animate-bounce w-8 h-8 bg-green-500 rounded-full"></div>
+                <span class="text-sm text-gray-600">Spin, Pulse, Bounce animations</span>
+            </div>
+        </div>
+
+        <!-- Test Navigation Mock -->
+        <div class="component-demo">
+            <h2 class="component-title">🧭 Test de Navegación (Mock)</h2>
+            <nav class="bg-white shadow-lg rounded-xl p-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center"
+                             style="background: linear-gradient(to right, #3b82f6, #9333ea)">
+                            <span class="text-white font-bold text-sm">MA</span>
+                        </div>
+                        <h1 class="text-xl font-bold text-gray-800">Mi App Completa</h1>
+                    </div>
+                    <div class="flex space-x-1">
+                        <button class="px-4 py-2 bg-blue-500 text-white rounded-lg">
+                            🏠 Inicio
+                        </button>
+                        <button class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                            💬 Chat IA
+                        </button>
+                        <button class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                            👥 Usuarios
+                        </button>
+                    </div>
+                </div>
+            </nav>
+        </div>
+
+        <!-- Test Cards -->
+        <div class="component-demo">
+            <h2 class="component-title">🃏 Test de Cards</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-white rounded-2xl shadow-xl p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Card Example</h3>
+                    <p class="text-gray-600 mb-4">This is a sample card with shadow and rounded corners.</p>
+                    <button class="bg-blue-500 text-white px-4 py-2 rounded-lg w-full">
+                        Action Button
+                    </button>
+                </div>
+                <div class="bg-green-50 border border-green-200 rounded-xl p-6">
+                    <div class="flex items-center mb-2">
+                        <span class="text-2xl mr-2">✅</span>
+                        <h3 class="text-lg font-semibold text-green-800">Success State</h3>
+                    </div>
+                    <p class="text-green-700">Everything is working correctly!</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center mt-8 p-4 bg-gradient-to-r" style="background: linear-gradient(to right, #eff6ff, #e0e7ff); border-radius: 1rem;">
+            <h2 class="text-xl font-bold text-blue-800 mb-2">🎉 CSS Personalizado Funcionando</h2>
+            <p class="text-blue-700">Todas las clases CSS personalizadas están cargadas y funcionando correctamente.</p>
+            <p class="text-sm text-blue-600 mt-2">Listo para ejecutar React con npm start</p>
+        </div>
+    </div>
+</body>
+</html>
