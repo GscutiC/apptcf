@@ -6,88 +6,88 @@
 
 import React from 'react';
 import { useProtectedRoute } from '../hooks/useProtectedRoute';
+import { InterfaceConfigProvider, InterfaceConfigManager } from '../modules/interface-config';
 
 export const SettingsPage: React.FC = () => {
   const { user, userRole, userPermissions, isAdmin } = useProtectedRoute();
   return (
-    <div className="p-6">
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <div className="flex items-center mb-4">
-          <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4">
-            <span className="text-2xl">⚙️</span>
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-blue-800">
-              Configuración del Sistema
-            </h1>
-            <p className="text-blue-600">
-              Panel de administración y configuración
-            </p>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white p-4 rounded-lg border border-blue-200">
-            <h3 className="font-semibold text-blue-800 mb-3">🎨 Configuración de Interfaz</h3>
-            <ul className="text-sm text-blue-700 space-y-2">
-              <li>• Temas de color personalizados</li>
-              <li>• Configuración de idioma</li>
-              <li>• Preferencias de visualización</li>
-              <li>• Configuración de notificaciones</li>
-            </ul>
-          </div>
-          
-          <div className="bg-white p-4 rounded-lg border border-blue-200">
-            <h3 className="font-semibold text-blue-800 mb-3">🔧 Configuración del Sistema</h3>
-            <ul className="text-sm text-blue-700 space-y-2">
-              <li>• Configuración de base de datos</li>
-              <li>• Parámetros de seguridad</li>
-              <li>• Configuración de API</li>
-              <li>• Logs del sistema</li>
-            </ul>
-          </div>
-          
-          <div className="bg-white p-4 rounded-lg border border-blue-200">
-            <h3 className="font-semibold text-blue-800 mb-3">📊 Monitoreo</h3>
-            <ul className="text-sm text-blue-700 space-y-2">
-              <li>• Estado de servicios</li>
-              <li>• Métricas de rendimiento</li>
-              <li>• Estadísticas de uso</li>
-              <li>• Alertas del sistema</li>
-            </ul>
-          </div>
-          
-          <div className="bg-white p-4 rounded-lg border border-blue-200">
-            <h3 className="font-semibold text-blue-800 mb-3">🛡️ Seguridad</h3>
-            <ul className="text-sm text-blue-700 space-y-2">
-              <li>• Políticas de contraseñas</li>
-              <li>• Configuración 2FA</li>
-              <li>• Sesiones activas</li>
-              <li>• Auditoria de accesos</li>
-            </ul>
-          </div>
-        </div>
-        
-        <div className="mt-6 bg-orange-50 p-4 rounded-lg border border-orange-200">
-          <p className="text-sm text-orange-700">
-            <strong>🚨 Acceso restringido:</strong> Esta página solo está disponible para administradores del sistema.
-          </p>
-        </div>
-        
-        {/* Información del usuario actual */}
-        {user && (
-          <div className="mt-6 bg-green-50 p-4 rounded-lg border border-green-200">
-            <h3 className="font-semibold text-green-800 mb-2">✅ Acceso autorizado</h3>
-            <div className="text-sm text-green-700 space-y-1">
-              <p><strong>Usuario:</strong> {user.first_name} {user.last_name}</p>
-              <p><strong>Rol:</strong> {userRole}</p>
-              <p><strong>Es Admin:</strong> {isAdmin ? 'Sí' : 'No'}</p>
-              <p><strong>Permisos:</strong> {userPermissions.length} activos</p>
+    <InterfaceConfigProvider>
+      <div className="p-6 max-w-7xl mx-auto">
+        {/* Header de la página */}
+        <div className="mb-6">
+          <div className="flex items-center mb-4">
+            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+              <span className="text-2xl">⚙️</span>
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800">
+                Configuración del Sistema
+              </h1>
+              <p className="text-gray-600">
+                Panel de administración y configuración avanzada
+              </p>
             </div>
           </div>
-        )}
+
+          {/* Información de acceso */}
+          {user && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <span className="text-green-600 mr-2">✅</span>
+                <div className="text-sm text-green-700">
+                  <strong>Acceso autorizado:</strong> {user.first_name} {user.last_name} ({userRole})
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Módulo de configuración de interfaz */}
+        <InterfaceConfigManager className="mb-8" />
+
+        {/* Otros módulos de configuración (futuro) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
+          <div className="bg-white p-6 rounded-lg border border-neutral-200">
+            <h3 className="font-semibold text-neutral-800 mb-3 flex items-center">
+              <span className="mr-2">📊</span>
+              Monitoreo del Sistema
+            </h3>
+            <p className="text-sm text-neutral-600 mb-4">
+              Supervisa el rendimiento y estado de los servicios
+            </p>
+            <button className="text-sm text-primary-600 hover:text-primary-700 font-medium">
+              Próximamente →
+            </button>
+          </div>
+
+          <div className="bg-white p-6 rounded-lg border border-neutral-200">
+            <h3 className="font-semibold text-neutral-800 mb-3 flex items-center">
+              <span className="mr-2">🛡️</span>
+              Configuración de Seguridad
+            </h3>
+            <p className="text-sm text-neutral-600 mb-4">
+              Gestiona políticas de seguridad y autenticación
+            </p>
+            <button className="text-sm text-primary-600 hover:text-primary-700 font-medium">
+              Próximamente →
+            </button>
+          </div>
+
+          <div className="bg-white p-6 rounded-lg border border-neutral-200">
+            <h3 className="font-semibold text-neutral-800 mb-3 flex items-center">
+              <span className="mr-2">🔧</span>
+              Configuración de API
+            </h3>
+            <p className="text-sm text-neutral-600 mb-4">
+              Configura endpoints y parámetros de la API
+            </p>
+            <button className="text-sm text-primary-600 hover:text-primary-700 font-medium">
+              Próximamente →
+            </button>
+          </div>
+        </div>
       </div>
-    </div>
+    </InterfaceConfigProvider>
   );
 };
 

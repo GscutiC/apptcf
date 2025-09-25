@@ -7,6 +7,7 @@ import {
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { RoleProvider } from './modules/user-management/context/RoleContext';
 import { NotificationProvider } from './shared/components/ui/Notifications';
+import { InterfaceConfigProvider, ConfigLoader } from './modules/interface-config';
 import { Layout } from './shared/components/layout';  
 import { ProtectedRoute } from './shared/components/guards';
 import Loading from './shared/components/ui/Loading';
@@ -61,11 +62,13 @@ function App() {
 
   // Usuario autenticado - mostrar aplicación completa con Router
   return (
-    <NotificationProvider>
-      <RoleProvider>
-        <Router>
-          <div className="min-h-screen bg-gray-50">
-            <Layout>
+    <InterfaceConfigProvider>
+      <ConfigLoader>
+        <NotificationProvider>
+          <RoleProvider>
+            <Router>
+            <div className="min-h-screen bg-gray-50">
+              <Layout>
               <Suspense fallback={<Loading message="Cargando página..." />}>
                 <Routes>
                   {/* Ruta principal - redirige a dashboard */}
@@ -158,9 +161,11 @@ function App() {
               </Suspense>
             </Layout>
           </div>
-        </Router>
-      </RoleProvider>
-    </NotificationProvider>
+          </Router>
+        </RoleProvider>
+      </NotificationProvider>
+      </ConfigLoader>
+    </InterfaceConfigProvider>
   );
 }
 

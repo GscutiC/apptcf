@@ -7,6 +7,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { UserButton } from '@clerk/clerk-react';
 import { useAuthProfile } from '../../../hooks/useAuthProfile';
 import { adaptUserProfileToUser } from '../../utils/userAdapter';
+import { useInterfaceConfig, ConfigSyncMonitor } from '../../../modules/interface-config';
 
 // Mapeo de rutas a identificadores de página
 export type ModulePage = 
@@ -77,13 +78,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { userProfile, loading } = useAuthProfile();
   const currentUser = adaptUserProfileToUser(userProfile);
   const navigate = useNavigate();
+  const { config } = useInterfaceConfig();
   const location = useLocation();
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span className="ml-2 text-gray-600">Cargando aplicación...</span>
+        <span className="ml-2 text-neutral-600">Cargando aplicación...</span>
       </div>
     );
   }
@@ -111,32 +113,55 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <ConfigSyncMonitor>
+      <div className="flex h-screen bg-neutral-50">
       {/* Sidebar Optimizado */}
-      <div className={`${sidebarCollapsed ? 'w-16' : 'w-56'} bg-white shadow-lg border-r border-gray-200 flex flex-col transition-all duration-300 flex-shrink-0`}>
+      <div className={`${sidebarCollapsed ? 'w-16' : 'w-56'} bg-white shadow-lg border-r border-neutral-200 flex flex-col transition-all duration-300 flex-shrink-0`}>
         
         {/* Header del Sidebar */}
-        <div className="p-3 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
+        <div className="p-3 border-b border-neutral-200 bg-gradient-to-r from-primary-50 to-secondary-50">
           <div className="flex items-center justify-between">
             {!sidebarCollapsed ? (
               <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center shadow-md">
-                  <span className="text-white font-bold text-sm">MA</span>
-                </div>
+                {config.logos.sidebarLogo.showImage && config.logos.sidebarLogo.imageUrl ? (
+                  <img 
+                    src={config.logos.sidebarLogo.imageUrl} 
+                    alt="Logo" 
+                    className="w-8 h-8 rounded-lg object-cover shadow-md"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-primary-500 to-secondary-600 flex items-center justify-center shadow-md">
+                    <span className="text-white font-bold text-sm">
+                      {config.branding.appName.substring(0, 2).toUpperCase()}
+                    </span>
+                  </div>
+                )}
                 <div>
-                  <h1 className="text-sm font-bold text-gray-800">Mi App Completa</h1>
-                  <p className="text-xs text-gray-500">Sistema de Gestión</p>
+                  <h1 className="text-sm font-bold text-neutral-800">
+                    {config.logos.sidebarLogo.showText ? config.logos.sidebarLogo.text : config.branding.appName}
+                  </h1>
+                  <p className="text-xs text-neutral-500">{config.branding.tagline}</p>
                 </div>
               </div>
             ) : (
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center mx-auto shadow-md">
-                <span className="text-white font-bold text-sm">MA</span>
-              </div>
+              config.logos.sidebarLogo.showImage && config.logos.sidebarLogo.imageUrl ? (
+                <img 
+                  src={config.logos.sidebarLogo.imageUrl} 
+                  alt="Logo" 
+                  className="w-8 h-8 rounded-lg object-cover mx-auto shadow-md"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-primary-500 to-secondary-600 flex items-center justify-center mx-auto shadow-md">
+                  <span className="text-white font-bold text-sm">
+                    {config.logos.sidebarLogo.collapsedText || config.branding.appName.substring(0, 2).toUpperCase()}
+                  </span>
+                </div>
+              )
             )}
             
             <button
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="p-1.5 rounded-md hover:bg-white hover:shadow-sm text-gray-600 transition-all duration-200"
+              className="p-1.5 rounded-md hover:bg-white hover:shadow-sm text-neutral-600 transition-all duration-200"
               title={sidebarCollapsed ? 'Expandir sidebar' : 'Contraer sidebar'}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -160,8 +185,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 onClick={() => handleNavigate(item.path)}
                 className={`w-full flex items-center px-3 py-2.5 text-left rounded-lg transition-all duration-200 group ${
                   isCurrentPage
-                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg transform scale-105'
-                    : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700 hover:shadow-sm'
+                    ? 'bg-gradient-to-r from-primary-500 to-secondary-600 text-white shadow-lg transform scale-105'
+                    : 'text-neutral-600 hover:bg-primary-50 hover:text-primary-700 hover:shadow-sm'
                 }`}
                 title={sidebarCollapsed ? item.label : item.description}
               >
@@ -171,19 +196,19 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 {!sidebarCollapsed && (
                   <div className="flex-1 min-w-0">
                     <div className={`text-sm font-semibold truncate ${
-                      isCurrentPage ? 'text-white' : 'text-gray-900 group-hover:text-blue-800'
+                      isCurrentPage ? 'text-white' : 'text-neutral-900 group-hover:text-primary-800'
                     }`}>
                       {item.label}
                     </div>
                     <div className={`text-xs truncate ${
-                      isCurrentPage ? 'text-blue-100' : 'text-gray-500 group-hover:text-blue-600'
+                      isCurrentPage ? 'text-primary-100' : 'text-neutral-500 group-hover:text-primary-600'
                     }`}>
                       {item.description}
                     </div>
                   </div>
                 )}
                 {!sidebarCollapsed && !isCurrentPage && (
-                  <svg className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors opacity-0 group-hover:opacity-100" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="w-4 h-4 text-neutral-400 group-hover:text-primary-500 transition-colors opacity-0 group-hover:opacity-100" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
                   </svg>
                 )}
@@ -193,12 +218,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         </nav>
 
         {/* Footer del Sidebar */}
-        <div className="p-3 border-t border-gray-200 bg-gray-50">
+        <div className="p-3 border-t border-neutral-200 bg-neutral-50">
           {!sidebarCollapsed ? (
             <div className="flex items-center justify-between">
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-neutral-500">
                 <div className="flex items-center space-x-1">
-                  <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                  <div className="w-2 h-2 rounded-full bg-success-400"></div>
                   <span className="font-medium">v1.0.0</span>
                 </div>
                 <p className="text-xs">Sistema Completo</p>
@@ -230,12 +255,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Contenido Principal */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Área de Contenido */}
-        <main className="flex-1 overflow-auto bg-gray-50">
+        <main className="flex-1 overflow-auto bg-neutral-50">
           <div className="h-full">
             {children}
           </div>
         </main>
       </div>
     </div>
+    </ConfigSyncMonitor>
   );
 };
