@@ -150,6 +150,7 @@ export const UserManagementDashboard: React.FC = () => {
     return <Loading message="Cargando módulo de usuarios..." />;
   }
 
+  // Permisos calculados después de la validación
   const canManageUsers = hasPermission(currentUser, 'users.read');
   const canManageRoles = hasPermission(currentUser, 'roles.read') && (isAdmin || isSuperAdmin);
 
