@@ -6,11 +6,13 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { useUserContext } from '../context/UserContext';
+import { useRoleContext } from '../context/RoleContext';
 import { User, UserListFilters } from '../types/user.types';
 import { PermissionGuard } from '../../../shared/components/guards/PermissionGuard';
 import { formatDate, formatLastLogin, getRoleColor, getRoleDisplayName } from '../utils/permissions.utils';
 
 interface UserListProps {
+  currentUser?: User | null;
   onSelectUser?: (user: User) => void;
   onEditUser?: (user: User) => void;
   onDeleteUser?: (user: User) => void;
@@ -18,6 +20,7 @@ interface UserListProps {
 }
 
 export const UserList: React.FC<UserListProps> = ({
+  currentUser = null,
   onSelectUser,
   onEditUser,
   onDeleteUser,
@@ -25,7 +28,8 @@ export const UserList: React.FC<UserListProps> = ({
 }) => {
   const { getToken } = useAuth();
   const { state, loadUsers, setFilters, setPagination, updateUserRole } = useUserContext();
-  
+  const { state: roleState, loadRoles } = useRoleContext();
+
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoadingAction, setIsLoadingAction] = useState<string | null>(null);
 
@@ -33,6 +37,13 @@ export const UserList: React.FC<UserListProps> = ({
   useEffect(() => {
     loadUsers(getToken);
   }, [loadUsers, getToken, state.filters, state.pagination.page]);
+
+  // Cargar roles al montar el componente
+  useEffect(() => {
+    if (roleState.roles.length === 0 && !roleState.operations.list.loading) {
+      loadRoles(getToken);
+    }
+  }, [loadRoles, getToken, roleState.roles.length, roleState.operations.list.loading]);
 
   // Manejar cambios en filtros
   const handleFilterChange = (newFilters: Partial<UserListFilters>) => {
@@ -118,11 +129,29 @@ export const UserList: React.FC<UserListProps> = ({
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">Todos los roles</option>
-                <option value="user">Usuario</option>
-                <option value="moderator">Moderador</option>
-                <option value="admin">Administrador</option>
-                <option value="super_admin">Super Admin</option>
+                {roleState.roles.length > 0 ? (
+                  roleState.roles
+                    .filter(role => role.is_active)
+                    .map(role => (
+                      <option key={role.id} value={role.name}>
+                        {role.display_name}
+                      </option>
+                    ))
+                ) : (
+                  <>
+                    <option value="user">Usuario</option>
+                    <option value="moderator">Moderador</option>
+                    <option value="admin">Administrador</option>
+                    <option value="super_admin">Super Admin</option>
+                  </>
+                )}
               </select>
+              {roleState.operations.list.loading && (
+                <p className="text-xs text-blue-600 mt-1 flex items-center">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b border-blue-600 mr-1"></div>
+                  Cargando roles...
+                </p>
+              )}
             </div>
 
             {/* Filtro por estado */}
@@ -199,37 +228,49 @@ export const UserList: React.FC<UserListProps> = ({
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <PermissionGuard user={null} permission="users.assign_role">
-                          <select
-                            value={user.role?.name || 'user'}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              handleRoleChange(user, e.target.value);
-                            }}
-                            disabled={isLoadingAction === user.id}
-                            className={`text-xs px-2 py-1 rounded-full border ${getRoleColor(user.role?.name || 'user')} ${
-                              isLoadingAction === user.id ? 'opacity-50' : ''
-                            }`}
-                          >
-                            <option value="user">Usuario</option>
-                            <option value="moderator">Moderador</option>
-                            <option value="admin">Administrador</option>
-                            <option value="super_admin">Super Admin</option>
-                          </select>
-                        </PermissionGuard>
-                        
-                        {/* Si no tiene permisos, solo mostrar badge */}
-                        <PermissionGuard 
-                          user={null} 
-                          permission="users.assign_role"
+                        <PermissionGuard
+                          user={currentUser}
+                          permission="roles.assign"
                           fallback={
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleColor(user.role?.name || 'user')}`}>
                               {getRoleDisplayName(user.role?.name || 'user')}
                             </span>
                           }
                         >
-                          {/* Este contenido nunca se muestra porque el usuario es null */}
-                          <></>
+                          <select
+                            value={user.role?.name || 'user'}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              handleRoleChange(user, e.target.value);
+                            }}
+                            disabled={isLoadingAction === user.id || roleState.operations.list.loading}
+                            className={`text-xs px-2 py-1 rounded-full border ${getRoleColor(user.role?.name || 'user')} ${
+                              isLoadingAction === user.id ? 'opacity-50' : ''
+                            }`}
+                          >
+                            {roleState.roles.length > 0 ? (
+                              roleState.roles
+                                .filter(role => role.is_active)
+                                .map(role => (
+                                  <option key={role.id} value={role.name}>
+                                    {role.display_name}
+                                  </option>
+                                ))
+                            ) : (
+                              <>
+                                <option value="user">Usuario</option>
+                                <option value="moderator">Moderador</option>
+                                <option value="admin">Administrador</option>
+                                <option value="super_admin">Super Admin</option>
+                              </>
+                            )}
+                          </select>
+                          {roleState.operations.list.loading && (
+                            <div className="absolute -bottom-6 left-0 text-xs text-blue-600 flex items-center">
+                              <div className="animate-spin rounded-full h-2 w-2 border-b border-blue-600 mr-1"></div>
+                              Cargando...
+                            </div>
+                          )}
                         </PermissionGuard>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -249,10 +290,12 @@ export const UserList: React.FC<UserListProps> = ({
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex justify-end space-x-2">
-                          <PermissionGuard user={null} permission="users.update">
+                          <PermissionGuard user={currentUser} permission="users.update">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
+                                console.log('🔧 Botón Editar clickeado para usuario:', user);
+                                console.log('🔧 currentUser tiene permisos:', currentUser);
                                 onEditUser?.(user);
                               }}
                               className="text-blue-600 hover:text-blue-900 text-sm"
@@ -261,7 +304,7 @@ export const UserList: React.FC<UserListProps> = ({
                             </button>
                           </PermissionGuard>
                           
-                          <PermissionGuard user={null} permission="users.delete">
+                          <PermissionGuard user={currentUser} permission="users.delete">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();

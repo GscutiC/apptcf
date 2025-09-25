@@ -135,12 +135,11 @@ export const sanitizeRoleData = (data: RoleFormData): RoleFormData => {
  */
 export const validatePermissions = (permissions: string[]): Permission[] => {
   const validPermissions: Permission[] = [
-    'users.create', 'users.read', 'users.update', 'users.delete', 'users.list', 'users.assign_role',
+    'users.create', 'users.read', 'users.update', 'users.delete', 'users.list',
     'roles.create', 'roles.read', 'roles.update', 'roles.delete', 'roles.list', 'roles.assign',
-    'messages.create', 'messages.read', 'messages.update', 'messages.delete',
-    'ai.process_message', 'ai.access_advanced',
-    'admin.dashboard', 'admin.system_settings',
-    'system.read', 'system.maintenance',
+    'messages.create', 'messages.read', 'messages.update', 'messages.delete', 'messages.list',
+    'ai.process',
+    'admin.manage_settings',
     'audit.view_logs'
   ];
 

@@ -11,7 +11,6 @@ export type Permission =
   | 'users.update'
   | 'users.delete'
   | 'users.list'
-  | 'users.assign_role'
   // Roles permissions  
   | 'roles.create'
   | 'roles.read'
@@ -24,15 +23,11 @@ export type Permission =
   | 'messages.read'
   | 'messages.update'
   | 'messages.delete'
+  | 'messages.list'
   // AI permissions
-  | 'ai.process_message'
-  | 'ai.access_advanced'
+  | 'ai.process'
   // Admin permissions
-  | 'admin.dashboard'
-  | 'admin.system_settings'
-  // System permissions
-  | 'system.read'
-  | 'system.maintenance'
+  | 'admin.manage_settings'
   // Audit permissions
   | 'audit.view_logs';
 
@@ -40,11 +35,12 @@ export type RoleName = 'user' | 'moderator' | 'admin' | 'super_admin';
 
 export interface UserRole {
   id: string;
-  name: RoleName;
+  name: string; // Cambiado de RoleName a string para permitir roles dinámicos
   display_name: string;
   description?: string;
   permissions: Permission[];
   is_active: boolean;
+  is_system_role?: boolean; // Campo opcional del backend
   created_at: string;
   updated_at: string;
 }
@@ -73,7 +69,7 @@ export interface CreateUserRequest {
   full_name?: string;
   image_url?: string;
   phone_number?: string;
-  role_name?: RoleName;
+  role_name?: string; // Cambiado de RoleName a string
 }
 
 export interface UpdateUserRequest {
@@ -82,7 +78,7 @@ export interface UpdateUserRequest {
   full_name?: string;
   image_url?: string;
   phone_number?: string;
-  role_name?: RoleName;
+  role_name?: string; // Cambiado de RoleName a string
   is_active?: boolean;
 }
 
@@ -103,7 +99,7 @@ export interface UpdateRoleRequest {
 // Tipos para componentes
 export interface UserListFilters {
   search?: string;
-  role?: RoleName | 'all';
+  role?: string | 'all'; // Cambiado de RoleName a string
   status?: 'active' | 'inactive' | 'all';
   sortBy?: 'name' | 'email' | 'created_at' | 'last_login';
   sortOrder?: 'asc' | 'desc';
@@ -146,7 +142,7 @@ export interface UserFormData {
   last_name: string;
   email: string;
   phone_number?: string;
-  role_name: RoleName;
+  role_name: string; // Cambiado de RoleName a string para roles dinámicos
   is_active: boolean;
 }
 

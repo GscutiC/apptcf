@@ -9,10 +9,12 @@ import { useUserContext } from '../context/UserContext';
 import { useRoleContext } from '../context/RoleContext';
 import { User, UserFormData, CreateUserRequest, UpdateUserRequest } from '../types/user.types';
 import { validateUserForm, sanitizeUserData, getFieldError } from '../utils/validation.utils';
+import { hasPermission } from '../utils/permissions.utils';
 import { PermissionGuard } from '../../../shared/components/guards/PermissionGuard';
 
 interface UserFormProps {
   user?: User | null; // Si se pasa, es edición. Si no, es creación
+  currentUser?: User | null; // Usuario actual para permisos
   onSubmit?: (user: User) => void;
   onCancel?: () => void;
   isModal?: boolean;
@@ -20,6 +22,7 @@ interface UserFormProps {
 
 export const UserForm: React.FC<UserFormProps> = ({
   user = null,
+  currentUser = null,
   onSubmit,
   onCancel,
   isModal = false
@@ -42,9 +45,32 @@ export const UserForm: React.FC<UserFormProps> = ({
 
   const isEditing = !!user;
 
-  // Cargar roles al montar
+  // Cargar roles al montar el componente
   useEffect(() => {
-    loadRoles(getToken);
+    if (roleState.roles.length === 0 && !roleState.operations.list.loading) {
+      loadRoles(getToken);
+    }
+  }, []);
+
+  // Forzar recarga de roles cuando se abre el modal de edición si no hay roles
+  useEffect(() => {
+    if (isEditing && user && roleState.roles.length === 0) {
+      loadRoles(getToken);
+    }
+  }, [isEditing, user, roleState.roles.length, loadRoles, getToken]);
+
+  // Asegurar que siempre tengamos roles disponibles y forzar recarga cuando se abre el componente
+  useEffect(() => {
+    if (roleState.roles.length === 0 && !roleState.operations.list.loading && !roleState.operations.list.error) {
+      loadRoles(getToken);
+    }
+  }, [roleState.roles.length, roleState.operations.list.loading, roleState.operations.list.error, loadRoles, getToken]);
+
+  // Forzar recarga inicial para obtener todos los roles incluyendo los nuevos
+  useEffect(() => {
+    if (user || !user) { // Siempre forzar recarga
+      loadRoles(getToken);
+    }
   }, [loadRoles, getToken]);
 
   // Inicializar formulario con datos del usuario si es edición
@@ -144,6 +170,9 @@ export const UserForm: React.FC<UserFormProps> = ({
   const formClasses = isModal 
     ? "space-y-4" 
     : "bg-white rounded-lg shadow p-6 space-y-4";
+
+  // Determinar si necesitamos cargar roles
+  const needsRoleRefresh = roleState.roles.length === 0 && !roleState.operations.list.loading;
 
   return (
     <div className={formClasses}>
@@ -276,7 +305,7 @@ export const UserForm: React.FC<UserFormProps> = ({
             <label htmlFor="role_name" className="block text-sm font-medium text-gray-700 mb-1">
               Rol *
             </label>
-            <PermissionGuard user={null} permission="users.assign_role">
+            <PermissionGuard user={currentUser} permission="roles.assign">
               <select
                 id="role_name"
                 name="role_name"
@@ -286,27 +315,53 @@ export const UserForm: React.FC<UserFormProps> = ({
                   getFieldError(errors, 'role_name') ? 'border-red-500' : 'border-gray-300'
                 }`}
               >
-                {roleState.roles.map(role => (
-                  <option key={role.id} value={role.name}>
-                    {role.display_name}
-                  </option>
-                ))}
+                {/* Opción de fallback si no hay rol seleccionado */}
+                {!formData.role_name && (
+                  <option value="">Selecciona un rol</option>
+                )}
+
+                {roleState.roles.length > 0 ? (
+                  roleState.roles
+                    .filter(role => role.is_active)
+                    .map(role => (
+                      <option key={role.id} value={role.name}>
+                        {role.display_name}
+                      </option>
+                    ))
+                ) : (
+                  <option value="user">Usuario (cargando roles...)</option>
+                )}
               </select>
+              {/* Información de estado de carga */}
+              {roleState.operations.list.loading && (
+                <p className="text-xs text-blue-600 mt-1 flex items-center">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b border-blue-600 mr-1"></div>
+                  Cargando roles...
+                </p>
+              )}
+              {roleState.operations.list.error && (
+                <p className="text-xs text-red-600 mt-1">
+                  Error cargando roles: {roleState.operations.list.error}
+                </p>
+              )}
+              {needsRoleRefresh && (
+                <button
+                  type="button"
+                  onClick={() => loadRoles(getToken)}
+                  className="text-xs text-blue-600 hover:text-blue-800 mt-1"
+                >
+                  Recargar roles
+                </button>
+              )}
             </PermissionGuard>
             
-            {/* Fallback si no tiene permisos */}
-            <PermissionGuard 
-              user={null} 
-              permission="users.assign_role"
-              fallback={
-                <div className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-gray-700">
-                  {roleState.roles.find(r => r.name === formData.role_name)?.display_name || 'Usuario'}
-                  <p className="text-xs text-gray-500 mt-1">No tienes permisos para cambiar roles</p>
-                </div>
-              }
-            >
-              <></>
-            </PermissionGuard>
+            {/* Mostrar solo rol actual si no tiene permisos */}
+            {!currentUser || !hasPermission(currentUser, 'roles.assign') ? (
+              <div className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-gray-700">
+                {roleState.roles.find(r => r.name === formData.role_name)?.display_name || 'Usuario'}
+                <p className="text-xs text-gray-500 mt-1">No tienes permisos para cambiar roles</p>
+              </div>
+            ) : null}
             
             {getFieldError(errors, 'role_name') && (
               <p className="text-red-600 text-xs mt-1">{getFieldError(errors, 'role_name')}</p>

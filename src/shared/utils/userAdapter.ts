@@ -6,6 +6,26 @@ import { UserProfile } from '../../services/authService';
 import { User } from '../../modules/user-management/types/user.types';
 
 /**
+ * Mapeo de nombres de roles a nombres para mostrar
+ */
+const roleDisplayNames: Record<string, string> = {
+  'super_admin': 'Super Administrador',
+  'admin': 'Administrador', 
+  'moderator': 'Moderador',
+  'user': 'Usuario',
+  'guest': 'Invitado'
+};
+
+/**
+ * Obtiene el nombre de visualización para un rol
+ */
+function getRoleDisplayName(roleName: string): string {
+  // Normalizar a minúsculas para la búsqueda
+  const normalizedName = roleName?.toLowerCase() || 'user';
+  return roleDisplayNames[normalizedName] || roleName || 'Usuario';
+}
+
+/**
  * Convierte UserProfile (sistema existente) a User (sistema modular)
  */
 export const adaptUserProfileToUser = (userProfile: UserProfile | null): User | null => {
@@ -23,7 +43,7 @@ export const adaptUserProfileToUser = (userProfile: UserProfile | null): User | 
     role: userProfile.role ? {
       id: userProfile.role.id,
       name: userProfile.role.name as any,
-      display_name: userProfile.role.display_name,
+      display_name: userProfile.role.display_name || getRoleDisplayName(userProfile.role.name),
       description: userProfile.role.description,
       permissions: userProfile.role.permissions as any[],
       is_active: userProfile.role.is_active,
@@ -55,7 +75,7 @@ export const adaptUserToUserProfile = (user: User | null): UserProfile | null =>
     role: user.role ? {
       id: user.role.id,
       name: user.role.name,
-      display_name: user.role.display_name,
+      display_name: user.role.display_name || getRoleDisplayName(user.role.name),
       description: user.role.description,
       permissions: user.role.permissions,
       is_active: user.role.is_active

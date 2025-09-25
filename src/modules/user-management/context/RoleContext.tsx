@@ -3,7 +3,8 @@
  * Proporciona estado global para operaciones CRUD de roles
  */
 
-import React, { createContext, useContext, useReducer, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useCallback, useEffect, ReactNode } from 'react';
+import { useAuth } from '@clerk/clerk-react';
 import { 
   UserRole, 
   RoleContextState, 
@@ -166,6 +167,10 @@ interface RoleProviderProps {
 
 export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(roleReducer, initialState);
+  const { getToken } = useAuth();
+
+  // Referencias para los listeners
+  const loadRolesRef = React.useRef<((getToken: () => Promise<string | null>) => Promise<void>) | null>(null);
 
   // Acciones básicas
   const setSelectedRole = useCallback((role: UserRole | null) => {
@@ -182,6 +187,11 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
 
   // Operaciones asíncronas
   const loadRoles = useCallback(async (getToken: () => Promise<string | null>) => {
+    // Evitar cargar si ya estamos cargando o tenemos datos recientes
+    if (state.operations.list.loading) {
+      return;
+    }
+
     dispatch({ type: 'SET_LOADING', operation: 'list', loading: true });
     dispatch({ type: 'SET_ERROR', operation: 'list', error: null });
 
@@ -190,9 +200,32 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
       dispatch({ type: 'SET_ROLES', roles });
       dispatch({ type: 'SET_SUCCESS', operation: 'list', success: true });
     } catch (error) {
+      console.error('❌ RoleContext: Error loading roles:', error);
       dispatch({ type: 'SET_ERROR', operation: 'list', error: error instanceof Error ? error.message : 'Error desconocido' });
     }
-  }, []);
+  }, [state.operations.list.loading]);
+
+  // Asignar la referencia para el listener
+  loadRolesRef.current = loadRoles;
+
+  // Cargar roles automáticamente al inicializar el contexto
+  useEffect(() => {
+    if (getToken && state.roles.length === 0 && !state.operations.list.loading && !state.operations.list.error) {
+      loadRoles(getToken);
+    }
+  }, [getToken, state.roles.length, state.operations.list.loading, state.operations.list.error, loadRoles]);
+
+  // Efecto para escuchar cambios de roles desde otras páginas
+  useEffect(() => {
+    const handleRolesUpdated = () => {
+      if (loadRolesRef.current && getToken) {
+        loadRolesRef.current(getToken);
+      }
+    };
+
+    window.addEventListener('rolesUpdated', handleRolesUpdated);
+    return () => window.removeEventListener('rolesUpdated', handleRolesUpdated);
+  }, [getToken]);
 
   const createRole = useCallback(async (getToken: () => Promise<string | null>, roleData: CreateRoleRequest): Promise<UserRole | null> => {
     dispatch({ type: 'SET_LOADING', operation: 'create', loading: true });

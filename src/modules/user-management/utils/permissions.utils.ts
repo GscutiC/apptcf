@@ -15,7 +15,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { permission: 'users.update', description: 'Modificar usuarios existentes' },
       { permission: 'users.delete', description: 'Eliminar usuarios' },
       { permission: 'users.list', description: 'Listar todos los usuarios' },
-      { permission: 'users.assign_role', description: 'Asignar roles a usuarios' },
+      // users.assign_role se movió a roles.assign
     ]
   },
   {
@@ -26,7 +26,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { permission: 'roles.update', description: 'Modificar roles existentes' },
       { permission: 'roles.delete', description: 'Eliminar roles' },
       { permission: 'roles.list', description: 'Listar todos los roles' },
-      { permission: 'roles.assign', description: 'Asignar permisos a roles' },
+      { permission: 'roles.assign', description: 'Asignar roles a usuarios' },
     ]
   },
   {
@@ -36,27 +36,24 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { permission: 'messages.read', description: 'Leer mensajes' },
       { permission: 'messages.update', description: 'Editar mensajes' },
       { permission: 'messages.delete', description: 'Eliminar mensajes' },
+      { permission: 'messages.list', description: 'Listar mensajes' },
     ]
   },
   {
     category: 'Inteligencia Artificial',
     permissions: [
-      { permission: 'ai.process_message', description: 'Procesar mensajes con IA' },
-      { permission: 'ai.access_advanced', description: 'Acceso a funciones avanzadas de IA' },
+      { permission: 'ai.process', description: 'Procesar mensajes con IA' },
     ]
   },
   {
     category: 'Administración',
     permissions: [
-      { permission: 'admin.dashboard', description: 'Acceso al panel de administración' },
-      { permission: 'admin.system_settings', description: 'Configurar ajustes del sistema' },
+      { permission: 'admin.manage_settings', description: 'Gestionar configuración del sistema' },
     ]
   },
   {
-    category: 'Sistema y Auditoría',
+    category: 'Auditoría',
     permissions: [
-      { permission: 'system.read', description: 'Ver información del sistema' },
-      { permission: 'system.maintenance', description: 'Realizar mantenimiento del sistema' },
       { permission: 'audit.view_logs', description: 'Ver registros de auditoría' },
     ]
   }
@@ -67,7 +64,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
   user: [
     'messages.create',
     'messages.read', 
-    'ai.process_message'
+    'ai.process'
   ],
   moderator: [
     'messages.create',
@@ -76,7 +73,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
     'messages.delete',
     'users.read',
     'users.list',
-    'ai.process_message'
+    'ai.process'
   ],
   admin: [
     'users.create',
@@ -84,16 +81,15 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
     'users.update',
     'users.delete', 
     'users.list',
-    'users.assign_role',
+    'roles.assign',
     'roles.read',
     'roles.list',
     'messages.create',
     'messages.read',
     'messages.update',
     'messages.delete',
-    'ai.process_message',
-    'ai.access_advanced',
-    'admin.dashboard',
+    'messages.list',
+    'ai.process',
     'audit.view_logs'
   ],
   super_admin: [
@@ -102,23 +98,19 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
     'users.update',
     'users.delete',
     'users.list',
-    'users.assign_role',
+    'roles.assign',
     'roles.create',
     'roles.read',
     'roles.update',
     'roles.delete',
     'roles.list',
-    'roles.assign',
     'messages.create',
     'messages.read',
     'messages.update',
     'messages.delete',
-    'ai.process_message',
-    'ai.access_advanced',
-    'admin.dashboard',
-    'admin.system_settings',
-    'system.read',
-    'system.maintenance',
+    'messages.list',
+    'ai.process',
+    'admin.manage_settings',
     'audit.view_logs'
   ]
 };
@@ -162,14 +154,14 @@ export const hasAllPermissions = (user: User | null, permissions: Permission[]):
 /**
  * Verificar si un usuario tiene un rol específico
  */
-export const hasRole = (user: User | null, role: RoleName): boolean => {
+export const hasRole = (user: User | null, role: string): boolean => {
   return user?.role?.name === role;
 };
 
 /**
  * Verificar si un usuario tiene al menos uno de los roles especificados
  */
-export const hasAnyRole = (user: User | null, roles: RoleName[]): boolean => {
+export const hasAnyRole = (user: User | null, roles: string[]): boolean => {
   if (!user?.role) return false;
   return roles.includes(user.role.name);
 };
@@ -177,29 +169,56 @@ export const hasAnyRole = (user: User | null, roles: RoleName[]): boolean => {
 /**
  * Obtener el nombre de visualización del rol
  */
-export const getRoleDisplayName = (roleName: RoleName): string => {
-  const displayNames: Record<RoleName, string> = {
+export const getRoleDisplayName = (roleName: string): string => {
+  const displayNames: Record<string, string> = {
     user: 'Usuario',
     moderator: 'Moderador',
     admin: 'Administrador', 
     super_admin: 'Super Administrador'
   };
   
-  return displayNames[roleName] || roleName;
+  // Para roles conocidos, usar su nombre de visualización
+  const knownDisplayName = displayNames[roleName];
+  if (knownDisplayName) return knownDisplayName;
+  
+  // Para roles dinámicos, capitalizar y formatear
+  return roleName
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 };
 
 /**
  * Obtener el color del rol para UI
  */
-export const getRoleColor = (roleName: RoleName): string => {
-  const colors: Record<RoleName, string> = {
+export const getRoleColor = (roleName: string): string => {
+  const colors: Record<string, string> = {
     user: 'bg-blue-100 text-blue-800 border-blue-200',
     moderator: 'bg-yellow-100 text-yellow-800 border-yellow-200',
     admin: 'bg-purple-100 text-purple-800 border-purple-200',
     super_admin: 'bg-red-100 text-red-800 border-red-200'
   };
   
-  return colors[roleName] || colors.user;
+  // Para roles dinámicos, usar colores predeterminados basados en el nombre
+  const knownColor = colors[roleName];
+  if (knownColor) return knownColor;
+  
+  // Para roles nuevos/dinámicos, generar un color consistente
+  const hash = roleName.split('').reduce((a, b) => {
+    a = ((a << 5) - a) + b.charCodeAt(0);
+    return a & a;
+  }, 0);
+  
+  const colorOptions = [
+    'bg-green-100 text-green-800 border-green-200',
+    'bg-indigo-100 text-indigo-800 border-indigo-200',
+    'bg-pink-100 text-pink-800 border-pink-200',
+    'bg-orange-100 text-orange-800 border-orange-200',
+    'bg-teal-100 text-teal-800 border-teal-200',
+    'bg-cyan-100 text-cyan-800 border-cyan-200'
+  ];
+  
+  return colorOptions[Math.abs(hash) % colorOptions.length];
 };
 
 /**

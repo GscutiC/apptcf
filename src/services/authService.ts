@@ -74,6 +74,7 @@ class AuthService {
 
   async getAllRoles(getToken: () => Promise<string | null>): Promise<UserRole[]> {
     try {
+      console.log('🔄 authService.getAllRoles: Iniciando carga de roles...');
       const headers = await this.getAuthHeaders(getToken);
       const response = await fetch(`${API_BASE_URL}/auth/roles`, {
         headers
@@ -83,9 +84,11 @@ class AuthService {
         throw new Error('Error obteniendo roles');
       }
       
-      return await response.json();
+      const roles = await response.json();
+      console.log('✅ authService.getAllRoles: Roles obtenidos:', roles.length, roles);
+      return roles;
     } catch (error) {
-      console.error('Error en getAllRoles:', error);
+      console.error('❌ authService.getAllRoles: Error:', error);
       return [];
     }
   }
@@ -111,15 +114,88 @@ class AuthService {
   async updateUserRole(getToken: () => Promise<string | null>, clerkId: string, roleName: string): Promise<boolean> {
     try {
       const headers = await this.getAuthHeaders(getToken);
-      const response = await fetch(`${API_BASE_URL}/auth/users/${clerkId}/role?role_name=${roleName}`, {
+      const url = `${API_BASE_URL}/auth/users/${clerkId}/role?role_name=${roleName}`;
+      
+      console.log('🔄 UpdateUserRole - URL:', url);
+      console.log('🔄 UpdateUserRole - clerkId:', clerkId);
+      console.log('🔄 UpdateUserRole - roleName:', roleName);
+      
+      const response = await fetch(url, {
         method: 'PUT',
         headers
       });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Error response:', response.status, errorText);
+      } else {
+        console.log('✅ Role updated successfully');
+      }
       
       return response.ok;
     } catch (error) {
       console.error('Error en updateUserRole:', error);
       return false;
+    }
+  }
+
+  async createRole(getToken: () => Promise<string | null>, roleData: { name: string; display_name: string; description: string; permissions: string[] }): Promise<UserRole | null> {
+    try {
+      const headers = await this.getAuthHeaders(getToken);
+      
+      console.log('🔄 CreateRole - Enviando datos:', roleData);
+      
+      const response = await fetch(`${API_BASE_URL}/auth/roles/create`, {
+        method: 'POST',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(roleData)
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Error creating role:', response.status, errorText);
+        throw new Error(`Error creating role: ${errorText}`);
+      }
+      
+      const result = await response.json();
+      console.log('✅ Role created successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ Error en createRole:', error);
+      throw error;
+    }
+  }
+
+  async updateRole(getToken: () => Promise<string | null>, roleId: string, roleData: { display_name?: string; description?: string; permissions?: string[] }): Promise<UserRole | null> {
+    try {
+      const headers = await this.getAuthHeaders(getToken);
+      
+      console.log('🔄 UpdateRole - roleId:', roleId, 'datos:', roleData);
+      
+      const response = await fetch(`${API_BASE_URL}/auth/roles/${roleId}/update`, {
+        method: 'PUT',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(roleData)
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Error updating role:', response.status, errorText);
+        throw new Error(`Error updating role: ${errorText}`);
+      }
+      
+      const result = await response.json();
+      console.log('✅ Role updated successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ Error en updateRole:', error);
+      throw error;
     }
   }
 

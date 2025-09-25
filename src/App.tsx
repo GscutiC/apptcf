@@ -1,64 +1,28 @@
-import React, { useState } from 'react';
+import React, { Suspense } from 'react';
 import { 
   SignInButton, 
   SignUpButton, 
   useUser 
 } from '@clerk/clerk-react';
-import HelloWorld from './components/HelloWorld';
-import AIChat from './components/AIChat';
-import UserManagement from './components/UserManagement';
-import UserProfile from './components/UserProfile';
-import { UsersPage } from './modules/user-management/pages/UsersPage';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { RoleProvider } from './modules/user-management/context/RoleContext';
 import { NotificationProvider } from './shared/components/ui/Notifications';
-import { Layout, Dashboard, type ModulePage } from './shared/components/layout';
+import { Layout } from './shared/components/layout';  
+import { ProtectedRoute } from './shared/components/guards';
+import Loading from './shared/components/ui/Loading';
+
+// Lazy loading de páginas para optimizar el rendimiento
+const DashboardPage = React.lazy(() => import('./pages/DashboardPage'));
+const ChatPage = React.lazy(() => import('./pages/ChatPage'));
+const UsersPage = React.lazy(() => import('./pages/UsersPage'));
+const ProfilePage = React.lazy(() => import('./pages/ProfilePage'));
+const RolesPage = React.lazy(() => import('./pages/RolesPage'));
+const SettingsPage = React.lazy(() => import('./pages/SettingsPage'));
+const UnauthorizedPage = React.lazy(() => import('./pages/UnauthorizedPage'));
+const UserManagementDashboard = React.lazy(() => import('./pages/UserManagementDashboard'));
 
 function App() {
-  const [currentPage, setCurrentPage] = useState<ModulePage>('dashboard');
   const { user, isSignedIn } = useUser();
-
-  const renderCurrentPage = () => {
-    switch (currentPage) {
-      case 'dashboard':
-        return <Dashboard onNavigate={setCurrentPage} />;
-      case 'chat':
-        return <AIChat />;
-      case 'users-legacy':
-        return <UserManagement />;
-      case 'users-management':
-        return <UsersPage />;
-      case 'profile':
-        return <UserProfile />;
-      case 'roles-management':
-        return (
-          <div className="p-6">
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <h2 className="text-lg font-semibold text-yellow-800 mb-2">
-                🚧 Módulo en Desarrollo
-              </h2>
-              <p className="text-yellow-700">
-                La gestión de roles está en desarrollo. Pronto estará disponible.
-              </p>
-            </div>
-          </div>
-        );
-      case 'settings':
-        return (
-          <div className="p-6">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h2 className="text-lg font-semibold text-blue-800 mb-2">
-                ⚙️ Configuración del Sistema
-              </h2>
-              <p className="text-blue-700">
-                Panel de configuración en desarrollo.
-              </p>
-            </div>
-          </div>
-        );
-      default:
-        return <Dashboard onNavigate={setCurrentPage} />;
-    }
-  };
 
   // Si no hay usuario autenticado, mostrar página de login
   if (!isSignedIn) {
@@ -95,15 +59,106 @@ function App() {
     );
   }
 
-  // Usuario autenticado - mostrar aplicación completa
+  // Usuario autenticado - mostrar aplicación completa con Router
   return (
     <NotificationProvider>
       <RoleProvider>
-        <div className="min-h-screen bg-gray-50">
-          <Layout currentPage={currentPage} onPageChange={setCurrentPage}>
-            {renderCurrentPage()}
-          </Layout>
-        </div>
+        <Router>
+          <div className="min-h-screen bg-gray-50">
+            <Layout>
+              <Suspense fallback={<Loading message="Cargando página..." />}>
+                <Routes>
+                  {/* Ruta principal - redirige a dashboard */}
+                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                  
+                  {/* Ruta de acceso denegado */}
+                  <Route path="/unauthorized" element={<UnauthorizedPage />} />
+                  
+                  {/* Rutas básicas - solo requieren autenticación */}
+                  <Route 
+                    path="/dashboard" 
+                    element={
+                      <ProtectedRoute requireAuth={true}>
+                        <DashboardPage />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/chat" 
+                    element={
+                      <ProtectedRoute requireAuth={true}>
+                        <ChatPage />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/profile" 
+                    element={
+                      <ProtectedRoute requireAuth={true}>
+                        <ProfilePage />
+                      </ProtectedRoute>
+                    } 
+                  />
+                
+                {/* Rutas con permisos específicos */}
+                <Route 
+                  path="/user-management" 
+                  element={
+                    <ProtectedRoute 
+                      requireAuth={true}
+                      permission="users.read"
+                      unauthorizedRedirect="/unauthorized"
+                    >
+                      <UserManagementDashboard />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/users" 
+                  element={
+                    <ProtectedRoute 
+                      requireAuth={true}
+                      permission="users.read"
+                      unauthorizedRedirect="/unauthorized"
+                    >
+                      <UsersPage />
+                    </ProtectedRoute>
+                  } 
+                />
+                
+                {/* Rutas de administrador */}
+                <Route 
+                  path="/roles" 
+                  element={
+                    <ProtectedRoute 
+                      requireAuth={true}
+                      anyRole={["admin", "super_admin"]}
+                      unauthorizedRedirect="/unauthorized"
+                    >
+                      <RolesPage />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/settings" 
+                  element={
+                    <ProtectedRoute 
+                      requireAuth={true}
+                      anyRole={["admin", "super_admin"]}
+                      unauthorizedRedirect="/unauthorized"
+                    >
+                      <SettingsPage />
+                    </ProtectedRoute>
+                  } 
+                />
+                
+                  {/* Ruta 404 - redirige a dashboard */}
+                  <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                </Routes>
+              </Suspense>
+            </Layout>
+          </div>
+        </Router>
       </RoleProvider>
     </NotificationProvider>
   );

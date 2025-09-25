@@ -12,10 +12,10 @@ interface RoleGuardProps {
   user: User | null;
   
   // Requiere un rol específico
-  role?: RoleName;
+  role?: string;
   
   // Requiere al menos uno de estos roles
-  anyRole?: RoleName[];
+  anyRole?: string[];
   
   // Componente a mostrar cuando no tiene el rol
   fallback?: ReactNode;
@@ -160,7 +160,7 @@ export const SuperAdminOnly: React.FC<SuperAdminOnlyProps> = ({
 // HOC para componentes que requieren roles específicos
 export function withRoleGuard<P extends object>(
   WrappedComponent: React.ComponentType<P>,
-  role: RoleName,
+  role: string,
   fallback?: ReactNode
 ) {
   const WithRoleGuard = (props: P & { user: User | null }) => {
@@ -181,8 +181,8 @@ export function withRoleGuard<P extends object>(
 // Hook para verificar roles
 export const useRoleCheck = (user: User | null) => {
   return {
-    hasRole: (role: RoleName) => hasRole(user, role),
-    hasAnyRole: (roles: RoleName[]) => hasAnyRole(user, roles),
+    hasRole: (role: string) => hasRole(user, role),
+    hasAnyRole: (roles: string[]) => hasAnyRole(user, roles),
     isUser: () => hasRole(user, 'user'),
     isModerator: () => hasRole(user, 'moderator'),
     isAdmin: () => hasAnyRole(user, ['admin', 'super_admin']),

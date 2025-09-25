@@ -1,6 +1,11 @@
 /**
  * Servicio para gestión de roles
- * Se integra con el backend de autorización ya implementado
+ * Se integra co      console.log('🏷️ RoleService: Roles detallados:', roles.map((r: any) => ({
+        id: r.id,
+        name: r.name,
+        display_name: r.display_name,
+        is_active: r.is_active
+      })));ackend de autorización ya implementado
  */
 
 import { 
@@ -34,17 +39,22 @@ export class RoleService {
     try {
       const headers = await this.getAuthHeaders(getToken);
       
-      const response = await fetch(`${API_BASE_URL}/auth/roles`, {
+      const url = `${API_BASE_URL}/auth/roles/detailed?include_inactive=true`;
+
+      // Usar el endpoint con estadísticas que incluye roles activos e inactivos
+      const response = await fetch(url, {
         headers
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
         throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
 
-      return await response.json();
+      const roles = await response.json();
+      return roles;
     } catch (error) {
-      console.error('Error obteniendo roles:', error);
+      console.error('❌ RoleService: Error obteniendo roles:', error);
       throw new Error(`Error obteniendo roles: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
   }
@@ -173,7 +183,6 @@ export class RoleService {
       'users.update',
       'users.delete',
       'users.list',
-      'users.assign_role',
       // Roles permissions  
       'roles.create',
       'roles.read',
@@ -186,15 +195,11 @@ export class RoleService {
       'messages.read',
       'messages.update',
       'messages.delete',
+      'messages.list',
       // AI permissions
-      'ai.process_message',
-      'ai.access_advanced',
+      'ai.process',
       // Admin permissions
-      'admin.dashboard',
-      'admin.system_settings',
-      // System permissions
-      'system.read',
-      'system.maintenance',
+      'admin.manage_settings',
       // Audit permissions
       'audit.view_logs'
     ];

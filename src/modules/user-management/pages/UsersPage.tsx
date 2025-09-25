@@ -29,11 +29,15 @@ export const UsersPage: React.FC = () => {
   };
 
   const handleEditUser = (user: User) => {
+    console.log('🔧 handleEditUser llamado con:', user);
+    console.log('🔧 Cambiando a modo edit...');
     setSelectedUser(user);
     setViewMode('edit');
   };
 
   const handleSelectUser = (user: User) => {
+    console.log('👁️ handleSelectUser llamado con:', user);
+    console.log('👁️ Cambiando a modo detail...');
     setSelectedUser(user);
     setViewMode('detail');
   };
@@ -60,6 +64,7 @@ export const UsersPage: React.FC = () => {
       case 'create':
         return (
           <UserForm
+            currentUser={currentUser}
             onSubmit={handleFormSubmit}
             onCancel={handleCancel}
           />
@@ -69,6 +74,7 @@ export const UsersPage: React.FC = () => {
         return (
           <UserForm
             user={selectedUser}
+            currentUser={currentUser}
             onSubmit={handleFormSubmit}
             onCancel={handleCancel}
           />
@@ -174,6 +180,7 @@ export const UsersPage: React.FC = () => {
       default:
         return (
           <UserList
+            currentUser={currentUser}
             onSelectUser={handleSelectUser}
             onEditUser={handleEditUser}
             onDeleteUser={handleDeleteUser}
