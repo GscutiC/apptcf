@@ -14,6 +14,8 @@ export { PresetsPanel } from './components/PresetsPanel';
 export { PreviewPanel } from './components/PreviewPanel';
 export { ConfigSyncMonitor } from './components/ConfigSyncMonitor';
 export { ConfigLoader } from './components/ConfigLoader';
+export { SaveStatusIndicator } from './components/SaveStatusIndicator';
+export { ConfigUsageGuide } from './components/ConfigUsageGuide';
 
 // Tipos
 export type {

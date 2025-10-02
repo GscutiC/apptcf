@@ -53,23 +53,32 @@ export interface TypographyConfig {
   };
 }
 
+// Configuración de un logo individual
+export interface LogoItem {
+  text?: string;
+  imageUrl?: string; // URL completa de la imagen (Base64 o URL del servidor)
+  fileId?: string; // ID del archivo en el servidor (para nuevas imágenes)
+  showText?: boolean;
+  showImage?: boolean;
+  collapsedText?: string; // Texto cuando el sidebar está colapsado (solo para sidebarLogo)
+}
+
 // Configuración de logos
 export interface LogoConfig {
-  mainLogo: {
+  mainLogo: LogoItem & {
     text: string;
-    imageUrl?: string;
     showText: boolean;
     showImage: boolean;
   };
   favicon: {
     imageUrl?: string;
+    fileId?: string;
   };
-  sidebarLogo: {
+  sidebarLogo: LogoItem & {
     text: string;
-    imageUrl?: string;
     showText: boolean;
     showImage: boolean;
-    collapsedText: string; // Texto cuando el sidebar está colapsado
+    collapsedText: string;
   };
 }
 
@@ -149,13 +158,16 @@ export interface PresetConfig {
 // Contexto del tema
 export interface ThemeContextValue {
   config: InterfaceConfig;
+  savedConfig: InterfaceConfig;
   setConfig: (config: Partial<InterfaceConfig>) => void;
-  applyConfig: (config: InterfaceConfig) => Promise<void>;
-  updatePartialConfig: (updates: Partial<InterfaceConfig>) => Promise<void>;
+  saveChanges: () => Promise<void>;
+  discardChanges: () => void;
   resetToDefault: () => void;
   presets: PresetConfig[];
   loading: boolean;
   error: string | null;
+  isDirty: boolean;
+  isSaving: boolean;
 }
 
 // Estados para el formulario de configuración

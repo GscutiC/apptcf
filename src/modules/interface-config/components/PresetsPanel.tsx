@@ -1,5 +1,11 @@
 /**
- * Panel para manejo de presets/plantillas de configuración
+ * Panel interface PresetCardProps {
+  preset: PresetConfig;
+  isActive: boolean;
+  onApply: () => void;
+  onDelete?: () => void;
+  isApplyingPreset?: boolean;
+}anejo de presets/plantillas de configuración
  */
 
 import React, { useState } from 'react';
@@ -9,6 +15,7 @@ interface PresetsPanelProps {
   currentConfig: InterfaceConfig;
   presets: PresetConfig[];
   onApplyPreset: (preset: PresetConfig) => void;
+  isApplyingPreset?: boolean;
 }
 
 interface PresetCardProps {
@@ -16,9 +23,10 @@ interface PresetCardProps {
   isActive?: boolean;
   onApply: () => void;
   onDelete?: () => void;
+  isApplyingPreset?: boolean;
 }
 
-const PresetCard: React.FC<PresetCardProps> = ({ preset, isActive, onApply, onDelete }) => {
+const PresetCard: React.FC<PresetCardProps> = ({ preset, isActive, onApply, onDelete, isApplyingPreset = false }) => {
   const [showDetails, setShowDetails] = useState(false);
 
   return (
@@ -127,15 +135,21 @@ const PresetCard: React.FC<PresetCardProps> = ({ preset, isActive, onApply, onDe
 
       {/* Botón de aplicar */}
       <button
-        onClick={onApply}
-        disabled={isActive}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!isActive && !isApplyingPreset) {
+            onApply();
+          }
+        }}
+        disabled={isActive || isApplyingPreset}
         className={`w-full mt-3 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-          isActive
+          (isActive || isApplyingPreset)
             ? 'bg-neutral-100 text-neutral-500 cursor-not-allowed'
             : 'bg-primary-600 text-white hover:bg-primary-700'
         }`}
       >
-        {isActive ? 'Configuración Actual' : 'Aplicar Preset'}
+        {isApplyingPreset ? 'Aplicando...' : isActive ? 'Configuración Actual' : 'Aplicar Preset'}
       </button>
     </div>
   );
@@ -144,7 +158,8 @@ const PresetCard: React.FC<PresetCardProps> = ({ preset, isActive, onApply, onDe
 export const PresetsPanel: React.FC<PresetsPanelProps> = ({ 
   currentConfig, 
   presets, 
-  onApplyPreset 
+  onApplyPreset,
+  isApplyingPreset = false
 }) => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newPresetName, setNewPresetName] = useState('');
@@ -308,6 +323,7 @@ export const PresetsPanel: React.FC<PresetsPanelProps> = ({
               preset={preset}
               isActive={activePresetId === preset.id}
               onApply={() => onApplyPreset(preset)}
+              isApplyingPreset={isApplyingPreset}
             />
           ))}
         </div>
@@ -325,6 +341,7 @@ export const PresetsPanel: React.FC<PresetsPanelProps> = ({
                 isActive={activePresetId === preset.id}
                 onApply={() => onApplyPreset(preset)}
                 onDelete={() => handleDeletePreset(preset.id)}
+                isApplyingPreset={isApplyingPreset}
               />
             ))}
           </div>

@@ -4,6 +4,7 @@
 
 import React, { useState } from 'react';
 import { InterfaceConfig, ColorConfig, ColorShades } from '../types';
+import { useInterfaceConfig } from '../context/InterfaceConfigContext';
 
 interface ThemeConfigPanelProps {
   config: InterfaceConfig;
@@ -45,12 +46,19 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ label, color, onChange }) => 
 
 export const ThemeConfigPanel: React.FC<ThemeConfigPanelProps> = ({ config, onChange }) => {
   const [activeColorSet, setActiveColorSet] = useState<keyof ColorConfig>('primary');
+  const [isChanging, setIsChanging] = useState(false);
+  const [lastChanged, setLastChanged] = useState<string>('');
+  
+  // Hook para acceder a las funciones de guardado
+  const { saveChanges, discardChanges, isDirty, isSaving } = useInterfaceConfig();
 
   const handleColorChange = (
     colorSet: keyof ColorConfig,
     shade: string,
     newColor: string
   ) => {
+    setIsChanging(true);
+    
     const updatedColors = {
       ...config.theme.colors,
       [colorSet]: {
@@ -65,6 +73,12 @@ export const ThemeConfigPanel: React.FC<ThemeConfigPanelProps> = ({ config, onCh
         colors: updatedColors
       }
     });
+
+    // Feedback visual
+    setLastChanged(`${colorSet} ${shade}`);
+    setTimeout(() => {
+      setIsChanging(false);
+    }, 500);
   };
 
   const handleThemeNameChange = (name: string) => {
@@ -164,21 +178,54 @@ export const ThemeConfigPanel: React.FC<ThemeConfigPanelProps> = ({ config, onCh
         <h3 className="text-lg font-semibold text-neutral-800 mb-4">Paleta de Colores</h3>
         
         {/* Selector de conjunto de colores */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          {colorSets.map((colorSet) => (
-            <button
-              key={colorSet.key}
-              onClick={() => setActiveColorSet(colorSet.key)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeColorSet === colorSet.key
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
-              }`}
-              title={colorSet.description}
-            >
-              {colorSet.label}
-            </button>
-          ))}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex flex-wrap gap-2">
+              {colorSets.map((colorSet) => (
+                <button
+                  key={colorSet.key}
+                  onClick={() => setActiveColorSet(colorSet.key)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    activeColorSet === colorSet.key
+                      ? 'bg-primary-600 text-white shadow-lg scale-105'
+                      : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                  }`}
+                  title={colorSet.description}
+                >
+                  {colorSet.label}
+                  {isChanging && lastChanged.includes(String(colorSet.key)) && (
+                    <span className="ml-2 inline-block w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                  )}
+                </button>
+              ))}
+            </div>
+            
+            {/* Indicador de estado */}
+            <div className="flex items-center space-x-2 text-sm">
+              {isChanging ? (
+                <div className="flex items-center text-blue-600">
+                  <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse mr-2"></div>
+                  Aplicando cambios...
+                </div>
+              ) : (
+                <div className="flex items-center text-green-600">
+                  <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                  Cambios guardados automáticamente
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Información sobre el conjunto activo */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-sm text-blue-800">
+              <strong>Editando paleta:</strong> {colorSets.find(cs => cs.key === activeColorSet)?.label} - 
+              {colorSets.find(cs => cs.key === activeColorSet)?.description}
+            </p>
+            <p className="text-xs text-blue-600 mt-1">
+              Los cambios se guardan automáticamente y se aplican inmediatamente en toda la aplicación.
+            </p>
+          </div>
         </div>
 
         {/* Editor de colores para el conjunto activo */}
@@ -240,6 +287,50 @@ export const ThemeConfigPanel: React.FC<ThemeConfigPanelProps> = ({ config, onCh
           ))}
         </div>
       </div>
+
+      {/* Controles de guardado */}
+      {isDirty && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
+              <span className="text-yellow-800 font-medium">
+                Tienes cambios sin guardar
+              </span>
+              <span className="text-yellow-600 text-sm">
+                Los cambios solo se aplicarán cuando hagas clic en "Guardar"
+              </span>
+            </div>
+            
+            <div className="flex space-x-3">
+              <button
+                onClick={discardChanges}
+                disabled={isSaving}
+                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                Descartar
+              </button>
+              <button
+                onClick={saveChanges}
+                disabled={isSaving}
+                className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center space-x-2"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Guardando...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>💾</span>
+                    <span>Guardar Cambios</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

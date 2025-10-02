@@ -33,24 +33,32 @@ class InterfaceConfigService {
    * Guardar configuración
    */
   async saveConfig(config: InterfaceConfig): Promise<InterfaceConfig> {
+    const configWithTimestamp = {
+      ...config,
+      updatedAt: new Date().toISOString(),
+    };
+    
     try {
-      // Intentar guardar en el servidor
-      const response = await httpService.post<InterfaceConfig>(`${this.API_BASE}`, config);
+      console.log('💾 Guardando configuración en servidor...', configWithTimestamp.theme?.name);
       
-      // También guardar en localStorage como backup
-      this.saveToLocalStorage(response.data);
-      
-      return response.data;
-    } catch (error) {
-      console.warn('Error guardando en servidor, usando localStorage:', error);
-      
-      // Si falla el servidor, guardar solo en localStorage
-      const configWithTimestamp = {
-        ...config,
-        updatedAt: new Date().toISOString(),
-      };
-      
+      // Guardar en localStorage inmediatamente (para respuesta rápida)
       this.saveToLocalStorage(configWithTimestamp);
+      
+      // Intentar guardar en el servidor
+      const response = await httpService.post<InterfaceConfig>(`${this.API_BASE}`, configWithTimestamp);
+      
+      if (response.data) {
+        // Actualizar localStorage con respuesta del servidor
+        this.saveToLocalStorage(response.data);
+        console.log('✅ Configuración guardada exitosamente en servidor');
+        return response.data;
+      }
+      
+      return configWithTimestamp;
+    } catch (error) {
+      console.warn('❌ Error guardando en servidor, manteniendo localStorage:', error);
+      
+      // El localStorage ya tiene la configuración, no hay que revertir
       return configWithTimestamp;
     }
   }
@@ -60,23 +68,19 @@ class InterfaceConfigService {
    */
   async getPresets(): Promise<PresetConfig[]> {
     try {
-      // Intentar obtener presets del servidor (puede incluir presets personalizados)
+      // Intentar obtener presets del servidor
       const response = await httpService.get<PresetConfig[]>(`${this.API_BASE}/presets`);
       
-      // Combinar presets del sistema con los del servidor
-      const serverPresets = response.data || [];
-      const combinedPresets = [...SYSTEM_PRESETS];
+      if (response.data) {
+        console.log('✅ Presets cargados desde el servidor:', response.data);
+        return response.data;
+      }
       
-      // Agregar presets personalizados que no sean del sistema
-      serverPresets.forEach((preset: PresetConfig) => {
-        if (!preset.isSystem && !combinedPresets.find(p => p.id === preset.id)) {
-          combinedPresets.push(preset);
-        }
-      });
-      
-      return combinedPresets;
+      // Si no hay data, usar presets del sistema
+      console.log('⚠️ Sin presets del servidor, usando presets del sistema');
+      return SYSTEM_PRESETS;
     } catch (error) {
-      console.warn('Error obteniendo presets del servidor, usando presets del sistema:', error);
+      console.warn('❌ Error obteniendo presets del servidor, usando presets del sistema:', error);
       return SYSTEM_PRESETS;
     }
   }
@@ -118,6 +122,21 @@ class InterfaceConfigService {
    * Aplicar preset
    */
   async applyPreset(presetId: string): Promise<InterfaceConfig> {
+    try {
+      // Intentar usar el endpoint específico para aplicar preset
+      const response = await httpService.post<any>(`${this.API_BASE}/presets/${presetId}/apply`);
+      
+      if (response.data && response.data.config) {
+        // También guardar en localStorage como backup
+        this.saveToLocalStorage(response.data.config);
+        console.log('✅ Preset aplicado exitosamente:', response.data.message);
+        return response.data.config;
+      }
+    } catch (error) {
+      console.warn('❌ Error aplicando preset en servidor, usando método local:', error);
+    }
+    
+    // Fallback: método local
     const presets = await this.getPresets();
     const preset = presets.find(p => p.id === presetId);
     
@@ -125,6 +144,7 @@ class InterfaceConfigService {
       throw new Error('Preset no encontrado');
     }
     
+    console.log('🔄 Aplicando preset localmente:', preset.name);
     return this.saveConfig(preset.config);
   }
 

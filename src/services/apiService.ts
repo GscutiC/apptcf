@@ -51,6 +51,30 @@ export interface CreateUserData {
 }
 
 export const apiService = {
+  // Métodos HTTP básicos
+  async get<T = any>(url: string, config?: any): Promise<T> {
+    const response = await api.get(url, config);
+    return response.data;
+  },
+
+  async post<T = any>(url: string, data?: any, config?: any): Promise<T> {
+    const response = await api.post(url, data, config);
+    return response.data;
+  },
+
+  async put<T = any>(url: string, data?: any, config?: any): Promise<T> {
+    const response = await api.put(url, data, config);
+    return response.data;
+  },
+
+  async delete<T = any>(url: string, config?: any): Promise<T> {
+    const response = await api.delete(url, config);
+    return response.data;
+  },
+
+  // Acceso al cliente axios para casos especiales
+  getAxiosInstance: () => api,
+
   // Endpoints básicos
   async checkHealth(): Promise<HealthResponse> {
     const response = await api.get('/health');

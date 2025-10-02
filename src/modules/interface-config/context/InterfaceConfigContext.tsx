@@ -25,30 +25,37 @@ const configService = {
         return backendConfig;
       }
     } catch (error) {
-      console.warn('Backend no disponible, probando archivo global:', error);
+      console.warn('Backend no disponible, probando localStorage:', error);
+    }
+    
+    // 2. PRIORIZAR localStorage sobre archivo global para respetar cambios del usuario
+    try {
+      const saved = localStorage.getItem('interface-config');
+      if (saved) {
+        const localConfig = JSON.parse(saved);
+        console.log('✅ Usando configuración guardada del usuario desde localStorage');
+        return localConfig;
+      }
+    } catch (error) {
+      console.error('Error loading config from localStorage:', error);
     }
     
     try {
-      // 2. Intentar cargar archivo de configuración global
+      // 3. Solo usar archivo global como último recurso si no hay configuración local
       const globalConfigResponse = await fetch('/config/global-interface-config.json');
       if (globalConfigResponse.ok) {
         const globalConfig = await globalConfigResponse.json();
-        // Guardar en localStorage como caché
-        localStorage.setItem('interface-config', JSON.stringify(globalConfig));
+        console.log('📁 Usando configuración global por defecto (primera vez)');
+        // NO guardar automáticamente en localStorage para permitir personalización
         return globalConfig;
       }
     } catch (error) {
-      console.warn('Archivo global no disponible, usando localStorage:', error);
+      console.warn('Archivo global no disponible:', error);
     }
     
-    // 3. Si falla todo, usar localStorage
-    try {
-      const saved = localStorage.getItem('interface-config');
-      return saved ? JSON.parse(saved) : null;
-    } catch (error) {
-      console.error('Error loading config from localStorage:', error);
-      return null;
-    }
+    // 4. Si todo falla, usar configuración por defecto
+    console.log('🔧 Usando configuración por defecto del sistema');
+    return null;
   },
   
   saveConfig: async (config: InterfaceConfig): Promise<InterfaceConfig> => {
@@ -132,10 +139,12 @@ const configService = {
 // Estados del reducer
 type ConfigState = {
   config: InterfaceConfig;
+  savedConfig: InterfaceConfig; // Configuración guardada (referencia)
   presets: PresetConfig[];
   loading: boolean;
   error: string | null;
   isDirty: boolean;
+  isSaving: boolean;
 };
 
 // Acciones del reducer
@@ -143,10 +152,13 @@ type ConfigAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'SET_CONFIG'; payload: InterfaceConfig }
+  | { type: 'SET_SAVED_CONFIG'; payload: InterfaceConfig }
   | { type: 'SET_PRESETS'; payload: PresetConfig[] }
   | { type: 'UPDATE_CONFIG'; payload: Partial<InterfaceConfig> }
   | { type: 'SET_DIRTY'; payload: boolean }
-  | { type: 'RESET_TO_DEFAULT' };
+  | { type: 'SET_SAVING'; payload: boolean }
+  | { type: 'RESET_TO_DEFAULT' }
+  | { type: 'DISCARD_CHANGES' };
 
 // Función para obtener configuración inicial sincrónicamente
 const getInitialConfig = (): InterfaceConfig => {
@@ -169,10 +181,12 @@ const getInitialConfig = (): InterfaceConfig => {
 // Estado inicial
 const initialState: ConfigState = {
   config: getInitialConfig(),
+  savedConfig: getInitialConfig(), // La configuración guardada inicialmente es la misma
   presets: SYSTEM_PRESETS,
   loading: true, // Iniciar en loading para cargar la configuración real
   error: null,
   isDirty: false,
+  isSaving: false,
 };
 
 // Reducer
@@ -181,30 +195,53 @@ const configReducer = (state: ConfigState, action: ConfigAction): ConfigState =>
     case 'SET_LOADING':
       return { ...state, loading: action.payload };
     case 'SET_ERROR':
-      return { ...state, error: action.payload, loading: false };
+      return { ...state, error: action.payload, loading: false, isSaving: false };
     case 'SET_CONFIG':
       return { 
         ...state, 
-        config: action.payload, 
+        config: action.payload,
+        savedConfig: action.payload, // Al cargar, también es la configuración guardada
         loading: false, 
         error: null,
-        isDirty: false 
+        isDirty: false,
+        isSaving: false
+      };
+    case 'SET_SAVED_CONFIG':
+      return {
+        ...state,
+        savedConfig: action.payload,
+        config: action.payload, // Actualizar también la config actual
+        isDirty: false,
+        isSaving: false,
+        error: null
       };
     case 'SET_PRESETS':
       return { ...state, presets: action.payload };
     case 'UPDATE_CONFIG':
+      const newConfig = { ...state.config, ...action.payload };
+      const hasChanges = JSON.stringify(newConfig) !== JSON.stringify(state.savedConfig);
       return { 
         ...state, 
-        config: { ...state.config, ...action.payload },
-        isDirty: true 
+        config: newConfig,
+        isDirty: hasChanges
       };
     case 'SET_DIRTY':
       return { ...state, isDirty: action.payload };
+    case 'SET_SAVING':
+      return { ...state, isSaving: action.payload };
     case 'RESET_TO_DEFAULT':
+      const defaultConfig = getDefaultConfig();
+      const hasDefaultChanges = JSON.stringify(defaultConfig) !== JSON.stringify(state.savedConfig);
       return { 
         ...state, 
-        config: getDefaultConfig(),
-        isDirty: true 
+        config: defaultConfig,
+        isDirty: hasDefaultChanges
+      };
+    case 'DISCARD_CHANGES':
+      return {
+        ...state,
+        config: state.savedConfig, // Revertir a la configuración guardada
+        isDirty: false
       };
     default:
       return state;
@@ -231,7 +268,7 @@ export const InterfaceConfigProvider: React.FC<InterfaceConfigProviderProps> = (
 
   // Cargar configuración inicial
   useEffect(() => {
-    loadConfig();
+    loadConfigFromStorage();
     
     // Listener para cambios de configuración desde otras pestañas/usuarios
     const handleConfigChange = (event: CustomEvent) => {
@@ -249,18 +286,21 @@ export const InterfaceConfigProvider: React.FC<InterfaceConfigProviderProps> = (
       }
     };
     
-    // Polling para verificar cambios del backend cada 10 segundos (más frecuente)
+    // Polling para verificar cambios del backend (menos frecuente y más inteligente)
     const configPolling = setInterval(async () => {
       try {
-        const currentConfig = await configService.getCurrentConfig();
-        if (currentConfig && JSON.stringify(currentConfig) !== JSON.stringify(state.config)) {
-          console.log('🔄 Configuración actualizada detectada, aplicando cambios...');
-          dispatch({ type: 'SET_CONFIG', payload: currentConfig });
+        // Solo hacer polling si no estamos guardando cambios
+        if (!state.isSaving && !state.isDirty) {
+          const currentConfig = await configService.getCurrentConfig();
+          if (currentConfig && JSON.stringify(currentConfig) !== JSON.stringify(state.savedConfig)) {
+            console.log('🔄 Configuración del servidor actualizada, sincronizando...');
+            dispatch({ type: 'SET_CONFIG', payload: currentConfig });
+          }
         }
       } catch (error) {
         console.warn('Error polling config:', error);
       }
-    }, 10000); // Cada 10 segundos para respuesta más rápida
+    }, 30000); // Cada 30 segundos, menos agresivo
     
     window.addEventListener('interface-config-changed', handleConfigChange as EventListener);
     window.addEventListener('storage', handleStorageChange);
@@ -272,13 +312,17 @@ export const InterfaceConfigProvider: React.FC<InterfaceConfigProviderProps> = (
     };
   }, []);
 
-  // Aplicar configuración al DOM cuando cambie
+  // Aplicar configuración al DOM cuando cambie (con debounce para evitar aplicaciones múltiples)
   useEffect(() => {
-    applyConfigToDOM(state.config);
+    const timeoutId = setTimeout(() => {
+      applyConfigToDOM(state.config);
+    }, 50); // Pequeño debounce de 50ms
+    
+    return () => clearTimeout(timeoutId);
   }, [state.config]);
 
-  // Función para cargar la configuración
-  const loadConfig = async () => {
+  // Función para cargar la configuración inicial
+  const loadConfigFromStorage = async () => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       
@@ -315,54 +359,55 @@ export const InterfaceConfigProvider: React.FC<InterfaceConfigProviderProps> = (
     }
   };
 
-  // Función para aplicar configuración completa
-  const applyConfig = async (config: InterfaceConfig) => {
+  // Función para guardar cambios manualmente
+  const saveChanges = async () => {
     try {
-      dispatch({ type: 'SET_LOADING', payload: true });
+      console.log('💾 Iniciando guardado de configuración:', state.config.theme?.name);
+      dispatch({ type: 'SET_SAVING', payload: true });
       
-      // Guardar en localStorage
-      const savedConfig = await configService.saveConfig(config);
+      // Guardar configuración actual
+      const savedConfig = await configService.saveConfig(state.config);
       
-      // Actualizar estado local
-      dispatch({ type: 'SET_CONFIG', payload: savedConfig });
+      // Actualizar estado como guardado (importante: esto sincroniza savedConfig con config)
+      dispatch({ type: 'SET_SAVED_CONFIG', payload: savedConfig });
       
-      // Aplicar al DOM
-      applyConfigToDOM(savedConfig);
+      // No aplicar al DOM aquí, el useEffect se encarga con el debounce
+      
+      console.log('✅ Configuración guardada exitosamente');
       
     } catch (error) {
-      console.error('Error aplicando configuración:', error);
+      console.error('❌ Error guardando configuración:', error);
       dispatch({ type: 'SET_ERROR', payload: 'Error guardando configuración' });
+      dispatch({ type: 'SET_SAVING', payload: false });
       throw error;
     }
   };
 
-  // Función para actualización parcial (preserva otros datos)
-  const updatePartialConfig = async (updates: Partial<InterfaceConfig>) => {
-    try {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      
-      // Usar el nuevo servicio de actualización parcial
-      const savedConfig = await configService.updatePartialConfig(updates);
-      
-      // Actualizar estado local
-      dispatch({ type: 'SET_CONFIG', payload: savedConfig });
-      
-      // Aplicar al DOM
-      applyConfigToDOM(savedConfig);
-      
-    } catch (error) {
-      console.error('Error aplicando actualización parcial:', error);
-      dispatch({ type: 'SET_ERROR', payload: 'Error guardando cambios' });
-      throw error;
-    }
+  // Función para descartar cambios
+  const discardChanges = () => {
+    dispatch({ type: 'DISCARD_CHANGES' });
+    // Aplicar la configuración guardada al DOM
+    applyConfigToDOM(state.savedConfig);
+  };
+
+  // Función para aplicar configuración completa (solo para carga inicial)
+  const loadInitialConfig = async (config: InterfaceConfig) => {
+    dispatch({ type: 'SET_CONFIG', payload: config });
+    applyConfigToDOM(config);
   };
 
   // Función para actualizar configuración localmente (sin guardar)
-  const setConfig = (updates: Partial<InterfaceConfig>) => {
-    const newConfig = { ...state.config, ...updates };
-    dispatch({ type: 'UPDATE_CONFIG', payload: updates });
-    // Aplicar cambios inmediatamente al DOM para previsualización
-    applyConfigToDOM(newConfig);
+  const setConfig = (updates: Partial<InterfaceConfig> | InterfaceConfig) => {
+    // Si es una configuración completa (como un preset), reemplazar todo
+    if ('theme' in updates && 'logos' in updates && 'branding' in updates) {
+      console.log('🎨 Aplicando configuración completa:', updates.theme?.name);
+      dispatch({ type: 'UPDATE_CONFIG', payload: updates });
+      // No aplicar al DOM aquí, lo hace el useEffect con debounce
+    } else {
+      // Si son actualizaciones parciales, hacer merge
+      dispatch({ type: 'UPDATE_CONFIG', payload: updates });
+      // No aplicar al DOM aquí, lo hace el useEffect con debounce
+    }
   };
 
   // Función para resetear a configuración por defecto
@@ -472,13 +517,16 @@ export const InterfaceConfigProvider: React.FC<InterfaceConfigProviderProps> = (
   // Valor del contexto
   const contextValue: ThemeContextValue = {
     config: state.config,
+    savedConfig: state.savedConfig,
     setConfig,
-    applyConfig,
-    updatePartialConfig,
+    saveChanges,
+    discardChanges,
     resetToDefault,
     presets: state.presets,
     loading: state.loading,
     error: state.error,
+    isDirty: state.isDirty,
+    isSaving: state.isSaving,
   };
 
   return (
