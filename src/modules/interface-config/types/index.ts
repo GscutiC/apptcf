@@ -163,6 +163,7 @@ export interface ThemeContextValue {
   saveChanges: () => Promise<void>;
   discardChanges: () => void;
   resetToDefault: () => void;
+  forceApplyToDOM: () => void;
   presets: PresetConfig[];
   loading: boolean;
   error: string | null;

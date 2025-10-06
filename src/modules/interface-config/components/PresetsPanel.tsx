@@ -16,6 +16,7 @@ interface PresetsPanelProps {
   presets: PresetConfig[];
   onApplyPreset: (preset: PresetConfig) => void;
   isApplyingPreset?: boolean;
+  onChange?: (updates: Partial<InterfaceConfig>) => void;
 }
 
 interface PresetCardProps {
@@ -159,12 +160,20 @@ export const PresetsPanel: React.FC<PresetsPanelProps> = ({
   currentConfig, 
   presets, 
   onApplyPreset,
-  isApplyingPreset = false
+  isApplyingPreset = false,
+  onChange
 }) => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newPresetName, setNewPresetName] = useState('');
   const [newPresetDescription, setNewPresetDescription] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+
+  // Función simplificada que delega al padre (InterfaceConfigManager)
+  // El padre se encarga de setConfig + saveChanges + aplicar DOM
+  const handleApplyPresetWithSave = (preset: PresetConfig) => {
+    console.log('🎨 PresetsPanel: Delegando aplicación de preset al manager:', preset.name);
+    onApplyPreset(preset);
+  };
 
   // Determinar qué preset está activo actualmente
   const getCurrentPresetId = (): string | null => {
@@ -322,7 +331,7 @@ export const PresetsPanel: React.FC<PresetsPanelProps> = ({
               key={preset.id}
               preset={preset}
               isActive={activePresetId === preset.id}
-              onApply={() => onApplyPreset(preset)}
+              onApply={() => handleApplyPresetWithSave(preset)}
               isApplyingPreset={isApplyingPreset}
             />
           ))}
@@ -339,7 +348,7 @@ export const PresetsPanel: React.FC<PresetsPanelProps> = ({
                 key={preset.id}
                 preset={preset}
                 isActive={activePresetId === preset.id}
-                onApply={() => onApplyPreset(preset)}
+                onApply={() => handleApplyPresetWithSave(preset)}
                 onDelete={() => handleDeletePreset(preset.id)}
                 isApplyingPreset={isApplyingPreset}
               />

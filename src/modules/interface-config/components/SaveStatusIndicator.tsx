@@ -39,7 +39,7 @@ export const SaveStatusIndicator: React.FC = () => {
     return (
       <div className="flex items-center space-x-2 text-sm text-yellow-600 bg-yellow-50 px-3 py-2 rounded-lg">
         <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
-        <span>⚠️ Cambios pendientes - No guardados</span>
+        <span>⚠️ Cambios pendientes - Auto-guardado en 3s</span>
       </div>
     );
   }

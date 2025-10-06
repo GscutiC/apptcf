@@ -19,7 +19,7 @@ interface InterfaceConfigManagerProps {
 }
 
 export const InterfaceConfigManager: React.FC<InterfaceConfigManagerProps> = ({ className }) => {
-  const { config, setConfig, saveChanges, discardChanges, presets, loading, error, isDirty, isSaving } = useInterfaceConfig();
+  const { config, setConfig, saveChanges, discardChanges, forceApplyToDOM, presets, loading, error, isDirty, isSaving } = useInterfaceConfig();
   const [activeTab, setActiveTab] = useState<ConfigTab>('theme');
   const [isApplyingPreset, setIsApplyingPreset] = useState(false);
 
@@ -38,22 +38,48 @@ export const InterfaceConfigManager: React.FC<InterfaceConfigManagerProps> = ({ 
     
     try {
       setIsApplyingPreset(true);
-      console.log('🎨 Aplicando preset:', preset.name);
+      console.log('🎨 InterfaceConfigManager: Iniciando aplicación de preset:', preset.name);
       
       // Aplicar configuración del preset completamente (reemplazar todo, no merge)
-      const presetConfig = {
+      const presetConfig: InterfaceConfig = {
         ...preset.config,
         id: config.id || 'global-config', // Mantener ID si existe
         updatedAt: new Date().toISOString(),
         isActive: true
       };
       
-      // Actualizar configuración en el contexto
+      console.log('📝 Preset config a aplicar:', {
+        name: presetConfig.theme?.name,
+        id: presetConfig.id,
+        primaryColor: presetConfig.theme?.colors?.primary?.[500]
+      });
+      
+      // 1. Actualizar configuración en el contexto (esto usa REPLACE_CONFIG)
+      console.log('📝 Actualizando configuración en contexto...');
       setConfig(presetConfig);
       
-      // Guardar inmediatamente
+      // 2. Esperar un momento para que React procese el state update
+      await new Promise(resolve => setTimeout(resolve, 150));
+      
+      // 3. Forzar aplicación inmediata al DOM
+      console.log('🎨 Forzando aplicación al DOM...');
+      forceApplyToDOM();
+      
+      // 4. Guardar inmediatamente (sin esperar auto-save)
+      console.log('💾 Guardando cambios inmediatamente...');
       await saveChanges();
-      console.log('✅ Preset aplicado y guardado exitosamente');
+      
+      // 5. Forzar DOM otra vez después de guardar para asegurar
+      setTimeout(() => {
+        forceApplyToDOM();
+        console.log('✅ DOM re-aplicado después de guardado');
+      }, 100);
+      
+      // 6. Visual feedback
+      console.log('✅ Preset aplicado y guardado exitosamente:', preset.name);
+      
+      // Opcional: Mostrar notificación de éxito
+      // TODO: Implementar sistema de notificaciones toast
       
     } catch (error) {
       console.error('❌ Error aplicando preset:', error);
@@ -156,6 +182,7 @@ export const InterfaceConfigManager: React.FC<InterfaceConfigManagerProps> = ({ 
             presets={presets} 
             currentConfig={config} 
             onApplyPreset={handleApplyPreset}
+            onChange={handleConfigChange}
             isApplyingPreset={isApplyingPreset}
           />
         )}

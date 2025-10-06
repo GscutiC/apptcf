@@ -11,26 +11,56 @@ class InterfaceConfigService {
   private readonly API_BASE = '/api/interface-config';
 
   /**
-   * Obtener la configuración actual
+   * Obtener la configuración actual (mejorada con mejor sincronización)
    */
   async getCurrentConfig(): Promise<InterfaceConfig | null> {
     try {
+      console.log('📡 Intentando obtener configuración del servidor...');
+      
       // Primero intentar obtener del servidor
       const response = await httpService.get<InterfaceConfig>(`${this.API_BASE}/current`);
       if (response.data) {
+        console.log('✅ Configuración cargada desde el servidor:', response.data.theme?.name);
+        
+        // Guardar en localStorage como respaldo y sincronización
+        this.saveToLocalStorage(response.data);
         return response.data;
       }
     } catch (error) {
-      console.warn('Error obteniendo configuración del servidor, usando localStorage:', error);
+      console.warn('⚠️ Error obteniendo configuración del servidor, usando localStorage como fallback:', error);
     }
     
     // Si falla el servidor, usar localStorage
+    console.log('📂 Intentando cargar desde localStorage...');
     const savedConfig = this.getFromLocalStorage();
-    return savedConfig || null;
+    
+    if (savedConfig) {
+      console.log('✅ Configuración cargada desde localStorage:', savedConfig.theme?.name);
+      // Intentar sincronizar en segundo plano (sin bloquear)
+      this.syncInBackground(savedConfig);
+      return savedConfig;
+    }
+    
+    console.log('ℹ️ No hay configuración guardada, retornando null');
+    return null;
+  }
+  
+  /**
+   * Sincronización en segundo plano (no bloquea la UI)
+   */
+  private async syncInBackground(config: InterfaceConfig): Promise<void> {
+    try {
+      console.log('🔄 Sincronizando configuración en segundo plano...');
+      await httpService.post<InterfaceConfig>(`${this.API_BASE}`, config);
+      console.log('✅ Sincronización completada en segundo plano');
+    } catch (error) {
+      console.warn('⚠️ Sincronización en segundo plano falló (no crítico):', error);
+      // No lanzar error, es solo sincronización en background
+    }
   }
 
   /**
-   * Guardar configuración
+   * Guardar configuración (mejorado con mejor manejo de errores)
    */
   async saveConfig(config: InterfaceConfig): Promise<InterfaceConfig> {
     const configWithTimestamp = {
@@ -39,27 +69,42 @@ class InterfaceConfigService {
     };
     
     try {
-      console.log('💾 Guardando configuración en servidor...', configWithTimestamp.theme?.name);
+      console.log('💾 Guardando configuración:', configWithTimestamp.theme?.name);
       
-      // Guardar en localStorage inmediatamente (para respuesta rápida)
+      // PASO 1: Guardar en localStorage PRIMERO (respuesta inmediata)
       this.saveToLocalStorage(configWithTimestamp);
+      console.log('✅ Configuración guardada en localStorage');
       
-      // Intentar guardar en el servidor
-      const response = await httpService.post<InterfaceConfig>(`${this.API_BASE}`, configWithTimestamp);
-      
-      if (response.data) {
-        // Actualizar localStorage con respuesta del servidor
-        this.saveToLocalStorage(response.data);
-        console.log('✅ Configuración guardada exitosamente en servidor');
-        return response.data;
+      // PASO 2: Intentar guardar en el servidor
+      try {
+        const response = await httpService.post<InterfaceConfig>(`${this.API_BASE}`, configWithTimestamp);
+        
+        if (response.data) {
+          // Actualizar localStorage con respuesta del servidor (puede tener más datos)
+          this.saveToLocalStorage(response.data);
+          console.log('✅ Configuración guardada en servidor y sincronizada');
+          return response.data;
+        }
+      } catch (serverError) {
+        // Si falla el servidor, NO es crítico - ya tenemos localStorage
+        console.warn('⚠️ Guardado en servidor falló, pero localStorage está actualizado:', serverError);
+        // Retornar la configuración con timestamp que sí guardamos localmente
       }
       
+      // Retornar configuración guardada (aunque sea solo en localStorage)
       return configWithTimestamp;
-    } catch (error) {
-      console.warn('❌ Error guardando en servidor, manteniendo localStorage:', error);
       
-      // El localStorage ya tiene la configuración, no hay que revertir
-      return configWithTimestamp;
+    } catch (error) {
+      console.error('❌ Error crítico guardando configuración:', error);
+      
+      // Intentar recuperar de localStorage como fallback
+      const recoveredConfig = this.getFromLocalStorage();
+      if (recoveredConfig) {
+        console.log('🔄 Usando configuración recuperada de localStorage');
+        return recoveredConfig;
+      }
+      
+      throw new Error('Error guardando configuración y no se pudo recuperar');
     }
   }
 

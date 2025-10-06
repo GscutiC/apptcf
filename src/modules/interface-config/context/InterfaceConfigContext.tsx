@@ -5,136 +5,7 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
 import { InterfaceConfig, PresetConfig, ThemeContextValue, ConfigChangeEvent } from '../types';
 import { DEFAULT_INTERFACE_CONFIG, SYSTEM_PRESETS, getDefaultConfig } from '../utils/defaultConfigs';
-
-// Servicio mejorado para manejar la configuración global
-const configService = {
-  getCurrentConfig: async (): Promise<InterfaceConfig | null> => {
-    try {
-      // 1. Intentar obtener configuración del backend (global)
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/interface-config/current`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-      
-      if (response.ok) {
-        const backendConfig = await response.json();
-        // Guardar en localStorage como caché
-        localStorage.setItem('interface-config', JSON.stringify(backendConfig));
-        return backendConfig;
-      }
-    } catch (error) {
-      console.warn('Backend no disponible, probando localStorage:', error);
-    }
-    
-    // 2. PRIORIZAR localStorage sobre archivo global para respetar cambios del usuario
-    try {
-      const saved = localStorage.getItem('interface-config');
-      if (saved) {
-        const localConfig = JSON.parse(saved);
-        console.log('✅ Usando configuración guardada del usuario desde localStorage');
-        return localConfig;
-      }
-    } catch (error) {
-      console.error('Error loading config from localStorage:', error);
-    }
-    
-    try {
-      // 3. Solo usar archivo global como último recurso si no hay configuración local
-      const globalConfigResponse = await fetch('/config/global-interface-config.json');
-      if (globalConfigResponse.ok) {
-        const globalConfig = await globalConfigResponse.json();
-        console.log('📁 Usando configuración global por defecto (primera vez)');
-        // NO guardar automáticamente en localStorage para permitir personalización
-        return globalConfig;
-      }
-    } catch (error) {
-      console.warn('Archivo global no disponible:', error);
-    }
-    
-    // 4. Si todo falla, usar configuración por defecto
-    console.log('🔧 Usando configuración por defecto del sistema');
-    return null;
-  },
-  
-  saveConfig: async (config: InterfaceConfig): Promise<InterfaceConfig> => {
-    const configWithTimestamp = {
-      ...config,
-      updatedAt: new Date().toISOString(),
-    };
-    
-    try {
-      // 1. Intentar guardar en el backend (global)
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/interface-config`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(configWithTimestamp)
-      });
-      
-      if (response.ok) {
-        const savedConfig = await response.json();
-        // También guardar en localStorage como caché
-        localStorage.setItem('interface-config', JSON.stringify(savedConfig));
-        // Notificar a otras pestañas/ventanas del cambio
-        window.dispatchEvent(new CustomEvent('interface-config-changed', { detail: savedConfig }));
-        return savedConfig;
-      }
-    } catch (error) {
-      console.warn('Error guardando en backend, usando localStorage:', error);
-    }
-    
-    // 2. Si falla el backend, guardar solo en localStorage
-    try {
-      localStorage.setItem('interface-config', JSON.stringify(configWithTimestamp));
-      // Notificar a otras pestañas del cambio
-      window.dispatchEvent(new CustomEvent('interface-config-changed', { detail: configWithTimestamp }));
-      return configWithTimestamp;
-    } catch (error) {
-      console.error('Error saving config to localStorage:', error);
-      throw error;
-    }
-  },
-  
-  getPresets: async (): Promise<PresetConfig[]> => {
-    return SYSTEM_PRESETS;
-  },
-
-  updatePartialConfig: async (updates: Partial<InterfaceConfig>): Promise<InterfaceConfig> => {
-    const url = `${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/interface-config/partial`;
-    
-    try {
-      // 1. Intentar actualizar en el backend usando el endpoint parcial
-      const response = await fetch(url, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updates)
-      });
-      
-      if (response.ok) {
-        const updatedConfig = await response.json();
-        // También actualizar localStorage como caché
-        localStorage.setItem('interface-config', JSON.stringify(updatedConfig));
-        // Notificar a otras pestañas/ventanas del cambio
-        window.dispatchEvent(new CustomEvent('interface-config-changed', { detail: updatedConfig }));
-        return updatedConfig;
-      } else {
-        throw new Error(`Server responded with ${response.status}`);
-      }
-    } catch (error) {
-      console.warn('Error actualizando en backend, usando saveConfig completo:', error);
-    }
-    
-    // 2. Si falla, usar el método de guardado completo
-    const currentConfig = await configService.getCurrentConfig() || DEFAULT_INTERFACE_CONFIG;
-    const mergedConfig = { ...currentConfig, ...updates };
-    return configService.saveConfig(mergedConfig);
-  }
-};
+import { interfaceConfigService } from '../services/interfaceConfigService';
 
 // Estados del reducer
 type ConfigState = {
@@ -155,6 +26,7 @@ type ConfigAction =
   | { type: 'SET_SAVED_CONFIG'; payload: InterfaceConfig }
   | { type: 'SET_PRESETS'; payload: PresetConfig[] }
   | { type: 'UPDATE_CONFIG'; payload: Partial<InterfaceConfig> }
+  | { type: 'REPLACE_CONFIG'; payload: InterfaceConfig } // Reemplazo completo sin merge
   | { type: 'SET_DIRTY'; payload: boolean }
   | { type: 'SET_SAVING'; payload: boolean }
   | { type: 'RESET_TO_DEFAULT' }
@@ -163,17 +35,25 @@ type ConfigAction =
 // Función para obtener configuración inicial sincrónicamente
 const getInitialConfig = (): InterfaceConfig => {
   try {
-    // Intentar cargar de localStorage primero (más rápido)
+    // PRIORIDAD 1: Intentar cargar de localStorage primero (más rápido)
     const saved = localStorage.getItem('interface-config');
     if (saved) {
       const parsedConfig = JSON.parse(saved);
-      console.log('🔄 Configuración inicial cargada desde localStorage');
-      return parsedConfig;
+      console.log('✅ Configuración inicial cargada desde localStorage:', parsedConfig.theme?.name || 'Sin nombre');
+      // Validar que tenga estructura mínima requerida
+      if (parsedConfig.theme && parsedConfig.branding) {
+        return parsedConfig;
+      } else {
+        console.warn('⚠️ Configuración en localStorage incompleta, usando default');
+      }
+    } else {
+      console.log('ℹ️ No hay configuración en localStorage, usando default inicial');
     }
   } catch (error) {
-    console.warn('Error cargando configuración inicial:', error);
+    console.error('❌ Error parseando configuración inicial:', error);
   }
   
+  // PRIORIDAD 2: Solo usar default si no hay ninguna configuración válida
   console.log('🔄 Usando configuración por defecto inicial');
   return DEFAULT_INTERFACE_CONFIG;
 };
@@ -187,6 +67,25 @@ const initialState: ConfigState = {
   error: null,
   isDirty: false,
   isSaving: false,
+};
+
+// Función helper para comparar configuraciones de manera robusta
+const configsAreEqual = (config1: InterfaceConfig, config2: InterfaceConfig): boolean => {
+  try {
+    // Normalizar y ordenar propiedades antes de comparar
+    const normalize = (config: any) => {
+      if (!config) return '';
+      return JSON.stringify(config, Object.keys(config).sort());
+    };
+    
+    const normalized1 = normalize(config1);
+    const normalized2 = normalize(config2);
+    
+    return normalized1 === normalized2;
+  } catch (error) {
+    console.warn('Error comparing configs:', error);
+    return false;
+  }
 };
 
 // Reducer
@@ -219,11 +118,22 @@ const configReducer = (state: ConfigState, action: ConfigAction): ConfigState =>
       return { ...state, presets: action.payload };
     case 'UPDATE_CONFIG':
       const newConfig = { ...state.config, ...action.payload };
-      const hasChanges = JSON.stringify(newConfig) !== JSON.stringify(state.savedConfig);
+      const hasChanges = !configsAreEqual(newConfig, state.savedConfig);
+      console.log('📊 Config updated (merge), isDirty:', hasChanges, newConfig.theme?.name);
       return { 
         ...state, 
         config: newConfig,
         isDirty: hasChanges
+      };
+    case 'REPLACE_CONFIG':
+      // Reemplazo completo sin merge - para presets
+      const replacedConfig = action.payload;
+      const hasReplacementChanges = !configsAreEqual(replacedConfig, state.savedConfig);
+      console.log('🔄 Config replaced completely, isDirty:', hasReplacementChanges, replacedConfig.theme?.name);
+      return { 
+        ...state, 
+        config: replacedConfig,
+        isDirty: hasReplacementChanges
       };
     case 'SET_DIRTY':
       return { ...state, isDirty: action.payload };
@@ -231,7 +141,7 @@ const configReducer = (state: ConfigState, action: ConfigAction): ConfigState =>
       return { ...state, isSaving: action.payload };
     case 'RESET_TO_DEFAULT':
       const defaultConfig = getDefaultConfig();
-      const hasDefaultChanges = JSON.stringify(defaultConfig) !== JSON.stringify(state.savedConfig);
+      const hasDefaultChanges = !configsAreEqual(defaultConfig, state.savedConfig);
       return { 
         ...state, 
         config: defaultConfig,
@@ -266,6 +176,45 @@ export const InterfaceConfigProvider: React.FC<InterfaceConfigProviderProps> = (
     applyConfigToDOM(state.config);
   }, []); // Solo una vez al montar
 
+  // Auto-save inteligente con debounce mejorado
+  useEffect(() => {
+    // Solo auto-guardar si:
+    // 1. Hay cambios (isDirty)
+    // 2. No estamos guardando ya
+    // 3. La configuración es válida (tiene theme y branding)
+    const isValidConfig = state.config?.theme && state.config?.branding;
+    
+    if (state.isDirty && !state.isSaving && isValidConfig) {
+      console.log('⏰ Auto-save programado para:', state.config.theme?.name, '(en 3s)');
+      
+      const autoSaveTimeout = setTimeout(async () => {
+        try {
+          console.log('🤖 Ejecutando auto-save...');
+          await saveChanges();
+          console.log('✅ Auto-save completado exitosamente');
+        } catch (error) {
+          console.error('❌ Auto-save falló:', error);
+          // No hacer rollback en auto-save, el usuario puede guardar manualmente
+          dispatch({ type: 'SET_ERROR', payload: 'Auto-guardado falló. Intente guardar manualmente.' });
+        }
+      }, 3000); // Auto-guardar después de 3 segundos de inactividad
+      
+      return () => {
+        console.log('⏰ Auto-save cancelado (nuevos cambios detectados)');
+        clearTimeout(autoSaveTimeout);
+      };
+    } else {
+      // Log de por qué no se auto-guarda
+      if (!state.isDirty) {
+        // No hacer log, es normal
+      } else if (state.isSaving) {
+        console.log('⏸️ Auto-save pausado (guardado en progreso)');
+      } else if (!isValidConfig) {
+        console.warn('⚠️ Auto-save bloqueado (configuración inválida)');
+      }
+    }
+  }, [state.isDirty, state.config, state.isSaving]);
+
   // Cargar configuración inicial
   useEffect(() => {
     loadConfigFromStorage();
@@ -286,21 +235,33 @@ export const InterfaceConfigProvider: React.FC<InterfaceConfigProviderProps> = (
       }
     };
     
-    // Polling para verificar cambios del backend (menos frecuente y más inteligente)
+    // Polling inteligente para verificar cambios del backend
     const configPolling = setInterval(async () => {
       try {
-        // Solo hacer polling si no estamos guardando cambios
-        if (!state.isSaving && !state.isDirty) {
-          const currentConfig = await configService.getCurrentConfig();
-          if (currentConfig && JSON.stringify(currentConfig) !== JSON.stringify(state.savedConfig)) {
-            console.log('🔄 Configuración del servidor actualizada, sincronizando...');
+        // 🚫 NO hacer polling si hay cambios pendientes O si se está guardando
+        if (state.isDirty || state.isSaving) {
+          console.log('🚫 Polling skipped - local changes pending or saving in progress');
+          return;
+        }
+        
+        // Verificar si hay cambios en el servidor
+        const currentConfig = await interfaceConfigService.getCurrentConfig();
+        if (currentConfig) {
+          // Usar comparación más robusta
+          const localConfigStr = JSON.stringify(state.savedConfig, Object.keys(state.savedConfig || {}).sort());
+          const serverConfigStr = JSON.stringify(currentConfig, Object.keys(currentConfig).sort());
+          
+          if (localConfigStr !== serverConfigStr) {
+            console.log('🔄 Remote configuration updated, syncing...', currentConfig.theme?.name);
             dispatch({ type: 'SET_CONFIG', payload: currentConfig });
+          } else {
+            console.log('✅ Configurations are in sync');
           }
         }
       } catch (error) {
-        console.warn('Error polling config:', error);
+        console.warn('❌ Error polling config:', error);
       }
-    }, 30000); // Cada 30 segundos, menos agresivo
+    }, 60000); // Aumentado a 60 segundos para ser menos agresivo
     
     window.addEventListener('interface-config-changed', handleConfigChange as EventListener);
     window.addEventListener('storage', handleStorageChange);
@@ -312,72 +273,103 @@ export const InterfaceConfigProvider: React.FC<InterfaceConfigProviderProps> = (
     };
   }, []);
 
-  // Aplicar configuración al DOM cuando cambie (con debounce para evitar aplicaciones múltiples)
+  // Aplicar configuración al DOM solo DESPUÉS de guardar exitosamente
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      applyConfigToDOM(state.config);
-    }, 50); // Pequeño debounce de 50ms
-    
-    return () => clearTimeout(timeoutId);
-  }, [state.config]);
+    // Solo aplicar si la configuración está guardada (no hay cambios pendientes)
+    if (!state.isDirty && !state.isSaving) {
+      const timeoutId = setTimeout(() => {
+        console.log('🎨 Applying saved configuration to DOM:', state.config.theme?.name);
+        applyConfigToDOM(state.config);
+      }, 100); // Pequeño delay para asegurar que el estado esté estable
+      
+      return () => clearTimeout(timeoutId);
+    } else if (state.isDirty) {
+      console.log('⏳ Configuration has unsaved changes, not applying to DOM yet');
+    }
+  }, [state.config, state.isDirty, state.isSaving]);
 
   // Función para cargar la configuración inicial
   const loadConfigFromStorage = async () => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       
-      // Intentar cargar configuración guardada
-      const savedConfig = await configService.getCurrentConfig();
+      console.log('📥 Iniciando carga de configuración desde backend/storage...');
+      
+      // Intentar cargar configuración guardada (backend o localStorage)
+      const savedConfig = await interfaceConfigService.getCurrentConfig();
       
       if (savedConfig) {
-        // Solo actualizar si hay cambios reales
+        // Validar que la configuración del backend sea más reciente o diferente
         const currentConfigString = JSON.stringify(state.config);
         const newConfigString = JSON.stringify(savedConfig);
         
         if (currentConfigString !== newConfigString) {
-          console.log('🔄 Nueva configuración detectada, actualizando...');
+          console.log('🔄 Nueva configuración detectada, actualizando:', savedConfig.theme?.name);
           dispatch({ type: 'SET_CONFIG', payload: savedConfig });
         } else {
           console.log('✅ Configuración actual ya está sincronizada');
           dispatch({ type: 'SET_LOADING', payload: false });
         }
       } else {
-        // Si no hay configuración guardada, usar la por defecto
-        console.log('🔄 Usando configuración por defecto');
-        dispatch({ type: 'SET_CONFIG', payload: DEFAULT_INTERFACE_CONFIG });
+        // Si no hay configuración guardada Y la config actual es la default, mantenerla
+        console.log('ℹ️ No hay configuración remota, manteniendo configuración actual:', state.config.theme?.name);
+        dispatch({ type: 'SET_LOADING', payload: false });
+        
+        // NO sobrescribir con default si ya hay una configuración válida cargada
+        // Solo usar default si realmente no hay nada
+        if (!state.config.theme || !state.config.branding) {
+          console.log('⚠️ Configuración actual inválida, usando default');
+          dispatch({ type: 'SET_CONFIG', payload: DEFAULT_INTERFACE_CONFIG });
+        }
       }
       
       // Cargar presets disponibles
-      const presets = await configService.getPresets();
+      const presets = await interfaceConfigService.getPresets();
       dispatch({ type: 'SET_PRESETS', payload: presets });
       
     } catch (error) {
-      console.error('Error cargando configuración:', error);
+      console.error('❌ Error cargando configuración:', error);
       dispatch({ type: 'SET_ERROR', payload: 'Error cargando configuración de interfaz' });
-      // En caso de error, usar configuración por defecto
-      dispatch({ type: 'SET_CONFIG', payload: DEFAULT_INTERFACE_CONFIG });
+      dispatch({ type: 'SET_LOADING', payload: false });
+      
+      // En caso de error, MANTENER configuración actual en lugar de sobrescribir
+      console.log('⚠️ Manteniendo configuración actual debido a error en carga:', state.config.theme?.name);
     }
   };
 
-  // Función para guardar cambios manualmente
-  const saveChanges = async () => {
+  // Función para guardar cambios manualmente (mejorada)
+  const saveChanges = async (): Promise<void> => {
     try {
-      console.log('💾 Iniciando guardado de configuración:', state.config.theme?.name);
+      const configToSave = state.config;
+      console.log('💾 Iniciando guardado de configuración:', configToSave.theme?.name);
+      
+      // Validar configuración antes de guardar
+      if (!configToSave.theme || !configToSave.branding) {
+        throw new Error('Configuración inválida: faltan campos requeridos');
+      }
+      
       dispatch({ type: 'SET_SAVING', payload: true });
+      dispatch({ type: 'SET_ERROR', payload: null }); // Limpiar errores anteriores
       
-      // Guardar configuración actual
-      const savedConfig = await configService.saveConfig(state.config);
+      // Guardar configuración con timestamp actualizado
+      const savedConfig = await interfaceConfigService.saveConfig(configToSave);
       
-      // Actualizar estado como guardado (importante: esto sincroniza savedConfig con config)
+      console.log('✅ Configuración guardada exitosamente en backend/storage');
+      
+      // Actualizar estado como guardado (sincroniza savedConfig con config)
       dispatch({ type: 'SET_SAVED_CONFIG', payload: savedConfig });
       
-      // No aplicar al DOM aquí, el useEffect se encarga con el debounce
+      // Aplicar al DOM inmediatamente después de guardar exitosamente
+      console.log('🎨 Aplicando configuración al DOM:', savedConfig.theme?.name);
+      applyConfigToDOM(savedConfig);
       
-      console.log('✅ Configuración guardada exitosamente');
+      // Emitir evento para otras instancias/componentes
+      window.dispatchEvent(new CustomEvent('config-saved', { detail: savedConfig }));
       
     } catch (error) {
-      console.error('❌ Error guardando configuración:', error);
-      dispatch({ type: 'SET_ERROR', payload: 'Error guardando configuración' });
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      console.error('❌ Error guardando configuración:', errorMessage);
+      dispatch({ type: 'SET_ERROR', payload: `Error guardando: ${errorMessage}` });
       dispatch({ type: 'SET_SAVING', payload: false });
       throw error;
     }
@@ -400,11 +392,12 @@ export const InterfaceConfigProvider: React.FC<InterfaceConfigProviderProps> = (
   const setConfig = (updates: Partial<InterfaceConfig> | InterfaceConfig) => {
     // Si es una configuración completa (como un preset), reemplazar todo
     if ('theme' in updates && 'logos' in updates && 'branding' in updates) {
-      console.log('🎨 Aplicando configuración completa:', updates.theme?.name);
-      dispatch({ type: 'UPDATE_CONFIG', payload: updates });
+      console.log('🎨 Aplicando configuración completa (REPLACE):', updates.theme?.name);
+      dispatch({ type: 'REPLACE_CONFIG', payload: updates as InterfaceConfig });
       // No aplicar al DOM aquí, lo hace el useEffect con debounce
     } else {
       // Si son actualizaciones parciales, hacer merge
+      console.log('📝 Aplicando actualización parcial (MERGE)');
       dispatch({ type: 'UPDATE_CONFIG', payload: updates });
       // No aplicar al DOM aquí, lo hace el useEffect con debounce
     }
@@ -420,64 +413,104 @@ export const InterfaceConfigProvider: React.FC<InterfaceConfigProviderProps> = (
     try {
       const root = document.documentElement;
       
-      // Aplicar variables CSS personalizadas
+      // Validar que la configuración tenga la estructura esperada
+      if (!config || !config.theme) {
+        console.warn('Configuración inválida, usando valores por defecto');
+        return;
+      }
+      
+      // Aplicar variables CSS personalizadas de forma segura
       const { colors, typography, layout } = config.theme;
     
-    // Colores primarios
-    Object.entries(colors.primary).forEach(([shade, color]) => {
-      root.style.setProperty(`--color-primary-${shade}`, color);
-    });
-    
-    // Colores secundarios
-    Object.entries(colors.secondary).forEach(([shade, color]) => {
-      root.style.setProperty(`--color-secondary-${shade}`, color);
-    });
-    
-    // Colores de acento
-    Object.entries(colors.accent).forEach(([shade, color]) => {
-      root.style.setProperty(`--color-accent-${shade}`, color);
-    });
-    
-    // Colores neutrales
-    Object.entries(colors.neutral).forEach(([shade, color]) => {
-      root.style.setProperty(`--color-neutral-${shade}`, color);
-    });
-    
-    // Tipografía
-    root.style.setProperty('--font-family-primary', typography.fontFamily.primary);
-    root.style.setProperty('--font-family-secondary', typography.fontFamily.secondary);
-    root.style.setProperty('--font-family-mono', typography.fontFamily.mono);
-    
-    // Espaciado y layout
-    Object.entries(layout.borderRadius).forEach(([size, value]) => {
-      root.style.setProperty(`--border-radius-${size}`, value);
-    });
-    
-    // Actualizar título de la página
-    document.title = config.branding.appName;
-    
-    // Actualizar meta description
-    const metaDescription = document.querySelector('meta[name="description"]');
-    if (metaDescription) {
-      metaDescription.setAttribute('content', config.branding.appDescription);
+    // Colores primarios (con validación)
+    if (colors?.primary) {
+      Object.entries(colors.primary).forEach(([shade, color]) => {
+        if (color) {
+          root.style.setProperty(`--color-primary-${shade}`, color);
+        }
+      });
     }
     
-    // Actualizar favicon
+    // Colores secundarios (con validación)
+    if (colors?.secondary) {
+      Object.entries(colors.secondary).forEach(([shade, color]) => {
+        if (color) {
+          root.style.setProperty(`--color-secondary-${shade}`, color);
+        }
+      });
+    }
+    
+    // Colores de acento (con validación)
+    if (colors?.accent) {
+      Object.entries(colors.accent).forEach(([shade, color]) => {
+        if (color) {
+          root.style.setProperty(`--color-accent-${shade}`, color);
+        }
+      });
+    }
+    
+    // Colores neutrales (con validación)
+    if (colors?.neutral) {
+      Object.entries(colors.neutral).forEach(([shade, color]) => {
+        if (color) {
+          root.style.setProperty(`--color-neutral-${shade}`, color);
+        }
+      });
+    }
+    
+    // Tipografía (con validación)
+    if (typography?.fontFamily) {
+      if (typography.fontFamily.primary) {
+        root.style.setProperty('--font-family-primary', typography.fontFamily.primary);
+      }
+      if (typography.fontFamily.secondary) {
+        root.style.setProperty('--font-family-secondary', typography.fontFamily.secondary);
+      }
+      if (typography.fontFamily.mono) {
+        root.style.setProperty('--font-family-mono', typography.fontFamily.mono);
+      }
+    }
+    
+    // Espaciado y layout (con validación)
+    if (layout?.borderRadius) {
+      Object.entries(layout.borderRadius).forEach(([size, value]) => {
+        if (value) {
+          root.style.setProperty(`--border-radius-${size}`, value);
+        }
+      });
+    }
+    
+    // Actualizar título de la página (con validación)
+    if (config.branding?.appName) {
+      document.title = config.branding.appName;
+    }
+    
+    // Actualizar meta description (con validación)
+    if (config.branding?.appDescription) {
+      const metaDescription = document.querySelector('meta[name="description"]');
+      if (metaDescription) {
+        metaDescription.setAttribute('content', config.branding.appDescription);
+      }
+    }
+    
+    // Actualizar favicon (con validación)
     const favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement;
-    if (favicon) {
+    if (favicon && config.logos?.favicon) {
       if (config.logos.favicon.imageUrl) {
         favicon.href = config.logos.favicon.imageUrl;
-      } else {
+      } else if (config.branding?.appName && config.theme?.colors) {
         // Crear favicon dinámico con las iniciales de la aplicación
         const canvas = document.createElement('canvas');
         canvas.width = 32;
         canvas.height = 32;
         const ctx = canvas.getContext('2d');
         if (ctx) {
-          // Fondo con colores del tema
+          // Fondo con colores del tema (con fallbacks)
           const gradient = ctx.createLinearGradient(0, 0, 32, 32);
-          gradient.addColorStop(0, config.theme.colors.primary[500]);
-          gradient.addColorStop(1, config.theme.colors.secondary[600]);
+          const primaryColor = config.theme.colors.primary?.[500] || '#3b82f6';
+          const secondaryColor = config.theme.colors.secondary?.[600] || '#2563eb';
+          gradient.addColorStop(0, primaryColor);
+          gradient.addColorStop(1, secondaryColor);
           ctx.fillStyle = gradient;
           ctx.fillRect(0, 0, 32, 32);
           
@@ -522,6 +555,7 @@ export const InterfaceConfigProvider: React.FC<InterfaceConfigProviderProps> = (
     saveChanges,
     discardChanges,
     resetToDefault,
+    forceApplyToDOM,
     presets: state.presets,
     loading: state.loading,
     error: state.error,

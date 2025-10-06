@@ -25,6 +25,17 @@ const UserManagementDashboard = React.lazy(() => import('./pages/UserManagementD
 function App() {
   const { user, isSignedIn } = useUser();
 
+  // CRÍTICO: Asegurar que el body sea visible en caso de error
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!document.body.classList.contains('config-loaded')) {
+        console.warn('Aplicando config-loaded como fallback de seguridad');
+        document.body.classList.add('config-loaded');
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Si no hay usuario autenticado, mostrar página de login
   if (!isSignedIn) {
     return (

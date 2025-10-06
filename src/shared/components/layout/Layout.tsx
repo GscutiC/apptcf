@@ -81,6 +81,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { config } = useInterfaceConfig();
   const location = useLocation();
 
+  // Validación defensiva para configuración
+  if (!config || !config.logos || !config.logos.sidebarLogo || !config.branding) {
+    return (
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <span className="ml-2 text-neutral-600">Cargando configuración...</span>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
