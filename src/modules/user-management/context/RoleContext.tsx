@@ -200,7 +200,10 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
       dispatch({ type: 'SET_ROLES', roles });
       dispatch({ type: 'SET_SUCCESS', operation: 'list', success: true });
     } catch (error) {
-      console.error('❌ RoleContext: Error loading roles:', error);
+      // Log error solo en modo debug
+      if (process.env.REACT_APP_DEBUG) {
+        console.error('RoleContext: Error loading roles:', error);
+      }
       dispatch({ type: 'SET_ERROR', operation: 'list', error: error instanceof Error ? error.message : 'Error desconocido' });
     }
   }, [state.operations.list.loading]);

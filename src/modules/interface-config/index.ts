@@ -1,11 +1,26 @@
 /**
- * Índice del módulo de configuración de interfaz
+ * Módulo de configuración de interfaz - Arquitectura Modular v2.0
+ * Implementa servicios especializados y arquitectura limpia
  */
 
-// Contexto
+// ===============================
+// 🏛️ CONTEXTO Y HOOKS PRINCIPALES
+// ===============================
 export { InterfaceConfigProvider, useInterfaceConfig, useConfigChange } from './context/InterfaceConfigContext';
 
-// Componentes principales
+// ===============================
+// 🎯 SERVICIOS ESPECIALIZADOS
+// ===============================
+export { ConfigStateService } from './services/configStateService';
+export { ConfigComparisonService } from './services/configComparisonService';
+export { DOMConfigService } from './services/domConfigService';
+
+// Hook principal
+export { useInterfaceConfig as useInterfaceConfigHook } from './hooks/useInterfaceConfig';
+
+// ===============================
+// 📦 COMPONENTES UI
+// ===============================
 export { InterfaceConfigManager } from './components/InterfaceConfigManager';
 export { ThemeConfigPanel } from './components/ThemeConfigPanel';
 export { LogoConfigPanel } from './components/LogoConfigPanel';
@@ -17,7 +32,9 @@ export { ConfigLoader } from './components/ConfigLoader';
 export { SaveStatusIndicator } from './components/SaveStatusIndicator';
 export { ConfigUsageGuide } from './components/ConfigUsageGuide';
 
-// Tipos
+// ===============================
+// 🎯 TIPOS TYPESCRIPT
+// ===============================
 export type {
   InterfaceConfig,
   PresetConfig,
@@ -33,11 +50,20 @@ export type {
   ConfigChangeEvent
 } from './types';
 
-// Servicios
+// Tipos de servicios
+export type { 
+  ConfigState, 
+  ConfigAction
+} from './services/configStateService';
+export type { ConfigComparison } from './services/configComparisonService';
+export type { UseInterfaceConfigReturn } from './hooks/useInterfaceConfig';
+
+// ===============================
+// 🛠️ SERVICIOS Y UTILIDADES
+// ===============================
 export { interfaceConfigService } from './services/interfaceConfigService';
 export { httpService } from './services/httpService';
 
-// Utilidades
 export {
   DEFAULT_INTERFACE_CONFIG,
   DARK_THEME_CONFIG,
@@ -49,4 +75,4 @@ export {
 } from './utils/defaultConfigs';
 
 // Hooks
-export { useConfigSync } from './hooks/useConfigSync';
+// useConfigSync removido - usaba lógica legacy conflictiva

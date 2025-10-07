@@ -42,7 +42,7 @@ export const ConfigLoader: React.FC<ConfigLoaderProps> = ({
   // Timeout de seguridad: si después de 3 segundos no se ha cargado, forzar mostrar
   useEffect(() => {
     const timeoutTimer = setTimeout(() => {
-      console.warn('ConfigLoader: Timeout alcanzado, forzando renderizado');
+      // Forzar renderizado después del timeout
       setForceShow(true);
       setIsReady(true);
     }, 3000);

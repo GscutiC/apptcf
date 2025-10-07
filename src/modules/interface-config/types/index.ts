@@ -169,6 +169,10 @@ export interface ThemeContextValue {
   error: string | null;
   isDirty: boolean;
   isSaving: boolean;
+  // Nuevas propiedades contextuales
+  isGlobalAdmin: boolean;
+  configSource: 'user' | 'role' | 'organization' | 'global' | 'legacy' | 'localStorage';
+  canModifyGlobal: boolean;
 }
 
 // Estados para el formulario de configuración

@@ -54,7 +54,10 @@ export class RoleService {
       const roles = await response.json();
       return roles;
     } catch (error) {
-      console.error('❌ RoleService: Error obteniendo roles:', error);
+      // Log error en modo desarrollo
+      if (process.env.REACT_APP_DEBUG) {
+        console.error('RoleService: Error obteniendo roles:', error);
+      }
       throw new Error(`Error obteniendo roles: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
   }

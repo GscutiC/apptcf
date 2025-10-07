@@ -28,7 +28,7 @@ export const useAuthProfile = () => {
         
         // Si no funciona la sincronización normal, usar el método de debug
         if (!profile && clerkUser) {
-          console.log('🔧 Usando método de debug para crear usuario...');
+          // Intentar crear usuario con método alternativo
           const debugResult = await authService.debugCreateUser({
             clerk_id: clerkUser.id,
             email: clerkUser.primaryEmailAddress?.emailAddress || '',

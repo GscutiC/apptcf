@@ -6,13 +6,12 @@
 
 import React from 'react';
 import { useProtectedRoute } from '../hooks/useProtectedRoute';
-import { InterfaceConfigProvider, InterfaceConfigManager } from '../modules/interface-config';
+import { InterfaceConfigManager } from '../modules/interface-config';
 
 export const SettingsPage: React.FC = () => {
   const { user, userRole, userPermissions, isAdmin } = useProtectedRoute();
   return (
-    <InterfaceConfigProvider>
-      <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6 max-w-7xl mx-auto">
         {/* Header de la página */}
         <div className="mb-6">
           <div className="flex items-center mb-4">
@@ -87,7 +86,6 @@ export const SettingsPage: React.FC = () => {
           </div>
         </div>
       </div>
-    </InterfaceConfigProvider>
   );
 };
 

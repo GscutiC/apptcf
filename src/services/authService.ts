@@ -1,5 +1,7 @@
 // Servicio para manejar la autenticación y roles con la API del backend
 
+import { logger } from '../shared/utils/logger';
+
 export interface UserRole {
   id: string;
   name: string;
@@ -44,51 +46,41 @@ class AuthService {
 
   async getCurrentUser(getToken: () => Promise<string | null>): Promise<UserProfile | null> {
     try {
-      console.log('🔍 getCurrentUser: Obteniendo token...');
-      const token = await getToken();
-      console.log('🔑 Token obtenido:', token ? `${token.substring(0, 20)}...` : 'null');
-      
       const headers = await this.getAuthHeaders(getToken);
-      console.log('📡 Haciendo llamada a:', `${API_BASE_URL}/auth/me`);
-      
+
       const response = await fetch(`${API_BASE_URL}/auth/me`, {
         headers
       });
-      
-      console.log('📊 Respuesta del servidor:', response.status, response.statusText);
-      
+
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Error del servidor:', errorText);
+        logger.error('Error del servidor:', errorText);
         throw new Error(`Error obteniendo perfil de usuario: ${response.status}`);
       }
-      
+
       const userData = await response.json();
-      console.log('✅ Usuario obtenido:', userData);
       return userData;
     } catch (error) {
-      console.error('❌ Error en getCurrentUser:', error);
+      logger.error('Error en getCurrentUser:', error);
       return null;
     }
   }
 
   async getAllRoles(getToken: () => Promise<string | null>): Promise<UserRole[]> {
     try {
-      console.log('🔄 authService.getAllRoles: Iniciando carga de roles...');
       const headers = await this.getAuthHeaders(getToken);
       const response = await fetch(`${API_BASE_URL}/auth/roles`, {
         headers
       });
-      
+
       if (!response.ok) {
         throw new Error('Error obteniendo roles');
       }
-      
+
       const roles = await response.json();
-      console.log('✅ authService.getAllRoles: Roles obtenidos:', roles.length, roles);
       return roles;
     } catch (error) {
-      console.error('❌ authService.getAllRoles: Error:', error);
+      logger.error('Error en getAllRoles:', error);
       return [];
     }
   }
@@ -99,14 +91,14 @@ class AuthService {
       const response = await fetch(`${API_BASE_URL}/auth/users`, {
         headers
       });
-      
+
       if (!response.ok) {
         throw new Error('Error obteniendo usuarios');
       }
-      
+
       return await response.json();
     } catch (error) {
-      console.error('Error en getAllUsers:', error);
+      logger.error('Error en getAllUsers:', error);
       return [];
     }
   }
@@ -115,26 +107,20 @@ class AuthService {
     try {
       const headers = await this.getAuthHeaders(getToken);
       const url = `${API_BASE_URL}/auth/users/${clerkId}/role?role_name=${roleName}`;
-      
-      console.log('🔄 UpdateUserRole - URL:', url);
-      console.log('🔄 UpdateUserRole - clerkId:', clerkId);
-      console.log('🔄 UpdateUserRole - roleName:', roleName);
-      
+
       const response = await fetch(url, {
         method: 'PUT',
         headers
       });
-      
+
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Error response:', response.status, errorText);
-      } else {
-        console.log('✅ Role updated successfully');
+        logger.error('Error response:', response.status, errorText);
       }
-      
+
       return response.ok;
     } catch (error) {
-      console.error('Error en updateUserRole:', error);
+      logger.error('Error en updateUserRole:', error);
       return false;
     }
   }
@@ -142,9 +128,7 @@ class AuthService {
   async createRole(getToken: () => Promise<string | null>, roleData: { name: string; display_name: string; description: string; permissions: string[] }): Promise<UserRole | null> {
     try {
       const headers = await this.getAuthHeaders(getToken);
-      
-      console.log('🔄 CreateRole - Enviando datos:', roleData);
-      
+
       const response = await fetch(`${API_BASE_URL}/auth/roles/create`, {
         method: 'POST',
         headers: {
@@ -153,18 +137,17 @@ class AuthService {
         },
         body: JSON.stringify(roleData)
       });
-      
+
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Error creating role:', response.status, errorText);
+        logger.error('Error creating role:', response.status, errorText);
         throw new Error(`Error creating role: ${errorText}`);
       }
-      
+
       const result = await response.json();
-      console.log('✅ Role created successfully:', result);
       return result;
     } catch (error) {
-      console.error('❌ Error en createRole:', error);
+      logger.error('Error en createRole:', error);
       throw error;
     }
   }
@@ -172,9 +155,7 @@ class AuthService {
   async updateRole(getToken: () => Promise<string | null>, roleId: string, roleData: { display_name?: string; description?: string; permissions?: string[] }): Promise<UserRole | null> {
     try {
       const headers = await this.getAuthHeaders(getToken);
-      
-      console.log('🔄 UpdateRole - roleId:', roleId, 'datos:', roleData);
-      
+
       const response = await fetch(`${API_BASE_URL}/auth/roles/${roleId}/update`, {
         method: 'PUT',
         headers: {
@@ -183,18 +164,17 @@ class AuthService {
         },
         body: JSON.stringify(roleData)
       });
-      
+
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Error updating role:', response.status, errorText);
+        logger.error('Error updating role:', response.status, errorText);
         throw new Error(`Error updating role: ${errorText}`);
       }
-      
+
       const result = await response.json();
-      console.log('✅ Role updated successfully:', result);
       return result;
     } catch (error) {
-      console.error('❌ Error en updateRole:', error);
+      logger.error('Error en updateRole:', error);
       throw error;
     }
   }
@@ -202,17 +182,11 @@ class AuthService {
   // Método para sincronizar usuario automáticamente cuando se autentica
   async syncUserWithBackend(getToken: () => Promise<string | null>): Promise<UserProfile | null> {
     try {
-      console.log('🔄 Iniciando sincronización con backend...');
       // Este método llama a /auth/me que automáticamente sincroniza el usuario si no existe
       const user = await this.getCurrentUser(getToken);
-      if (user) {
-        console.log('✅ Usuario sincronizado correctamente:', user.full_name);
-      } else {
-        console.log('❌ No se pudo sincronizar el usuario');
-      }
       return user;
     } catch (error) {
-      console.error('❌ Error sincronizando usuario:', error);
+      logger.error('Error sincronizando usuario:', error);
       return null;
     }
   }
@@ -255,8 +229,6 @@ class AuthService {
     phone_number?: string;
   }): Promise<any> {
     try {
-      console.log('🔧 Debug: Enviando datos al backend:', userData);
-      
       const response = await fetch(`${API_BASE_URL}/debug/create-user`, {
         method: 'POST',
         headers: {
@@ -264,13 +236,11 @@ class AuthService {
         },
         body: JSON.stringify(userData)
       });
-      
+
       const result = await response.json();
-      console.log('🔧 Debug: Respuesta del backend:', result);
-      
       return result;
     } catch (error) {
-      console.error('❌ Error en debugCreateUser:', error);
+      logger.error('Error en debugCreateUser:', error);
       return { success: false, message: `Error: ${error}` };
     }
   }

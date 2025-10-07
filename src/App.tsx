@@ -29,7 +29,7 @@ function App() {
   React.useEffect(() => {
     const timer = setTimeout(() => {
       if (!document.body.classList.contains('config-loaded')) {
-        console.warn('Aplicando config-loaded como fallback de seguridad');
+        // Fallback de seguridad para visibilidad del contenido
         document.body.classList.add('config-loaded');
       }
     }, 1000);
@@ -77,7 +77,12 @@ function App() {
       <ConfigLoader>
         <NotificationProvider>
           <RoleProvider>
-            <Router>
+            <Router
+              future={{
+                v7_startTransition: true,
+                v7_relativeSplatPath: true
+              }}
+            >
             <div className="min-h-screen bg-gray-50">
               <Layout>
               <Suspense fallback={<Loading message="Cargando página..." />}>
