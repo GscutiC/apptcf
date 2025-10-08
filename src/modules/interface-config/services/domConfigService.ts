@@ -7,7 +7,7 @@ import { InterfaceConfig } from '../types';
 import { logger } from '../../../shared/utils/logger';
 
 export class DOMConfigService {
-  private static readonly CSS_VARIABLES_PREFIX = '--config-';
+  private static readonly CSS_VARIABLES_PREFIX = '--color-';
   private static readonly FAVICON_SELECTOR = 'link[rel="icon"]';
   private static readonly TITLE_SELECTOR = 'title';
 

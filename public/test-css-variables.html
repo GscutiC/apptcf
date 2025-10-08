@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test de Colores - Verificación CSS Variables</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .color-box {
+            display: inline-block;
+            width: 60px;
+            height: 60px;
+            margin: 5px;
+            border-radius: 4px;
+            border: 2px solid #ddd;
+        }
+        .color-set {
+            margin: 20px 0;
+        }
+        h2 {
+            color: #333;
+            border-bottom: 2px solid #3b82f6;
+            padding-bottom: 10px;
+        }
+        .variable-name {
+            font-family: monospace;
+            font-size: 12px;
+            color: #666;
+        }
+        .test-button {
+            background: var(--color-primary-500);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        .test-button:hover {
+            background: var(--color-primary-600);
+        }
+        .test-button.secondary {
+            background: var(--color-secondary-500);
+        }
+        .test-button.secondary:hover {
+            background: var(--color-secondary-600);
+        }
+        .test-button.accent {
+            background: var(--color-accent-500);
+        }
+        .test-button.accent:hover {
+            background: var(--color-accent-600);
+        }
+        .console {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .console .success { color: #4ade80; }
+        .console .error { color: #f87171; }
+        .console .warning { color: #fbbf24; }
+        .console .info { color: #60a5fa; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test de Variables CSS - Sistema de Temas</h1>
+        <p>Esta página verifica que las variables CSS se estén aplicando correctamente desde MongoDB.</p>
+
+        <div id="console" class="console">
+            <div class="info">🔍 Iniciando verificación...</div>
+        </div>
+
+        <h2>🎨 Colores Primarios</h2>
+        <div class="color-set" id="primary-colors"></div>
+
+        <h2>🎭 Colores Secundarios</h2>
+        <div class="color-set" id="secondary-colors"></div>
+
+        <h2>✨ Colores de Acento</h2>
+        <div class="color-set" id="accent-colors"></div>
+
+        <h2>⚪ Colores Neutrales</h2>
+        <div class="color-set" id="neutral-colors"></div>
+
+        <h2>🧪 Test de Botones (Hover para ver colores activos)</h2>
+        <div>
+            <button class="test-button">Botón Primario</button>
+            <button class="test-button secondary">Botón Secundario</button>
+            <button class="test-button accent">Botón Acento</button>
+        </div>
+
+        <h2>📋 Variables CSS Detectadas</h2>
+        <div id="variables-list"></div>
+    </div>
+
+    <script>
+        const log = (message, type = 'info') => {
+            const console = document.getElementById('console');
+            const line = document.createElement('div');
+            line.className = type;
+            line.textContent = message;
+            console.appendChild(line);
+            console.scrollTop = console.scrollHeight;
+        };
+
+        const shades = ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900'];
+        const colorSets = ['primary', 'secondary', 'accent', 'neutral'];
+
+        function checkCSSVariables() {
+            log('═══════════════════════════════════════════', 'info');
+            log('🔍 Verificando variables CSS en :root...', 'info');
+            log('═══════════════════════════════════════════', 'info');
+
+            const root = document.documentElement;
+            const computedStyle = getComputedStyle(root);
+            let totalFound = 0;
+            let totalExpected = colorSets.length * shades.length;
+
+            colorSets.forEach(colorSet => {
+                log(`\n📦 Verificando ${colorSet.toUpperCase()}:`, 'info');
+                const containerEl = document.getElementById(`${colorSet}-colors`);
+                
+                shades.forEach(shade => {
+                    const varName = `--color-${colorSet}-${shade}`;
+                    const value = computedStyle.getPropertyValue(varName).trim();
+                    
+                    if (value) {
+                        totalFound++;
+                        log(`  ✅ ${varName}: ${value}`, 'success');
+                        
+                        // Crear cuadro de color
+                        const box = document.createElement('div');
+                        box.className = 'color-box';
+                        box.style.backgroundColor = value;
+                        box.title = `${varName}: ${value}`;
+                        
+                        const label = document.createElement('div');
+                        label.className = 'variable-name';
+                        label.textContent = shade;
+                        
+                        const wrapper = document.createElement('div');
+                        wrapper.style.display = 'inline-block';
+                        wrapper.style.textAlign = 'center';
+                        wrapper.style.margin = '5px';
+                        wrapper.appendChild(box);
+                        wrapper.appendChild(label);
+                        
+                        containerEl.appendChild(wrapper);
+                    } else {
+                        log(`  ❌ ${varName}: NO DEFINIDA`, 'error');
+                    }
+                });
+            });
+
+            log('\n═══════════════════════════════════════════', 'info');
+            log(`📊 Resumen: ${totalFound}/${totalExpected} variables encontradas`, 
+                totalFound === totalExpected ? 'success' : 'warning');
+            
+            if (totalFound === 0) {
+                log('⚠️ PROBLEMA: No se encontraron variables CSS!', 'error');
+                log('🔧 Solución: Verifica que DOMConfigService esté aplicando las variables', 'warning');
+            } else if (totalFound < totalExpected) {
+                log(`⚠️ ADVERTENCIA: Faltan ${totalExpected - totalFound} variables`, 'warning');
+            } else {
+                log('🎉 ¡Todas las variables CSS están aplicadas correctamente!', 'success');
+            }
+            log('═══════════════════════════════════════════', 'info');
+
+            // Listar todas las variables encontradas
+            displayAllVariables();
+        }
+
+        function displayAllVariables() {
+            const root = document.documentElement;
+            const computedStyle = getComputedStyle(root);
+            const varsList = document.getElementById('variables-list');
+            const allVars = [];
+
+            // Buscar todas las variables --color-*
+            for (let i = 0; i < computedStyle.length; i++) {
+                const prop = computedStyle[i];
+                if (prop.startsWith('--color-')) {
+                    const value = computedStyle.getPropertyValue(prop).trim();
+                    allVars.push({ name: prop, value });
+                }
+            }
+
+            if (allVars.length === 0) {
+                varsList.innerHTML = '<p style="color: #ef4444;">❌ No se encontraron variables --color-* en el DOM</p>';
+            } else {
+                const table = document.createElement('table');
+                table.style.width = '100%';
+                table.style.borderCollapse = 'collapse';
+                table.innerHTML = `
+                    <thead>
+                        <tr style="background: #f3f4f6; border-bottom: 2px solid #d1d5db;">
+                            <th style="padding: 8px; text-align: left;">Variable</th>
+                            <th style="padding: 8px; text-align: left;">Valor</th>
+                            <th style="padding: 8px; text-align: center;">Preview</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${allVars.map(v => `
+                            <tr style="border-bottom: 1px solid #e5e7eb;">
+                                <td style="padding: 8px; font-family: monospace; color: #3b82f6;">${v.name}</td>
+                                <td style="padding: 8px; font-family: monospace; color: #666;">${v.value}</td>
+                                <td style="padding: 8px; text-align: center;">
+                                    <div style="width: 30px; height: 30px; background: ${v.value}; border: 1px solid #ddd; display: inline-block; border-radius: 4px;"></div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                `;
+                varsList.appendChild(table);
+            }
+        }
+
+        // Ejecutar verificación al cargar
+        setTimeout(checkCSSVariables, 500);
+
+        // Botón para re-verificar
+        const reloadBtn = document.createElement('button');
+        reloadBtn.textContent = '🔄 Re-verificar Variables';
+        reloadBtn.className = 'test-button';
+        reloadBtn.style.marginTop = '20px';
+        reloadBtn.onclick = () => {
+            document.getElementById('console').innerHTML = '';
+            document.getElementById('primary-colors').innerHTML = '';
+            document.getElementById('secondary-colors').innerHTML = '';
+            document.getElementById('accent-colors').innerHTML = '';
+            document.getElementById('neutral-colors').innerHTML = '';
+            document.getElementById('variables-list').innerHTML = '';
+            checkCSSVariables();
+        };
+        document.querySelector('.container').appendChild(reloadBtn);
+    </script>
+</body>
+</html>

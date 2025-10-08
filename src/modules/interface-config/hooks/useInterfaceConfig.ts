@@ -139,6 +139,15 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
         // Configurar la configuración (esto establece tanto config como savedConfig)
         actions.setConfig(configResponse.config);
         
+        // 🆕 Cargar presets en paralelo
+        dynamicConfigService.getPresets(getToken).then(presets => {
+          actions.setPresets(presets);
+          logger.info(`✅ Presets cargados: ${presets.length}`);
+        }).catch(error => {
+          logger.error('Error cargando presets:', error);
+          actions.setPresets([]);
+        });
+        
         // Aplicar al DOM inmediatamente
         DOMConfigService.applyConfigToDOM(configResponse.config);
         
@@ -153,12 +162,12 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
       logger.error('Error cargando configuración inicial:', error);
       actions.setError('Error cargando configuración');
       
-      // Fallback: intentar cargar desde dynamicConfigService (con cache)
+      // Fallback: intentar cargar desde dynamicConfigService nuevamente
       try {
-        const fallbackConfig = await dynamicConfigService.getCurrentConfig(getToken, 'cache-first');
+        const fallbackConfig = await dynamicConfigService.getCurrentConfig(getToken);
         actions.setConfig(fallbackConfig);
         DOMConfigService.applyConfigToDOM(fallbackConfig);
-        logger.info('✅ Configuración cargada desde cache después de error');
+        logger.info('✅ Configuración cargada después de reintentar');
       } catch (fallbackError) {
         // Último recurso: configuración de emergencia
         const emergencyConfig = dynamicConfigService.getEmergencyConfig();

@@ -1,12 +1,13 @@
 /**
  * Servicio de Configuración Dinámica
  * Responsabilidad: Cargar configuraciones SIEMPRE desde el backend (MongoDB)
- * Elimina dependencias de configuraciones hardcodeadas
  * 
- * ARQUITECTURA:
+ * ARQUITECTURA OPTIMIZADA:
  * - Backend MongoDB es la ÚNICA fuente de verdad
- * - Cache inteligente para modo offline
+ * - Backend tiene su propio CacheService optimizado con TTL
+ * - Frontend NO cachea, siempre consulta backend (el cache backend es rápido)
  * - Sin valores hardcodeados de fallback
+ * - Sin problemas de sincronización de doble caché
  */
 
 import { InterfaceConfig, PresetConfig } from '../types';
@@ -28,31 +29,11 @@ export class ConfigLoadError extends Error {
 }
 
 /**
- * Estrategia de carga de configuración
- */
-export type LoadStrategy = 
-  | 'backend-first'      // Intenta backend primero (default)
-  | 'cache-first'        // Usa cache si existe
-  | 'backend-only';      // Solo backend, falla si no está disponible
-
-/**
  * Servicio para cargar configuraciones dinámicamente desde backend
+ * Sin caché frontend - Backend maneja todo el caching
  */
 class DynamicConfigService {
   private static instance: DynamicConfigService;
-  
-  // Cache en memoria (más rápido que localStorage)
-  private memoryCache: {
-    config: InterfaceConfig | null;
-    presets: PresetConfig[] | null;
-    timestamp: number;
-  } = {
-    config: null,
-    presets: null,
-    timestamp: 0
-  };
-
-  private readonly MEMORY_CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 
   private constructor() {}
 
@@ -65,70 +46,32 @@ class DynamicConfigService {
 
   /**
    * Obtener configuración actual desde backend
+   * Backend maneja su propio caché, frontend solo consulta
    * @param getToken - Función para obtener token JWT
-   * @param strategy - Estrategia de carga
    */
   async getCurrentConfig(
-    getToken: () => Promise<string | null>,
-    strategy: LoadStrategy = 'backend-first'
+    getToken: () => Promise<string | null>
   ): Promise<InterfaceConfig> {
-    logger.info('🔄 Cargando configuración con estrategia:', strategy);
+    logger.info('🔄 Cargando configuración desde backend...');
 
     try {
-      // Estrategia: cache-first
-      if (strategy === 'cache-first') {
-        const cached = this.getFromMemoryCache();
-        if (cached) {
-          logger.info('✅ Configuración cargada desde memoria cache');
-          return cached;
-        }
-      }
-
-      // Intentar cargar desde backend
       const config = await interfaceConfigService.getCurrentConfig(getToken);
       
       if (config) {
-        // Guardar en cache de memoria
-        this.saveToMemoryCache(config);
-        logger.info('✅ Configuración cargada desde backend y cacheada');
+        logger.info('✅ Configuración cargada desde backend');
         return config;
       }
 
-      // Si no hay configuración en backend, verificar cache
-      const cachedConfig = this.getFromMemoryCache();
-      if (cachedConfig) {
-        logger.warn('⚠️ Backend sin configuración, usando cache');
-        return cachedConfig;
-      }
-
-      // No hay configuración en ningún lado
+      // No hay configuración en backend
       throw new ConfigLoadError(
-        'No se encontró configuración en backend ni en cache',
+        'No se encontró configuración en backend',
         'validation'
       );
 
     } catch (error) {
       logger.error('❌ Error cargando configuración:', error);
-
-      // Para backend-only, fallar inmediatamente
-      if (strategy === 'backend-only') {
-        throw new ConfigLoadError(
-          'Backend no disponible y estrategia es backend-only',
-          'network',
-          error as Error
-        );
-      }
-
-      // Para otras estrategias, intentar cache como último recurso
-      const cachedConfig = this.getFromMemoryCache();
-      if (cachedConfig) {
-        logger.warn('⚠️ Error de red, usando configuración cacheada');
-        return cachedConfig;
-      }
-
-      // Sin cache disponible
       throw new ConfigLoadError(
-        'No se pudo cargar configuración y no hay cache disponible',
+        'No se pudo cargar configuración desde backend',
         'network',
         error as Error
       );
@@ -137,52 +80,32 @@ class DynamicConfigService {
 
   /**
    * Obtener presets desde backend
+   * Backend maneja su propio caché, frontend solo consulta
    * @param getToken - Función para obtener token JWT
    */
   async getPresets(getToken: () => Promise<string | null>): Promise<PresetConfig[]> {
     try {
-      // Verificar cache primero
-      if (this.memoryCache.presets && this.isCacheValid()) {
-        logger.info('✅ Presets cargados desde memoria cache');
-        return this.memoryCache.presets;
-      }
-
-      // Cargar desde backend
+      logger.info('🔄 Cargando presets desde backend...');
+      
       const presets = await interfaceConfigService.getPresets(getToken);
       
       if (presets && presets.length > 0) {
-        this.memoryCache.presets = presets;
-        this.memoryCache.timestamp = Date.now();
-        logger.info('✅ Presets cargados desde backend y cacheados');
+        logger.info(`✅ ${presets.length} presets cargados desde backend`);
         return presets;
       }
 
-      // Si no hay presets en backend, retornar cache si existe
-      if (this.memoryCache.presets) {
-        logger.warn('⚠️ Backend sin presets, usando cache');
-        return this.memoryCache.presets;
-      }
-
-      // No hay presets disponibles
-      logger.warn('⚠️ No hay presets disponibles');
+      logger.info('ℹ️ No hay presets disponibles');
       return [];
 
     } catch (error) {
       logger.error('❌ Error cargando presets:', error);
-      
-      // Retornar cache si existe
-      if (this.memoryCache.presets) {
-        logger.warn('⚠️ Error de red, usando presets cacheados');
-        return this.memoryCache.presets;
-      }
-
       return [];
     }
   }
 
   /**
    * Crear configuración mínima de emergencia
-   * SOLO usar cuando TODO falla (backend caído + sin cache)
+   * SOLO usar cuando TODO falla (backend caído completamente)
    * No contiene valores de negocio hardcodeados
    */
   getEmergencyConfig(): InterfaceConfig {
@@ -280,61 +203,17 @@ class DynamicConfigService {
       isActive: true
     };
   }
-
-  /**
-   * Limpiar cache
-   */
-  clearCache(): void {
-    this.memoryCache = {
-      config: null,
-      presets: null,
-      timestamp: 0
-    };
-    logger.info('🗑️ Cache de configuración limpiado');
-  }
-
-  /**
-   * Invalidar cache y forzar recarga
-   */
-  async invalidateAndReload(getToken: () => Promise<string | null>): Promise<InterfaceConfig> {
-    this.clearCache();
-    return this.getCurrentConfig(getToken, 'backend-only');
-  }
-
-  // Métodos privados
-
-  private getFromMemoryCache(): InterfaceConfig | null {
-    if (this.memoryCache.config && this.isCacheValid()) {
-      return this.memoryCache.config;
-    }
-    return null;
-  }
-
-  private saveToMemoryCache(config: InterfaceConfig): void {
-    this.memoryCache.config = config;
-    this.memoryCache.timestamp = Date.now();
-  }
-
-  private isCacheValid(): boolean {
-    const age = Date.now() - this.memoryCache.timestamp;
-    return age < this.MEMORY_CACHE_TTL;
-  }
 }
 
 // Exportar instancia singleton
 export const dynamicConfigService = DynamicConfigService.getInstance();
 
 // Exportar funciones helper para uso simple
-export const loadCurrentConfig = (
-  getToken: () => Promise<string | null>,
-  strategy?: LoadStrategy
-) => dynamicConfigService.getCurrentConfig(getToken, strategy);
+export const loadCurrentConfig = (getToken: () => Promise<string | null>) => 
+  dynamicConfigService.getCurrentConfig(getToken);
 
 export const loadPresets = (getToken: () => Promise<string | null>) => 
   dynamicConfigService.getPresets(getToken);
 
 export const getEmergencyConfig = () => 
   dynamicConfigService.getEmergencyConfig();
-
-export const clearConfigCache = () => 
-  dynamicConfigService.clearCache();

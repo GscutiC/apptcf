@@ -1,20 +1,18 @@
 /**
- * Panel interface PresetCardProps {
-  preset: PresetConfig;
-  isActive: boolean;
-  onApply: () => void;
-  onDelete?: () => void;
-  isApplyingPreset?: boolean;
-}anejo de presets/plantillas de configuración
+ * Panel de manejo de presets/plantillas de configuración
  */
 
 import React, { useState } from 'react';
+import { useAuth } from '@clerk/clerk-react';
 import { InterfaceConfig, PresetConfig } from '../types';
+import { interfaceConfigService } from '../services/interfaceConfigService';
+import { PresetEditModal } from './PresetEditModal';
 
 interface PresetsPanelProps {
   currentConfig: InterfaceConfig;
   presets: PresetConfig[];
   onApplyPreset: (preset: PresetConfig) => void;
+  onPresetCreated?: () => void; // Callback para recargar presets
   isApplyingPreset?: boolean;
   onChange?: (updates: Partial<InterfaceConfig>) => void;
 }
@@ -23,11 +21,12 @@ interface PresetCardProps {
   preset: PresetConfig;
   isActive?: boolean;
   onApply: () => void;
+  onEdit?: () => void;
   onDelete?: () => void;
   isApplyingPreset?: boolean;
 }
 
-const PresetCard: React.FC<PresetCardProps> = ({ preset, isActive, onApply, onDelete, isApplyingPreset = false }) => {
+const PresetCard: React.FC<PresetCardProps> = ({ preset, isActive, onApply, onEdit, onDelete, isApplyingPreset = false }) => {
   const [showDetails, setShowDetails] = useState(false);
 
   return (
@@ -62,7 +61,10 @@ const PresetCard: React.FC<PresetCardProps> = ({ preset, isActive, onApply, onDe
         
         <div className="flex items-center space-x-2">
           <button
-            onClick={() => setShowDetails(!showDetails)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowDetails(!showDetails);
+            }}
             className="text-neutral-500 hover:text-neutral-700 p-1"
             title="Ver detalles"
           >
@@ -70,6 +72,18 @@ const PresetCard: React.FC<PresetCardProps> = ({ preset, isActive, onApply, onDe
               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
             </svg>
           </button>
+          
+          {!preset.isSystem && onEdit && (
+            <button
+              onClick={onEdit}
+              className="text-blue-500 hover:text-blue-700 p-1"
+              title="Editar preset"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+              </svg>
+            </button>
+          )}
           
           {!preset.isSystem && onDelete && (
             <button
@@ -160,13 +174,19 @@ export const PresetsPanel: React.FC<PresetsPanelProps> = ({
   currentConfig, 
   presets, 
   onApplyPreset,
+  onPresetCreated,
   isApplyingPreset = false,
   onChange
 }) => {
+  const { getToken } = useAuth();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newPresetName, setNewPresetName] = useState('');
   const [newPresetDescription, setNewPresetDescription] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  
+  // Estado para el modal de edición
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [presetToEdit, setPresetToEdit] = useState<PresetConfig | null>(null);
 
   // Función simplificada que delega al padre (InterfaceConfigManager)
   // El padre se encarga de setConfig + saveChanges + aplicar DOM
@@ -209,24 +229,32 @@ export const PresetsPanel: React.FC<PresetsPanelProps> = ({
 
     setIsCreating(true);
     try {
-      // Aquí implementarías la lógica para crear un preset personalizado
-      // const newPreset = await interfaceConfigService.createPreset(...)
+      console.log('🎨 Creando preset con configuración actual...');
       
-      // Por ahora, simular la creación
-      console.log('Creando preset:', {
-        name: newPresetName,
-        description: newPresetDescription,
-        config: currentConfig
-      });
+      // Crear preset con la configuración actual
+      const newPreset = await interfaceConfigService.createPreset(
+        getToken,
+        newPresetName.trim(),
+        newPresetDescription.trim(),
+        currentConfig
+      );
+
+      console.log('✅ Preset creado exitosamente:', newPreset);
       
+      // Limpiar formulario
       setNewPresetName('');
       setNewPresetDescription('');
       setShowCreateForm(false);
       
-      alert('Preset creado exitosamente');
+      // Recargar lista de presets si existe el callback
+      if (onPresetCreated) {
+        await onPresetCreated();
+      }
+      
+      alert(`Preset "${newPreset.name}" creado exitosamente`);
     } catch (error) {
-      console.error('Error creando preset:', error);
-      alert('Error creando el preset');
+      console.error('❌ Error creando preset:', error);
+      alert('Error creando el preset. Verifica los permisos y que todos los campos estén completos.');
     } finally {
       setIsCreating(false);
     }
@@ -238,14 +266,40 @@ export const PresetsPanel: React.FC<PresetsPanelProps> = ({
     }
 
     try {
-      // Aquí implementarías la lógica para eliminar el preset
-      // await interfaceConfigService.deletePreset(presetId);
-      console.log('Eliminando preset:', presetId);
+      console.log('🗑️ Eliminando preset:', presetId);
+      
+      // Eliminar preset usando el servicio
+      await interfaceConfigService.deletePreset(getToken, presetId);
+      
+      console.log('✅ Preset eliminado exitosamente');
+      
+      // Recargar lista de presets si existe el callback
+      if (onPresetCreated) {
+        await onPresetCreated();
+      }
+      
       alert('Preset eliminado exitosamente');
     } catch (error) {
-      console.error('Error eliminando preset:', error);
-      alert('Error eliminando el preset');
+      console.error('❌ Error eliminando preset:', error);
+      alert('Error eliminando el preset. Verifica que tengas los permisos necesarios.');
     }
+  };
+
+  const handleEditPreset = (preset: PresetConfig) => {
+    console.log('✏️ Abriendo modal de edición para:', preset.name);
+    setPresetToEdit(preset);
+    setShowEditModal(true);
+  };
+
+  const handleSaveEditedPreset = async (updatedPreset: PresetConfig) => {
+    console.log('💾 Preset actualizado:', updatedPreset.name);
+    
+    // Recargar lista de presets
+    if (onPresetCreated) {
+      await onPresetCreated();
+    }
+    
+    alert(`Preset "${updatedPreset.name}" actualizado exitosamente`);
   };
 
   // Separar presets del sistema y personalizados
@@ -332,6 +386,7 @@ export const PresetsPanel: React.FC<PresetsPanelProps> = ({
               preset={preset}
               isActive={activePresetId === preset.id}
               onApply={() => handleApplyPresetWithSave(preset)}
+              onEdit={() => handleEditPreset(preset)}
               isApplyingPreset={isApplyingPreset}
             />
           ))}
@@ -349,6 +404,7 @@ export const PresetsPanel: React.FC<PresetsPanelProps> = ({
                 preset={preset}
                 isActive={activePresetId === preset.id}
                 onApply={() => handleApplyPresetWithSave(preset)}
+                onEdit={() => handleEditPreset(preset)}
                 onDelete={() => handleDeletePreset(preset.id)}
                 isApplyingPreset={isApplyingPreset}
               />
@@ -371,6 +427,14 @@ export const PresetsPanel: React.FC<PresetsPanelProps> = ({
           </p>
         </div>
       )}
+
+      {/* Modal de edición de preset */}
+      <PresetEditModal
+        preset={presetToEdit}
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onSave={handleSaveEditedPreset}
+      />
     </div>
   );
 };

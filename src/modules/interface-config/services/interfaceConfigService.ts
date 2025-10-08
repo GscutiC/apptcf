@@ -123,15 +123,18 @@ class InterfaceConfigService {
       const httpService = createAuthenticatedHttpService(getToken);
       const response = await httpService.get<PresetConfig[]>(`${this.API_BASE}/presets`);
 
-      if (response.data) {
+      if (response.data && Array.isArray(response.data)) {
+        logger.info(`✅ Presets cargados desde backend: ${response.data.length}`);
         return response.data;
       }
 
-      // Si no hay data, usar presets del sistema
-      return SYSTEM_PRESETS;
+      // Si no hay data del servidor, retornar vacío
+      logger.warn('⚠️ No se pudieron cargar presets del servidor - respuesta vacía');
+      return [];
     } catch (error) {
-      logger.warn('Error obteniendo presets del servidor, usando presets del sistema:', error);
-      return SYSTEM_PRESETS;
+      logger.error('❌ Error obteniendo presets del servidor:', error);
+      // En caso de error de red, retornar vacío (no usar datos hardcodeados)
+      return [];
     }
   }
 

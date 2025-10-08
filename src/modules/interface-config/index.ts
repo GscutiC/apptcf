@@ -15,7 +15,7 @@ export { ConfigStateService } from './services/configStateService';
 export { ConfigComparisonService } from './services/configComparisonService';
 export { DOMConfigService } from './services/domConfigService';
 export { dynamicConfigService, ConfigLoadError } from './services/dynamicConfigService';
-export type { LoadStrategy } from './services/dynamicConfigService';
+export { presetEditService } from './services/presetEditService';
 
 // Hook principal
 export { useInterfaceConfig as useInterfaceConfigHook } from './hooks/useInterfaceConfig';
@@ -28,6 +28,7 @@ export { ThemeConfigPanel } from './components/ThemeConfigPanel';
 export { LogoConfigPanel } from './components/LogoConfigPanel';
 export { BrandingConfigPanel } from './components/BrandingConfigPanel';
 export { PresetsPanel } from './components/PresetsPanel';
+export { PresetEditModal } from './components/PresetEditModal';
 export { PreviewPanel } from './components/PreviewPanel';
 export { ConfigSyncMonitor } from './components/ConfigSyncMonitor';
 export { ConfigLoader } from './components/ConfigLoader';
@@ -78,7 +79,7 @@ export {
   DEFAULT_INTERFACE_CONFIG, // ⚠️ DEPRECADO
   DARK_THEME_CONFIG,         // ⚠️ DEPRECADO
   GREEN_CORPORATE_CONFIG,    // ⚠️ DEPRECADO
-  SYSTEM_PRESETS,            // ⚠️ DEPRECADO
+  // SYSTEM_PRESETS removido - usar loadPresetsFromBackend()
   getDefaultConfig,          // ⚠️ DEPRECADO
   getPresetById,             // ⚠️ DEPRECADO
   validateConfig,

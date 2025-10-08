@@ -5,9 +5,11 @@
  */
 
 import React, { useState } from 'react';
+import { useAuth } from '@clerk/clerk-react';
 import { useInterfaceConfig } from '../context/InterfaceConfigContext';
 import { InterfaceConfig, PresetConfig } from '../types';
 import { DOMConfigService } from '../services/domConfigService';
+import { dynamicConfigService } from '../services/dynamicConfigService';
 import { logger } from '../../../shared/utils/logger';
 
 // Importar los componentes existentes
@@ -29,6 +31,8 @@ interface InterfaceConfigManagerProps {
  * Gestor principal de configuración de interfaz
  */
 export const InterfaceConfigManager: React.FC<InterfaceConfigManagerProps> = ({ className }) => {
+  const { getToken } = useAuth();
+  
   // Estado usando la nueva arquitectura modular
   const { 
     config, 
@@ -49,6 +53,26 @@ export const InterfaceConfigManager: React.FC<InterfaceConfigManagerProps> = ({ 
   
   const [activeTab, setActiveTab] = useState<ConfigTab>('theme');
   const [isApplyingPreset, setIsApplyingPreset] = useState(false);
+  const [localPresets, setLocalPresets] = useState<PresetConfig[]>(presets);
+
+  // Sincronizar localPresets con presets del contexto
+  React.useEffect(() => {
+    setLocalPresets(presets);
+  }, [presets]);
+
+  // Función para recargar presets después de crear/eliminar uno
+  const handlePresetCreated = async () => {
+    try {
+      logger.info('🔄 Recargando presets desde backend...');
+      
+      // Recargar desde backend (backend maneja el caché)
+      const updatedPresets = await dynamicConfigService.getPresets(getToken);
+      setLocalPresets(updatedPresets);
+      logger.info('✅ Presets recargados:', updatedPresets.length);
+    } catch (error) {
+      logger.error('Error recargando presets:', error);
+    }
+  };
 
   // Log para debugging
   React.useEffect(() => {
@@ -78,9 +102,10 @@ export const InterfaceConfigManager: React.FC<InterfaceConfigManagerProps> = ({ 
       setIsApplyingPreset(true);
       logger.info('🎨 Aplicando preset:', preset.name);
       
-      // Aplicar configuración del preset
+      // ✅ SOLUCIÓN: Solo aplicar theme del preset, mantener logos y branding del usuario
       const presetConfig: InterfaceConfig = {
-        ...preset.config,
+        ...config,  // Mantener logos, branding, customCSS actuales del usuario
+        theme: preset.config.theme,  // Solo actualizar el theme (colores, typography, layout)
         id: config.id || 'global-config',
         updatedAt: new Date().toISOString(),
         isActive: true
@@ -89,7 +114,9 @@ export const InterfaceConfigManager: React.FC<InterfaceConfigManagerProps> = ({ 
       logger.debug('📝 Preset config a aplicar:', {
         name: presetConfig.theme?.name,
         id: presetConfig.id,
-        primaryColor: presetConfig.theme?.colors?.primary?.[500]
+        primaryColor: presetConfig.theme?.colors?.primary?.[500],
+        keepingUserLogos: true,
+        keepingUserBranding: true
       });
       
       // Actualizar configuración (esto usará REPLACE_CONFIG)
@@ -101,13 +128,13 @@ export const InterfaceConfigManager: React.FC<InterfaceConfigManagerProps> = ({ 
       // Forzar aplicación al DOM
       forceApplyToDOM();
       
-      // Guardar inmediatamente
-      await saveChanges();
+      // ✅ NO guardar automáticamente - dejar que el usuario decida
+      // El banner "Guardar Cambios" aparecerá automáticamente porque isDirty detectará los cambios
       
-      // Aplicar DOM nuevamente después de guardar
+      // Aplicar DOM nuevamente después del cambio
       setTimeout(() => {
         forceApplyToDOM();
-        logger.info('✅ Preset aplicado y guardado:', preset.name);
+        logger.info('✅ Preset aplicado (cambios pendientes de guardar):', preset.name);
       }, 100);
       
     } catch (error) {
@@ -277,9 +304,10 @@ export const InterfaceConfigManager: React.FC<InterfaceConfigManagerProps> = ({ 
         
         {activeTab === 'presets' && (
           <PresetsPanel 
-            presets={presets} 
+            presets={localPresets} 
             currentConfig={config} 
             onApplyPreset={handleApplyPreset}
+            onPresetCreated={handlePresetCreated}
             onChange={handleConfigChange}
             isApplyingPreset={isApplyingPreset}
           />
