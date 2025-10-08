@@ -109,58 +109,10 @@ const EMERGENCY_CONFIG: InterfaceConfig = {
 };
 
 /**
- * ⚠️ DEPRECADO: Usar dynamicConfigService.getCurrentConfig() en su lugar
- * Mantenido solo para compatibilidad con código legacy
+ * Configuración de emergencia para fallback
+ * Mantenida porque interfaceConfigService.ts la usa como fallback
  */
 export const DEFAULT_INTERFACE_CONFIG: InterfaceConfig = EMERGENCY_CONFIG;
-
-/**
- * ⚠️ DEPRECADO: Los temas alternativos deben cargarse desde backend (presets)
- * Mantenido solo para compatibilidad
- */
-export const DARK_THEME_CONFIG: InterfaceConfig = EMERGENCY_CONFIG;
-
-/**
- * ⚠️ DEPRECADO: Los temas alternativos deben cargarse desde backend (presets)
- * Mantenido solo para compatibilidad
- */
-export const GREEN_CORPORATE_CONFIG: InterfaceConfig = EMERGENCY_CONFIG;
-
-/**
- * ⚠️ DEPRECADO: Usar dynamicConfigService.getPresets() en su lugar
- * Mantenido solo para compatibilidad con código legacy
- */
-export const SYSTEM_PRESETS: PresetConfig[] = [];
-
-/**
- * ⚠️ DEPRECADO: Usar dynamicConfigService.getCurrentConfig() en su lugar
- * 
- * Esta función ahora retorna la configuración de emergencia inline.
- * Para obtener la configuración real, use:
- * 
- * ```typescript
- * import { dynamicConfigService } from '../services/dynamicConfigService';
- * const config = await dynamicConfigService.getCurrentConfig(getToken);
- * ```
- * 
- * @deprecated Usar dynamicConfigService.getCurrentConfig()
- */
-export const getDefaultConfig = (): InterfaceConfig => {
-  return JSON.parse(JSON.stringify(EMERGENCY_CONFIG));
-};
-
-/**
- * ⚠️ DEPRECADO: Usar dynamicConfigService.getPresets() para cargar desde backend
- * 
- * @deprecated Usar dynamicConfigService.getPresets()
- */
-export const getPresetById = (id: string): PresetConfig | undefined => {
-  logger.warn(
-    '⚠️ getPresetById() está deprecado. ' +
-    'Use dynamicConfigService.getPresets() para cargar presets desde backend.'
-  );
-  return undefined;
-};
 
 /**
  * Validar configuración (mantiene utilidad)

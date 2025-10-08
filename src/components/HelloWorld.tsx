@@ -41,7 +41,8 @@ const HelloWorld: React.FC = () => {
       const hello = await apiService.getHelloWorld();
       setHelloMessage(hello);
     } catch (err) {
-      setError('No se pudo conectar con el backend. Asegúrate de que esté ejecutándose en http://localhost:8000');
+      const apiUrl = process.env.REACT_APP_API_URL || window.location.origin;
+      setError(`No se pudo conectar con el backend. Asegúrate de que esté ejecutándose en ${apiUrl}`);
       console.error('Backend connection error:', err);
     } finally {
       setIsLoading(false);

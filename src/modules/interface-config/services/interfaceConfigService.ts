@@ -4,7 +4,7 @@
  */
 
 import { InterfaceConfig, PresetConfig } from '../types';
-import { SYSTEM_PRESETS, DEFAULT_INTERFACE_CONFIG } from '../utils/defaultConfigs';
+import { DEFAULT_INTERFACE_CONFIG } from '../utils/defaultConfigs';
 import { createAuthenticatedHttpService } from './httpService';
 import { logger } from '../../../shared/utils/logger';
 

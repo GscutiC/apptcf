@@ -73,18 +73,12 @@ export type { UseInterfaceConfigReturn } from './hooks/useInterfaceConfig';
 export { interfaceConfigService } from './services/interfaceConfigService';
 export { httpService } from './services/httpService';
 
-// ⚠️ DEPRECADO: defaultConfigs ahora usa dynamicConfigService
-// Para nuevos desarrollos, usar dynamicConfigService directamente
+// Utilidades de configuración
 export {
-  DEFAULT_INTERFACE_CONFIG, // ⚠️ DEPRECADO
-  DARK_THEME_CONFIG,         // ⚠️ DEPRECADO
-  GREEN_CORPORATE_CONFIG,    // ⚠️ DEPRECADO
-  // SYSTEM_PRESETS removido - usar loadPresetsFromBackend()
-  getDefaultConfig,          // ⚠️ DEPRECADO
-  getPresetById,             // ⚠️ DEPRECADO
-  validateConfig,
-  loadConfigFromBackend,     // ✅ RECOMENDADO
-  loadPresetsFromBackend     // ✅ RECOMENDADO
+  DEFAULT_INTERFACE_CONFIG,  // Configuración de emergencia (fallback)
+  validateConfig,            // Validación de configuración
+  loadConfigFromBackend,     // ✅ Cargar config desde backend
+  loadPresetsFromBackend     // ✅ Cargar presets desde backend
 } from './utils/defaultConfigs';
 
 // Hooks
