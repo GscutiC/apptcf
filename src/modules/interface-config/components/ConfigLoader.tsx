@@ -26,12 +26,16 @@ export const ConfigLoader: React.FC<ConfigLoaderProps> = ({
   }, []);
 
   useEffect(() => {
-    // Aplicar configuración inmediatamente
+    // Aplicar configuración inmediatamente cuando esté disponible
     if (config && !loading) {
-      // Pequeño delay para asegurar que el DOM esté listo
+      // Aplicar título y branding INMEDIATAMENTE (sin delay)
+      if (config.branding?.appName) {
+        document.title = config.branding.appName;
+      }
+      
+      // Marcar como listo después de un pequeño delay para el resto del DOM
       const timer = setTimeout(() => {
         setIsReady(true);
-        // Remover la clase que previene FOUC
         document.body.classList.add('config-loaded');
       }, 100);
       

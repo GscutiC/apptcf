@@ -4,6 +4,7 @@
 
 import React, { useState, useRef } from 'react';
 import { InterfaceConfig } from '../types';
+import { FileUploadService, LogoData } from '../services/fileUploadService';
 
 interface LogoConfigPanelProps {
   config: InterfaceConfig;
@@ -14,7 +15,8 @@ interface LogoUploaderProps {
   label: string;
   description: string;
   currentImageUrl?: string;
-  onImageUpload: (imageUrl: string) => void;
+  currentFileId?: string;
+  onImageUpload: (data: LogoData) => void;
   onImageRemove: () => void;
 }
 
@@ -22,34 +24,47 @@ const LogoUploader: React.FC<LogoUploaderProps> = ({
   label,
   description,
   currentImageUrl,
+  currentFileId,
   onImageUpload,
   onImageRemove
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const handleFileSelect = (file: File) => {
+  const handleFileSelect = async (file: File) => {
+    // Validaciones básicas
     if (!file.type.startsWith('image/')) {
-      alert('Por favor selecciona un archivo de imagen válido');
+      setUploadError('Por favor selecciona un archivo de imagen válido');
       return;
     }
 
-    if (file.size > 2 * 1024 * 1024) { // 2MB
-      alert('El archivo es demasiado grande. Máximo 2MB');
+    if (file.size > 2 * 1024 * 1024) {
+      setUploadError('El archivo es demasiado grande. Máximo 2MB');
       return;
     }
 
     setIsUploading(true);
+    setUploadError(null);
     
-    // Convertir a base64 para vista previa (en producción usarías un servicio de almacenamiento)
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
-      onImageUpload(result);
+    try {
+      console.log('📤 [LogoConfigPanel] Iniciando upload de:', file.name);
+      
+      // Upload al servidor (no más Base64)
+      const uploadedData = await FileUploadService.uploadLogo(file);
+      
+      console.log('✅ [LogoConfigPanel] Upload exitoso:', uploadedData);
+      
+      // Notificar con fileId y URL
+      onImageUpload(uploadedData);
+      
+    } catch (error: any) {
+      console.error('❌ [LogoConfigPanel] Error en upload:', error);
+      setUploadError(error.message || 'Error al subir el archivo');
+    } finally {
       setIsUploading(false);
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -79,6 +94,13 @@ const LogoUploader: React.FC<LogoUploaderProps> = ({
         <p className="text-xs text-neutral-600">{description}</p>
       </div>
 
+      {/* Error de upload */}
+      {uploadError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+          ⚠️ {uploadError}
+        </div>
+      )}
+
       {/* Área de subida */}
       <div
         className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
@@ -97,16 +119,21 @@ const LogoUploader: React.FC<LogoUploaderProps> = ({
               alt={label}
               className="mx-auto max-h-24 rounded border border-neutral-200"
             />
+            {currentFileId && (
+              <p className="text-xs text-neutral-500">ID: {currentFileId.substring(0, 8)}...</p>
+            )}
             <div className="flex justify-center space-x-2">
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="px-3 py-1 text-sm text-primary-600 border border-primary-600 rounded hover:bg-primary-50"
+                disabled={isUploading}
+                className="px-3 py-1 text-sm text-primary-600 border border-primary-600 rounded hover:bg-primary-50 disabled:opacity-50"
               >
                 Cambiar
               </button>
               <button
                 onClick={onImageRemove}
-                className="px-3 py-1 text-sm text-red-600 border border-red-600 rounded hover:bg-red-50"
+                disabled={isUploading}
+                className="px-3 py-1 text-sm text-red-600 border border-red-600 rounded hover:bg-red-50 disabled:opacity-50"
               >
                 Eliminar
               </button>
@@ -115,9 +142,9 @@ const LogoUploader: React.FC<LogoUploaderProps> = ({
         ) : (
           <div className="space-y-3">
             {isUploading ? (
-              <div className="flex items-center justify-center">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
-                <span className="ml-2 text-sm text-neutral-600">Subiendo...</span>
+              <div className="flex flex-col items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mb-2"></div>
+                <span className="text-sm text-neutral-600">Subiendo al servidor...</span>
               </div>
             ) : (
               <>
@@ -246,8 +273,13 @@ export const LogoConfigPanel: React.FC<LogoConfigPanelProps> = ({ config, onChan
             label="Imagen del Logo"
             description="Recomendado: 200x60px, formato PNG con fondo transparente"
             currentImageUrl={config.logos.mainLogo.imageUrl}
-            onImageUpload={(imageUrl) => handleMainLogoChange({ imageUrl, showImage: true })}
-            onImageRemove={() => handleMainLogoChange({ imageUrl: undefined, showImage: false })}
+            currentFileId={config.logos.mainLogo.fileId}
+            onImageUpload={(logoData) => handleMainLogoChange({ 
+              imageUrl: logoData.url, 
+              fileId: logoData.fileId,
+              showImage: true 
+            })}
+            onImageRemove={() => handleMainLogoChange({ imageUrl: undefined, fileId: undefined, showImage: false })}
           />
         </div>
 
@@ -295,7 +327,7 @@ export const LogoConfigPanel: React.FC<LogoConfigPanelProps> = ({ config, onChan
                 value={config.logos.sidebarLogo.text}
                 onChange={(e) => handleSidebarLogoChange({ text: e.target.value })}
                 className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                placeholder="Ej: Mi App Completa"
+                placeholder={config.logos?.sidebarLogo?.text || config.branding?.appName || 'Nombre de la aplicación'}
               />
             </div>
 
@@ -308,7 +340,7 @@ export const LogoConfigPanel: React.FC<LogoConfigPanelProps> = ({ config, onChan
                 value={config.logos.sidebarLogo.collapsedText}
                 onChange={(e) => handleSidebarLogoChange({ collapsedText: e.target.value })}
                 className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                placeholder="Ej: MA"
+                placeholder={config.logos?.sidebarLogo?.collapsedText || config.logos?.mainLogo?.text || 'Logo'}
               />
               <p className="text-xs text-neutral-500 mt-1">
                 Texto que se muestra cuando el sidebar está colapsado
@@ -343,8 +375,13 @@ export const LogoConfigPanel: React.FC<LogoConfigPanelProps> = ({ config, onChan
             label="Imagen del Sidebar"
             description="Recomendado: 40x40px, formato PNG cuadrado"
             currentImageUrl={config.logos.sidebarLogo.imageUrl}
-            onImageUpload={(imageUrl) => handleSidebarLogoChange({ imageUrl, showImage: true })}
-            onImageRemove={() => handleSidebarLogoChange({ imageUrl: undefined })}
+            currentFileId={config.logos.sidebarLogo.fileId}
+            onImageUpload={(logoData) => handleSidebarLogoChange({ 
+              imageUrl: logoData.url,
+              fileId: logoData.fileId,
+              showImage: true 
+            })}
+            onImageRemove={() => handleSidebarLogoChange({ imageUrl: undefined, fileId: undefined })}
           />
         </div>
       </div>
@@ -361,8 +398,12 @@ export const LogoConfigPanel: React.FC<LogoConfigPanelProps> = ({ config, onChan
             label="Icono del Favicon"
             description="Recomendado: 32x32px o 64x64px, formato ICO o PNG"
             currentImageUrl={config.logos.favicon.imageUrl}
-            onImageUpload={(imageUrl) => handleFaviconChange({ imageUrl })}
-            onImageRemove={() => handleFaviconChange({ imageUrl: undefined })}
+            currentFileId={config.logos.favicon.fileId}
+            onImageUpload={(logoData) => handleFaviconChange({ 
+              imageUrl: logoData.url,
+              fileId: logoData.fileId
+            })}
+            onImageRemove={() => handleFaviconChange({ imageUrl: undefined, fileId: undefined })}
           />
         </div>
       </div>

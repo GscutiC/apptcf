@@ -5,8 +5,28 @@
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#000000" />
-    <meta name="description" content="{{PROJECT_NAME}} - Aplicación full-stack con IA" />
-    <title>{{PROJECT_NAME}}</title>
+    <meta name="description" content="Sistema de gestión integral" />
+    <title>Cargando...</title>
+    
+    <!-- Pre-carga de configuración ANTES de React -->
+    <script>
+      (function() {
+        try {
+          // Intentar cargar configuración desde localStorage
+          const cachedConfig = localStorage.getItem('interface-config');
+          if (cachedConfig) {
+            const config = JSON.parse(cachedConfig);
+            // Aplicar título INMEDIATAMENTE
+            if (config.branding && config.branding.appName) {
+              document.title = config.branding.appName;
+            }
+          }
+        } catch (error) {
+          console.warn('No se pudo pre-cargar configuración:', error);
+        }
+      })();
+    </script>
+    
     <style>
       body {
         margin: 0;

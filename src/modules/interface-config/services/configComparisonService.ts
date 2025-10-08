@@ -32,35 +32,41 @@ export class ConfigComparisonService {
 
   /**
    * Normaliza una configuración para comparación
-   * Ordena las propiedades y maneja valores undefined/null
+   * REFACTORIZADO: Comparación más robusta sin referencias compartidas
    */
   private static normalize(config: InterfaceConfig): string {
     if (!config) return '';
     
     try {
-      // Crear copia sin propiedades temporales que no afectan la persistencia
-      const cleanConfig = { ...config };
-      delete cleanConfig.updatedAt; // Timestamps no afectan igualdad funcional
+      // 🔧 SOLUCIÓN: Hacer deep clone REAL antes de normalizar
+      const deepClonedConfig = JSON.parse(JSON.stringify(config));
       
-      // Ordenar propiedades recursivamente para comparación consistente
-      const sortedKeys = Object.keys(cleanConfig).sort();
-      const normalizedConfig: any = {};
+      // 🗑️ Remover propiedades temporales que no afectan persistencia
+      delete deepClonedConfig.updatedAt;
+      delete deepClonedConfig.id; // ID puede cambiar, no es relevante para comparación funcional
       
-      for (const key of sortedKeys) {
-        const value = (cleanConfig as any)[key];
-        if (value !== undefined && value !== null) {
-          if (typeof value === 'object' && !Array.isArray(value)) {
-            // Ordenar objetos anidados recursivamente
-            normalizedConfig[key] = JSON.parse(JSON.stringify(value, Object.keys(value).sort()));
-          } else {
-            normalizedConfig[key] = value;
-          }
-        }
-      }
+      // 🔄 Crear objeto normalizado con claves ordenadas recursivamente
+      const normalizeObject = (obj: any): any => {
+        if (obj === null || obj === undefined) return obj;
+        if (typeof obj !== 'object') return obj;
+        if (Array.isArray(obj)) return obj.map(normalizeObject);
+        
+        const sorted: any = {};
+        Object.keys(obj).sort().forEach(key => {
+          sorted[key] = normalizeObject(obj[key]);
+        });
+        return sorted;
+      };
       
-      return JSON.stringify(normalizedConfig);
+      const normalized = normalizeObject(deepClonedConfig);
+      const result = JSON.stringify(normalized);
+      
+
+      
+      return result;
     } catch (error) {
       logger.warn('Error normalizing config:', error);
+      // Fallback: comparación simple
       return JSON.stringify(config);
     }
   }
@@ -87,7 +93,23 @@ export class ConfigComparisonService {
         }
       };
 
-      logger.debug('🔍 Config comparison:', comparison);
+
+      
+      logger.debug('🔍 [ConfigComparison] Comparing configs:', {
+        areEqual,
+        differencesCount: differences.length,
+        differences: differences,
+        config1Logos: {
+          mainLogo: config1.logos?.mainLogo?.imageUrl?.substring(0, 50),
+          mainLogoFileId: config1.logos?.mainLogo?.fileId,
+          mainLogoText: config1.logos?.mainLogo?.text
+        },
+        config2Logos: {
+          mainLogo: config2.logos?.mainLogo?.imageUrl?.substring(0, 50),
+          mainLogoFileId: config2.logos?.mainLogo?.fileId,
+          mainLogoText: config2.logos?.mainLogo?.text
+        }
+      });
       
       return comparison;
     } catch (error) {
@@ -131,6 +153,49 @@ export class ConfigComparisonService {
       if (primary1 !== primary2) {
         differences.push(`theme.colors.primary.500: "${primary1}" → "${primary2}"`);
       }
+
+      // Comparar logos
+      // Main Logo
+      if (config1.logos?.mainLogo?.imageUrl !== config2.logos?.mainLogo?.imageUrl) {
+        differences.push(`logos.mainLogo.imageUrl: changed`);
+      }
+      if (config1.logos?.mainLogo?.fileId !== config2.logos?.mainLogo?.fileId) {
+        differences.push(`logos.mainLogo.fileId: changed`);
+      }
+      if (config1.logos?.mainLogo?.text !== config2.logos?.mainLogo?.text) {
+        differences.push(`logos.mainLogo.text: "${config1.logos?.mainLogo?.text}" → "${config2.logos?.mainLogo?.text}"`);
+      }
+      if (config1.logos?.mainLogo?.showText !== config2.logos?.mainLogo?.showText) {
+        differences.push(`logos.mainLogo.showText: ${config1.logos?.mainLogo?.showText} → ${config2.logos?.mainLogo?.showText}`);
+      }
+      if (config1.logos?.mainLogo?.showImage !== config2.logos?.mainLogo?.showImage) {
+        differences.push(`logos.mainLogo.showImage: ${config1.logos?.mainLogo?.showImage} → ${config2.logos?.mainLogo?.showImage}`);
+      }
+
+      // Sidebar Logo
+      if (config1.logos?.sidebarLogo?.imageUrl !== config2.logos?.sidebarLogo?.imageUrl) {
+        differences.push(`logos.sidebarLogo.imageUrl: changed`);
+      }
+      if (config1.logos?.sidebarLogo?.fileId !== config2.logos?.sidebarLogo?.fileId) {
+        differences.push(`logos.sidebarLogo.fileId: changed`);
+      }
+      if (config1.logos?.sidebarLogo?.text !== config2.logos?.sidebarLogo?.text) {
+        differences.push(`logos.sidebarLogo.text: changed`);
+      }
+      if (config1.logos?.sidebarLogo?.showText !== config2.logos?.sidebarLogo?.showText) {
+        differences.push(`logos.sidebarLogo.showText: ${config1.logos?.sidebarLogo?.showText} → ${config2.logos?.sidebarLogo?.showText}`);
+      }
+      if (config1.logos?.sidebarLogo?.showImage !== config2.logos?.sidebarLogo?.showImage) {
+        differences.push(`logos.sidebarLogo.showImage: ${config1.logos?.sidebarLogo?.showImage} → ${config2.logos?.sidebarLogo?.showImage}`);
+      }
+
+      // Favicon
+      if (config1.logos?.favicon?.imageUrl !== config2.logos?.favicon?.imageUrl) {
+        differences.push(`logos.favicon.imageUrl: changed`);
+      }
+      if (config1.logos?.favicon?.fileId !== config2.logos?.favicon?.fileId) {
+        differences.push(`logos.favicon.fileId: changed`);
+      }
       
       // Agregar más comparaciones específicas según necesidades
       
@@ -157,8 +222,36 @@ export class ConfigComparisonService {
 
   /**
    * Verifica si una configuración tiene cambios pendientes
+   * REFACTORIZADO: Comparación más directa para casos específicos
    */
   static hasUnsavedChanges(current: InterfaceConfig, saved: InterfaceConfig): boolean {
+    // Verificación rápida: Si las referencias son iguales, no hay cambios
+    if (current === saved) {
+      return false;
+    }
+    
+    // Verificación directa de campos críticos antes de comparación completa (más eficiente)
+    const hasLogoChanges = (
+      current.logos?.mainLogo?.text !== saved.logos?.mainLogo?.text ||
+      current.logos?.mainLogo?.imageUrl !== saved.logos?.mainLogo?.imageUrl ||
+      current.logos?.mainLogo?.fileId !== saved.logos?.mainLogo?.fileId ||
+      current.logos?.mainLogo?.showText !== saved.logos?.mainLogo?.showText ||
+      current.logos?.mainLogo?.showImage !== saved.logos?.mainLogo?.showImage ||
+      current.logos?.sidebarLogo?.text !== saved.logos?.sidebarLogo?.text ||
+      current.logos?.sidebarLogo?.imageUrl !== saved.logos?.sidebarLogo?.imageUrl ||
+      current.logos?.sidebarLogo?.collapsedText !== saved.logos?.sidebarLogo?.collapsedText ||
+      current.logos?.sidebarLogo?.showText !== saved.logos?.sidebarLogo?.showText ||
+      current.logos?.sidebarLogo?.showImage !== saved.logos?.sidebarLogo?.showImage ||
+      current.logos?.favicon?.imageUrl !== saved.logos?.favicon?.imageUrl ||
+      current.logos?.favicon?.fileId !== saved.logos?.favicon?.fileId
+    );
+    
+    // Si hay cambios en logos, retornar inmediatamente (optimización)
+    if (hasLogoChanges) {
+      return true;
+    }
+    
+    // Verificación completa como respaldo para otros campos
     const comparison = this.compare(current, saved);
     return !comparison.areEqual;
   }

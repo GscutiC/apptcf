@@ -29,7 +29,6 @@ function App() {
   React.useEffect(() => {
     const timer = setTimeout(() => {
       if (!document.body.classList.contains('config-loaded')) {
-        // Fallback de seguridad para visibilidad del contenido
         document.body.classList.add('config-loaded');
       }
     }, 1000);
@@ -44,10 +43,10 @@ function App() {
           <div className="max-w-md w-full mx-4">
             <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
               <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                <span className="text-white font-bold text-xl">MA</span>
+                <span className="text-white font-bold text-xl">AP</span>
               </div>
               <h1 className="text-3xl font-bold text-gray-800 mb-4">
-                ¡Bienvenido a Mi App Completa!
+                ¡Bienvenido!
               </h1>
               <p className="text-gray-600 mb-8">
                 Inicia sesión o regístrate para acceder a todas las funcionalidades de la aplicación.

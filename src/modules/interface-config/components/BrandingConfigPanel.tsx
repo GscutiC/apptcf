@@ -25,49 +25,49 @@ export const BrandingConfigPanel: React.FC<BrandingConfigPanelProps> = ({ config
       key: 'appName' as keyof typeof config.branding,
       label: 'Nombre de la Aplicación',
       description: 'Nombre principal que aparece en el título de la página',
-      placeholder: 'Ej: Mi App Completa',
+      placeholder: config.branding?.appName || 'Nombre de la aplicación',
       required: true
     },
     {
       key: 'appDescription' as keyof typeof config.branding,
       label: 'Descripción de la Aplicación',
       description: 'Descripción breve que aparece en metadatos y página de login',
-      placeholder: 'Ej: Sistema de gestión integral con IA',
+      placeholder: config.branding?.appDescription || 'Descripción de la aplicación',
       required: true
     },
     {
       key: 'tagline' as keyof typeof config.branding,
       label: 'Eslogan',
       description: 'Frase corta que define la propuesta de valor',
-      placeholder: 'Ej: Gestión inteligente y eficiente',
+      placeholder: config.branding?.tagline || 'Eslogan de la aplicación',
       required: false
     },
     {
       key: 'companyName' as keyof typeof config.branding,
       label: 'Nombre de la Empresa',
       description: 'Nombre de la organización o empresa',
-      placeholder: 'Ej: Mi Empresa S.A.',
+      placeholder: config.branding?.companyName || 'Nombre de la empresa',
       required: false
     },
     {
       key: 'welcomeMessage' as keyof typeof config.branding,
       label: 'Mensaje de Bienvenida',
       description: 'Mensaje que aparece en la página de login',
-      placeholder: 'Ej: ¡Bienvenido a Mi App Completa!',
+      placeholder: config.branding?.welcomeMessage || '¡Bienvenido!',
       required: true
     },
     {
       key: 'loginPageTitle' as keyof typeof config.branding,
       label: 'Título de Página de Login',
       description: 'Título principal en la página de inicio de sesión',
-      placeholder: 'Ej: ¡Bienvenido a Mi App Completa!',
+      placeholder: config.branding?.loginPageTitle || 'Inicia sesión',
       required: true
     },
     {
       key: 'loginPageDescription' as keyof typeof config.branding,
       label: 'Descripción de Página de Login',
       description: 'Texto descriptivo en la página de inicio de sesión',
-      placeholder: 'Ej: Inicia sesión o regístrate para acceder...',
+      placeholder: config.branding?.loginPageDescription || 'Inicia sesión para continuar',
       required: true
     }
   ];

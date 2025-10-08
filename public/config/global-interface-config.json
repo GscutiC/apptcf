@@ -91,25 +91,25 @@
   },
   "logos": {
     "mainLogo": {
-      "text": "WorkTecApp",
+      "text": "Mi Aplicación",
       "showText": true,
       "showImage": false
     },
     "favicon": {},
     "sidebarLogo": {
-      "text": "WorkTecApp",
+      "text": "Mi Aplicación",
       "showText": true,
       "showImage": false,
-      "collapsedText": "WT"
+      "collapsedText": "MA"
     }
   },
   "branding": {
-    "appName": "WorkTecApp",
-    "appDescription": "Soluciones empresariales sostenibles",
-    "tagline": "Soluciones empresariales sostenibles",
-    "companyName": "WorkTec Solutions",
-    "supportEmail": "support@worktec.com",
-    "websiteUrl": "https://worktec.com"
+    "appName": "Mi Aplicación",
+    "appDescription": "Sistema de gestión integral",
+    "tagline": "Gestión inteligente y eficiente",
+    "companyName": "",
+    "supportEmail": "",
+    "websiteUrl": ""
   },
   "isActive": true,
   "createdAt": "2025-09-25T20:30:00.000Z",

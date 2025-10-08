@@ -1,12 +1,15 @@
 /**
  * Servicio especializado para gestión de estado de configuraciones
  * Responsabilidad: Manejar el estado local, reducer y acciones
+ * 
+ * REFACTORIZADO: Ya no usa configuraciones hardcodeadas
+ * Usa dynamicConfigService con lazy loading para evitar problemas circulares
  */
 
 import { InterfaceConfig, PresetConfig } from '../types';
 import { ConfigComparisonService } from './configComparisonService';
-import { getDefaultConfig } from '../utils/defaultConfigs';
 import { logger } from '../../../shared/utils/logger';
+// dynamicConfigService se importa dinámicamente para evitar circular dependencies
 
 export interface ConfigState {
   config: InterfaceConfig;
@@ -43,9 +46,12 @@ export type ConfigAction =
 export class ConfigStateService {
   /**
    * Crea el estado inicial del contexto
+   * REFACTORIZADO: Usa configuración de emergencia inline sin circular deps
    */
   static createInitialState(): ConfigState {
-    const defaultConfig = getDefaultConfig();
+    // Usar DEFAULT_INTERFACE_CONFIG que ahora es una constante inline
+    const { DEFAULT_INTERFACE_CONFIG } = require('../utils/defaultConfigs');
+    const defaultConfig = DEFAULT_INTERFACE_CONFIG;
     
     return {
       config: defaultConfig,
@@ -91,10 +97,11 @@ export class ConfigStateService {
 
       case 'SET_SAVED_CONFIG':
         logger.debug('💾 SET_SAVED_CONFIG: Updating saved config reference');
+        
         return {
           ...state,
           savedConfig: ConfigComparisonService.deepClone(action.payload),
-          config: action.payload,
+          config: ConfigComparisonService.deepClone(action.payload), // Asegurar deep clone
           isDirty: false,
           isSaving: false,
           error: null
@@ -104,14 +111,50 @@ export class ConfigStateService {
         return { ...state, presets: action.payload };
 
       case 'UPDATE_CONFIG': {
-        const newConfig = { ...state.config, ...action.payload };
-        const comparison = ConfigComparisonService.compare(newConfig, state.savedConfig);
+        // Deep merge para evitar referencias compartidas
+        const newConfig = {
+          ...state.config,
+          ...action.payload,
+          // Deep merge de propiedades anidadas
+          branding: action.payload.branding 
+            ? { ...state.config.branding, ...action.payload.branding }
+            : state.config.branding,
+          logos: action.payload.logos
+            ? {
+                ...state.config.logos,
+                ...action.payload.logos,
+                mainLogo: action.payload.logos.mainLogo
+                  ? { ...state.config.logos.mainLogo, ...action.payload.logos.mainLogo }
+                  : state.config.logos.mainLogo,
+                sidebarLogo: action.payload.logos.sidebarLogo
+                  ? { ...state.config.logos.sidebarLogo, ...action.payload.logos.sidebarLogo }
+                  : state.config.logos.sidebarLogo,
+                favicon: action.payload.logos.favicon
+                  ? { ...state.config.logos.favicon, ...action.payload.logos.favicon }
+                  : state.config.logos.favicon,
+              }
+            : state.config.logos,
+          theme: action.payload.theme
+            ? {
+                ...state.config.theme,
+                ...action.payload.theme,
+                colors: action.payload.theme.colors
+                  ? { ...state.config.theme.colors, ...action.payload.theme.colors }
+                  : state.config.theme.colors,
+              }
+            : state.config.theme,
+        };
+        
+        // ✅ FORCE DEEP CLONE para evitar referencias compartidas
+        const savedConfigCopy = ConfigComparisonService.deepClone(state.savedConfig);
+        const comparison = ConfigComparisonService.compare(newConfig, savedConfigCopy);
+        
+
         
         logger.debug('🔄 UPDATE_CONFIG:', {
           payload: action.payload,
           hasChanges: !comparison.areEqual,
           differences: comparison.differences,
-          summary: comparison.summary
         });
         
         return {
@@ -145,7 +188,9 @@ export class ConfigStateService {
         return { ...state, isSaving: action.payload };
 
       case 'RESET_TO_DEFAULT': {
-        const defaultConfig = getDefaultConfig();
+        // Lazy import para evitar inicialización circular
+        const { dynamicConfigService } = require('./dynamicConfigService');
+        const defaultConfig = dynamicConfigService.getEmergencyConfig();
         const comparison = ConfigComparisonService.compare(defaultConfig, state.savedConfig);
         
         logger.debug('🔄 RESET_TO_DEFAULT:', {

@@ -56,7 +56,7 @@ export interface TypographyConfig {
 // Configuración de un logo individual
 export interface LogoItem {
   text?: string;
-  imageUrl?: string; // URL completa de la imagen (Base64 o URL del servidor)
+  imageUrl?: string; // URL del archivo en el servidor
   fileId?: string; // ID del archivo en el servidor (para nuevas imágenes)
   showText?: boolean;
   showImage?: boolean;

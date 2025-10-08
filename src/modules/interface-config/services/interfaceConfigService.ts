@@ -376,19 +376,17 @@ class InterfaceConfigService {
       const userPreferences = {
         user_id: userId,
         theme_mode: preferences.theme?.mode as 'light' | 'dark' | undefined,
-        primary_color: preferences.theme?.colors?.primary?.['500'], // Color principal
-        font_size: 'base' as 'sm' | 'base' | 'lg', // Por defecto base
-        compact_mode: false // Por defecto false
+        primary_color: preferences.theme?.colors?.primary?.['500'],
+        font_size: 'base' as 'sm' | 'base' | 'lg',
+        compact_mode: false
       };
       
-      logger.debug('📤 Enviando preferencias al backend:', userPreferences);
+      await httpService.post<any>(`/api/contextual-config/preferences`, userPreferences);
+      logger.info('✅ Preferencias de usuario guardadas');
       
-      const response = await httpService.post<any>(`/api/contextual-config/preferences`, userPreferences);
-      
-      // El backend devuelve la configuración completa, necesitamos adaptarla
-      return preferences as InterfaceConfig; // Por ahora devolver lo que enviamos
+      return preferences as InterfaceConfig;
     } catch (error) {
-      logger.error('Error guardando preferencias de usuario:', error);
+      logger.error('❌ Error guardando preferencias:', error);
       throw error;
     }
   }
@@ -456,21 +454,15 @@ class InterfaceConfigService {
     isGlobalAdmin: boolean;
     source: 'user' | 'role' | 'organization' | 'global' | 'legacy' | 'localStorage';
   }> {
-    logger.debug('🔄 Obteniendo configuración para usuario...');
-    
     try {
-      // ESTRATEGIA 1: Sistema contextual
-      logger.debug('📡 Probando sistema contextual...');
-      
       const canModifyGlobal = await this.canModifyGlobalConfig(getToken);
       
       if (canModifyGlobal) {
-        // Es admin global, intentar obtener configuración efectiva primero
-        logger.debug('👑 Admin detectado - obteniendo configuración efectiva...');
+        // Admin global: intentar sistema contextual → MongoDB → localStorage → default
         try {
           const effectiveConfigResponse = await this.getEffectiveConfig(userId, getToken);
           if (effectiveConfigResponse) {
-            logger.info(`✅ Configuración cargada desde: ${effectiveConfigResponse.context.source}`);
+            logger.info(`✅ Config cargada desde: ${effectiveConfigResponse.context.source}`);
             return {
               config: effectiveConfigResponse.config,
               isGlobalAdmin: true,
@@ -478,22 +470,38 @@ class InterfaceConfigService {
             };
           }
         } catch (effectiveError) {
-          logger.debug('⚠️ No se pudo obtener configuración efectiva para admin, usando default');
+          // Intentar MongoDB directo
+          try {
+            const currentConfig = await this.getCurrentConfig(getToken);
+            if (currentConfig) {
+              logger.info('✅ Admin usando config global desde MongoDB');
+              return {
+                config: currentConfig,
+                isGlobalAdmin: true,
+                source: 'global'
+              };
+            }
+          } catch (mongoError) {
+            logger.warn('⚠️ MongoDB no disponible');
+          }
         }
         
-        // Fallback para admin: usar configuración por defecto
-        return {
-          config: DEFAULT_INTERFACE_CONFIG,
-          isGlobalAdmin: true,
-          source: 'global'
-        };
+        // Fallback: localStorage → default
+        const localConfig = this.getFromLocalStorage();
+        if (localConfig) {
+          logger.info('✅ Admin usando config desde localStorage');
+          return { config: localConfig, isGlobalAdmin: true, source: 'localStorage' };
+        }
+        
+        logger.warn('⚠️ Usando configuración por defecto');
+        return { config: DEFAULT_INTERFACE_CONFIG, isGlobalAdmin: true, source: 'global' };
+        
       } else {
-        // Usuario normal, obtener configuración efectiva
-        logger.debug('👤 Obteniendo configuración efectiva (usuario)...');
+        // Usuario normal: intentar sistema contextual → localStorage → default
         try {
           const effectiveConfigResponse = await this.getEffectiveConfig(userId, getToken);
           if (effectiveConfigResponse) {
-            logger.info(`✅ Configuración cargada desde: ${effectiveConfigResponse.context.source}`);
+            logger.info(`✅ Config cargada desde: ${effectiveConfigResponse.context.source}`);
             return {
               config: effectiveConfigResponse.config,
               isGlobalAdmin: false,
@@ -501,38 +509,25 @@ class InterfaceConfigService {
             };
           }
         } catch (effectiveError: any) {
-          // Si es 404, es normal - el usuario no tiene configuración personalizada
-          if (effectiveError?.message?.includes('404') || effectiveError?.message?.includes('no encontrado')) {
-            logger.debug('📝 Usuario sin configuración personalizada, usando configuración global');
-          } else {
-            logger.debug('⚠️ Error obteniendo configuración efectiva:', effectiveError);
+          if (!effectiveError?.message?.includes('404')) {
+            logger.warn('⚠️ Error obteniendo configuración efectiva:', effectiveError);
           }
         }
       }
       
     } catch (contextualError) {
-      logger.warn('⚠️ Sistema contextual falló, usando localStorage:', contextualError);
+      logger.warn('⚠️ Error en sistema contextual:', contextualError);
+    }
       
-      // ESTRATEGIA 2: localStorage como fallback seguro
-      logger.debug('🔄 Intentando localStorage...');
-      const localConfig = this.getFromLocalStorage();
-      if (localConfig) {
-        logger.info('✅ Configuración recuperada desde localStorage');
-        return {
-          config: localConfig,
-          isGlobalAdmin: false,
-          source: 'localStorage'
-        };
-      }
+    // Fallback final: localStorage → default
+    const localConfig = this.getFromLocalStorage();
+    if (localConfig) {
+      logger.info('✅ Config recuperada desde localStorage');
+      return { config: localConfig, isGlobalAdmin: false, source: 'localStorage' };
     }
     
-    // ESTRATEGIA 3: Configuración por defecto como último recurso
-    logger.warn('🆘 Usando configuración por defecto como último recurso');
-    return {
-      config: DEFAULT_INTERFACE_CONFIG,
-      isGlobalAdmin: false,
-      source: 'localStorage'
-    };
+    logger.warn('⚠️ Usando configuración por defecto como último recurso');
+    return { config: DEFAULT_INTERFACE_CONFIG, isGlobalAdmin: false, source: 'global' };
   }
 
   /**
@@ -542,39 +537,28 @@ class InterfaceConfigService {
    * @param getToken - Función para obtener token JWT
    */
   async saveConfigForUser(userId: string, config: InterfaceConfig, getToken: () => Promise<string | null>): Promise<InterfaceConfig> {
-    logger.info('🔄 Intentando guardar configuración contextual...');
-    
     try {
-      // ESTRATEGIA 1: Intentar sistema contextual
-      logger.info('📡 Probando sistema contextual...');
-      
       const canModifyGlobal = await this.canModifyGlobalConfig(getToken);
-      logger.info(`🔑 Permisos globales: ${canModifyGlobal}`);
       
       if (canModifyGlobal) {
-        // Es admin global, intentar guardar preferencias personales contextuales
-        logger.info('👑 Admin detectado - guardando preferencias personales (contextual)');
+        // Admin global: guardar en MongoDB usando PATCH /partial
         try {
-          const result = await this.saveUserPreferences(userId, config, getToken);
+          const result = await this.saveConfig(getToken, config);
+          logger.info('✅ Config global guardada en MongoDB');
           return result;
         } catch (adminError) {
-          logger.warn('⚠️ Error guardando preferencias de admin:', adminError);
-          // Fallback: guardar en localStorage
+          logger.warn('⚠️ Error guardando en MongoDB, usando localStorage:', adminError);
           this.saveToLocalStorage(config);
           return config;
         }
       } else {
-        // Usuario normal, guardar como preferencias de usuario
-        logger.info('👤 Usuario normal - guardando preferencias personales');
+        // Usuario normal: guardar preferencias personales
         const result = await this.saveUserPreferences(userId, config, getToken);
         return result;
       }
       
-    } catch (contextualError) {
-      logger.warn('⚠️ Sistema contextual falló, guardando en localStorage:', contextualError);
-      
-      // ESTRATEGIA 2: Guardar en localStorage como fallback seguro
-      logger.info('💾 Guardando configuración en localStorage como fallback');
+    } catch (error) {
+      logger.warn('⚠️ Error al guardar, usando localStorage como fallback:', error);
       this.saveToLocalStorage(config);
       return config;
     }

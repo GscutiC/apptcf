@@ -14,6 +14,8 @@ export { InterfaceConfigProvider, useInterfaceConfig, useConfigChange } from './
 export { ConfigStateService } from './services/configStateService';
 export { ConfigComparisonService } from './services/configComparisonService';
 export { DOMConfigService } from './services/domConfigService';
+export { dynamicConfigService, ConfigLoadError } from './services/dynamicConfigService';
+export type { LoadStrategy } from './services/dynamicConfigService';
 
 // Hook principal
 export { useInterfaceConfig as useInterfaceConfigHook } from './hooks/useInterfaceConfig';
@@ -31,6 +33,12 @@ export { ConfigSyncMonitor } from './components/ConfigSyncMonitor';
 export { ConfigLoader } from './components/ConfigLoader';
 export { SaveStatusIndicator } from './components/SaveStatusIndicator';
 export { ConfigUsageGuide } from './components/ConfigUsageGuide';
+export { 
+  ConfigLoadingSkeleton, 
+  ConfigLoadErrorUI,
+  PresetsLoadingSkeleton,
+  ConfigPanelSkeleton 
+} from './components/ConfigLoadingSkeleton';
 
 // ===============================
 // 🎯 TIPOS TYPESCRIPT
@@ -64,14 +72,18 @@ export type { UseInterfaceConfigReturn } from './hooks/useInterfaceConfig';
 export { interfaceConfigService } from './services/interfaceConfigService';
 export { httpService } from './services/httpService';
 
+// ⚠️ DEPRECADO: defaultConfigs ahora usa dynamicConfigService
+// Para nuevos desarrollos, usar dynamicConfigService directamente
 export {
-  DEFAULT_INTERFACE_CONFIG,
-  DARK_THEME_CONFIG,
-  GREEN_CORPORATE_CONFIG,
-  SYSTEM_PRESETS,
-  getDefaultConfig,
-  getPresetById,
-  validateConfig
+  DEFAULT_INTERFACE_CONFIG, // ⚠️ DEPRECADO
+  DARK_THEME_CONFIG,         // ⚠️ DEPRECADO
+  GREEN_CORPORATE_CONFIG,    // ⚠️ DEPRECADO
+  SYSTEM_PRESETS,            // ⚠️ DEPRECADO
+  getDefaultConfig,          // ⚠️ DEPRECADO
+  getPresetById,             // ⚠️ DEPRECADO
+  validateConfig,
+  loadConfigFromBackend,     // ✅ RECOMENDADO
+  loadPresetsFromBackend     // ✅ RECOMENDADO
 } from './utils/defaultConfigs';
 
 // Hooks

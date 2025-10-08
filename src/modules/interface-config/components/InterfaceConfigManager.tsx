@@ -1,6 +1,7 @@
 /**
  * Gestor principal de configuración de interfaz
  * Implementa nueva arquitectura modular con servicios especializados
+ * REFACTORIZADO: Con skeleton UI y mejor manejo de estados de carga
  */
 
 import React, { useState } from 'react';
@@ -16,8 +17,9 @@ import { BrandingConfigPanel } from './BrandingConfigPanel';
 import { PresetsPanel } from './PresetsPanel';
 import { PreviewPanel } from './PreviewPanel';
 import { SaveStatusIndicator } from './SaveStatusIndicator';
+import { ConfigLoadingSkeleton, ConfigLoadErrorUI } from './ConfigLoadingSkeleton';
 
-type ConfigTab = 'theme' | 'logos' | 'branding' | 'presets' | 'preview' | 'migration';
+type ConfigTab = 'theme' | 'logos' | 'branding' | 'presets' | 'preview';
 
 interface InterfaceConfigManagerProps {
   className?: string;
@@ -62,7 +64,6 @@ export const InterfaceConfigManager: React.FC<InterfaceConfigManagerProps> = ({ 
   // Manejar cambios de configuración
   const handleConfigChange = (updates: Partial<InterfaceConfig>) => {
     logger.debug('🔄 InterfaceConfigManager: handleConfigChange:', updates);
-    logger.debug('📊 Estado antes del cambio:', { isDirty, hasUnsavedChanges });
     setConfig(updates);
   };
 
@@ -135,14 +136,32 @@ export const InterfaceConfigManager: React.FC<InterfaceConfigManagerProps> = ({ 
     setTimeout(() => forceApplyToDOM(), 50);
   };
 
+  // Manejar retry de carga
+  const handleRetry = () => {
+    window.location.reload();
+  };
+
+  // Estado de carga con skeleton UI mejorado
   if (loading) {
     return (
-      <div className={`bg-white rounded-lg shadow-lg p-8 ${className || ''}`}>
-        <div className="flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-          <span className="ml-3 text-gray-600">Cargando configuración...</span>
-        </div>
-      </div>
+      <ConfigLoadingSkeleton 
+        variant="full"
+        message="Cargando configuración desde el servidor..."
+      />
+    );
+  }
+
+  // Estado de error con opciones de recuperación
+  if (error) {
+    return (
+      <ConfigLoadErrorUI
+        error={error}
+        onRetry={handleRetry}
+        onUseOffline={() => {
+          logger.info('Modo offline activado');
+          // Implementar lógica de modo offline si es necesario
+        }}
+      />
     );
   }
 
@@ -218,6 +237,8 @@ export const InterfaceConfigManager: React.FC<InterfaceConfigManagerProps> = ({ 
           </div>
         </div>
         <SaveStatusIndicator />
+        
+
       </div>
 
       {/* Tabs */}

@@ -1,15 +1,18 @@
 /**
  * Hook principal simplificado para la gestión de configuración de interfaz
  * Usa los servicios especializados para una arquitectura más limpia
+ * 
+ * REFACTORIZADO: Usa dynamicConfigService en lugar de configuraciones hardcodeadas
  */
 
-import { useReducer, useEffect, useCallback, useState } from 'react';
+import { useReducer, useEffect, useCallback, useState, useMemo } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { InterfaceConfig, PresetConfig } from '../types';
 import { ConfigStateService, ConfigState, ConfigAction } from '../services/configStateService';
 import { ConfigComparisonService } from '../services/configComparisonService';
 import { DOMConfigService } from '../services/domConfigService';
 import { interfaceConfigService } from '../services/interfaceConfigService';
+import { dynamicConfigService } from '../services/dynamicConfigService';
 import { useAuthProfile } from '../../../hooks/useAuthProfile';
 import { adaptUserProfileToUser } from '../../../shared/utils/userAdapter';
 import { logger } from '../../../shared/utils/logger';
@@ -57,8 +60,12 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
   
-  // Acciones del servicio
-  const actions = ConfigStateService.createActions(dispatch);
+  // Acciones del servicio (memoizadas para mantener referencia estable)
+  const actions = useMemo(() => 
+    ConfigStateService.createActions(dispatch), 
+    [dispatch]
+  );
+  
   const selectors = ConfigStateService.createSelectors(state);
 
   /**
@@ -67,25 +74,42 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
   const loadInitialConfig = useCallback(async () => {
     // Evitar múltiples llamadas simultáneas
     if (isInitializing || isInitialized) {
+      console.log('🔄 [DEBUG] loadInitialConfig: Ya inicializando o inicializado', { isInitializing, isInitialized });
       return;
     }
     
     if (!authLoaded || profileLoading || !profile) {
+      console.log('🔄 [DEBUG] loadInitialConfig: Esperando auth/profile', { authLoaded, profileLoading, hasProfile: !!profile });
       return;
     }
 
+    console.log('🚀 [DEBUG] INICIANDO CARGA DE CONFIGURACIÓN');
     setIsInitializing(true);
 
     try {
       actions.setLoading(true);
       actions.setError(null);
       
-      logger.info('🔄 Cargando configuración inicial...');
+      // Verificar localStorage ANTES de hacer llamada al servidor
+      const localStorageConfig = localStorage.getItem('interface-config');
+      console.log('� [DEBUG] localStorage check:', localStorageConfig ? 'EXISTE' : 'VACÍO');
+      if (localStorageConfig) {
+        try {
+          const parsed = JSON.parse(localStorageConfig);
+          console.log('📝 [DEBUG] appName en localStorage:', parsed.branding?.appName);
+        } catch (e) {
+          console.log('❌ [DEBUG] Error parseando localStorage:', e);
+        }
+      }
+      
+      logger.info('�🔄 Cargando configuración inicial...');
       
       const user = adaptUserProfileToUser(profile);
       if (!user) {
         throw new Error('Usuario no válido');
       }
+      
+      console.log('👤 [DEBUG] Usuario:', user.clerk_id);
       
       // Asegurar que tenemos un token válido antes de proceder
       const token = await getToken();
@@ -93,10 +117,17 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
         throw new Error('No se pudo obtener token de autenticación');
       }
       
+      console.log('🔑 [DEBUG] Token obtenido, llamando getConfigForUser...');
       const configResponse = await interfaceConfigService.getConfigForUser(user.clerk_id, getToken);
       
       if (configResponse) {
+        console.log('✅ [DEBUG] Configuración recibida:', {
+          source: configResponse.source,
+          appName: configResponse.config.branding?.appName,
+          isGlobalAdmin: configResponse.isGlobalAdmin
+        });
         logger.info(`✅ Configuración cargada desde: ${configResponse.source}`);
+        logger.info(`📝 appName cargado: ${configResponse.config.branding?.appName}`);
         
         // Actualizar estado contextual
         actions.setContextualData({
@@ -122,10 +153,19 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
       logger.error('Error cargando configuración inicial:', error);
       actions.setError('Error cargando configuración');
       
-      // Fallback: usar configuración por defecto
-      const defaultConfig = ConfigStateService.createInitialState().config;
-      actions.setConfig(defaultConfig);
-      DOMConfigService.applyConfigToDOM(defaultConfig);
+      // Fallback: intentar cargar desde dynamicConfigService (con cache)
+      try {
+        const fallbackConfig = await dynamicConfigService.getCurrentConfig(getToken, 'cache-first');
+        actions.setConfig(fallbackConfig);
+        DOMConfigService.applyConfigToDOM(fallbackConfig);
+        logger.info('✅ Configuración cargada desde cache después de error');
+      } catch (fallbackError) {
+        // Último recurso: configuración de emergencia
+        const emergencyConfig = dynamicConfigService.getEmergencyConfig();
+        actions.setConfig(emergencyConfig);
+        DOMConfigService.applyConfigToDOM(emergencyConfig);
+        logger.warn('⚠️ Usando configuración de emergencia');
+      }
       
     } finally {
       actions.setLoading(false);
@@ -138,8 +178,6 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
    * Función inteligente para actualizar configuración
    */
   const setConfig = useCallback((updates: Partial<InterfaceConfig> | InterfaceConfig) => {
-    logger.debug('🎯 setConfig llamado:', updates);
-    
     // Si es una configuración completa (preset), reemplazar todo
     if ('theme' in updates && 'logos' in updates && 'branding' in updates) {
       actions.replaceConfig(updates as InterfaceConfig);
