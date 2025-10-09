@@ -136,8 +136,7 @@ export const ThemeConfigPanel: React.FC<ThemeConfigPanelProps> = ({ config, onCh
     try {
       await saveChanges();
     } catch (error) {
-      console.error('Error guardando cambios:', error);
-      // Aquí podrías mostrar un toast o notificación de error
+      // Error handling silencioso
     }
   };
 

@@ -44,9 +44,18 @@ const LogoWithFallback: React.FC<LogoWithFallbackProps> = ({
   if (shouldUseFallback) {
     const fallbackText = collapsedText || appName.substring(0, 2).toUpperCase();
     
+    // Determinar el tamaño de fuente basado en el tamaño del contenedor
+    const getFontSize = () => {
+      if (size.includes('w-14') || size.includes('h-14')) return 'text-xl';
+      if (size.includes('w-12') || size.includes('h-12')) return 'text-lg';
+      if (size.includes('w-10') || size.includes('h-10')) return 'text-base';
+      if (size.includes('w-8') || size.includes('h-8')) return 'text-sm';
+      return 'text-sm';
+    };
+    
     return (
       <div className={`${size} rounded-lg bg-gradient-to-r from-primary-500 to-secondary-600 flex items-center justify-center shadow-md`}>
-        <span className="text-white font-bold text-sm">
+        <span className={`text-white font-bold ${getFontSize()}`}>
           {fallbackText}
         </span>
       </div>
@@ -63,7 +72,7 @@ const LogoWithFallback: React.FC<LogoWithFallbackProps> = ({
       <img 
         src={imageUrl}
         alt="Logo" 
-        className={`${size} rounded-lg object-cover shadow-md ${imageLoading ? 'hidden' : 'block'}`}
+        className={`${size} rounded-lg object-contain shadow-md ${imageLoading ? 'hidden' : 'block'}`}
         onError={handleImageError}
         onLoad={handleImageLoad}
       />
@@ -188,70 +197,78 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     <ConfigSyncMonitor>
       <div className="flex h-screen bg-neutral-50">
       {/* Sidebar Optimizado */}
-      <div className={`${sidebarCollapsed ? 'w-16' : 'w-56'} bg-white shadow-lg border-r border-neutral-200 flex flex-col transition-all duration-300 flex-shrink-0`}>
+      <div className={`${sidebarCollapsed ? 'w-20' : 'w-64'} bg-white shadow-lg border-r border-neutral-200 flex flex-col transition-all duration-300 flex-shrink-0`}>
         
         {/* Header del Sidebar */}
-        <div className="p-3 border-b border-neutral-200 bg-gradient-to-r from-primary-50 to-secondary-50">
-          <div className="flex items-center justify-between">
-            {!sidebarCollapsed ? (
-              <div className="flex items-center space-x-2">
+        <div className="p-4 border-b border-neutral-200 bg-gradient-to-r from-primary-50 to-secondary-50">
+          {!sidebarCollapsed ? (
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center space-x-3 flex-1 min-w-0">
                 <LogoWithFallback 
                   imageUrl={config?.logos?.sidebarLogo?.imageUrl || config?.logos?.mainLogo?.imageUrl}
                   showImage={config?.logos?.sidebarLogo?.showImage ?? config?.logos?.mainLogo?.showImage ?? false}
                   appName={config?.branding?.appName || 'App'}
-                  size="w-8 h-8"
+                  size="w-14 h-14"
                 />
-                <div>
-                  <h1 className="text-sm font-bold text-neutral-800">
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-base font-bold text-neutral-800 truncate">
                     {config?.logos?.sidebarLogo?.showText ? config.logos.sidebarLogo.text : config?.branding?.appName}
                   </h1>
-                  <p className="text-xs text-neutral-500">{config?.branding?.tagline}</p>
+                  <p className="text-xs text-neutral-500 truncate">{config?.branding?.tagline}</p>
                 </div>
               </div>
-            ) : (
-              <div className="mx-auto">
-                <LogoWithFallback 
-                  imageUrl={config?.logos?.sidebarLogo?.imageUrl || config?.logos?.mainLogo?.imageUrl}
-                  showImage={config?.logos?.sidebarLogo?.showImage ?? config?.logos?.mainLogo?.showImage ?? false}
-                  appName={config?.branding?.appName || 'App'}
-                  size="w-8 h-8"
-                  collapsedText={config?.logos?.sidebarLogo?.collapsedText}
-                />
-              </div>
-            )}
-            
-            <button
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="p-1.5 rounded-md hover:bg-white hover:shadow-sm text-neutral-600 transition-all duration-200"
-              title={sidebarCollapsed ? 'Expandir sidebar' : 'Contraer sidebar'}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                {sidebarCollapsed ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                )}
-              </svg>
-            </button>
-          </div>
+              
+              {/* Botón de colapsar/expandir - Solo visible cuando está expandido */}
+              <button
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                className="flex-shrink-0 p-2 rounded-lg hover:bg-white hover:shadow-md text-neutral-600 hover:text-primary-600 transition-all duration-200 border border-transparent hover:border-primary-200"
+                title="Contraer sidebar"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                </svg>
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-3">
+              <LogoWithFallback 
+                imageUrl={config?.logos?.sidebarLogo?.imageUrl || config?.logos?.mainLogo?.imageUrl}
+                showImage={config?.logos?.sidebarLogo?.showImage ?? config?.logos?.mainLogo?.showImage ?? false}
+                appName={config?.branding?.appName || 'App'}
+                size="w-12 h-12"
+                collapsedText={config?.logos?.sidebarLogo?.collapsedText}
+              />
+              
+              {/* Botón de expandir - Centrado cuando está colapsado */}
+              <button
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                className="flex-shrink-0 p-2 rounded-lg hover:bg-white hover:shadow-md text-neutral-600 hover:text-primary-600 transition-all duration-200 border border-transparent hover:border-primary-200"
+                title="Expandir sidebar"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Navegación */}
-        <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
           {visibleMenuItems.map((item) => {
             const isCurrentPage = location.pathname === item.path;
             return (
               <button
                 key={item.id}
                 onClick={() => handleNavigate(item.path)}
-                className={`w-full flex items-center px-3 py-2.5 text-left rounded-lg transition-all duration-200 group ${
+                className={`w-full flex items-center px-4 py-3 text-left rounded-lg transition-all duration-200 group ${
                   isCurrentPage
                     ? 'bg-gradient-to-r from-primary-500 to-secondary-600 text-white shadow-lg transform scale-105'
                     : 'text-neutral-600 hover:bg-primary-50 hover:text-primary-700 hover:shadow-sm'
                 }`}
                 title={sidebarCollapsed ? item.label : item.description}
               >
-                <span className={`text-base mr-3 ${sidebarCollapsed ? 'mx-auto' : ''}`}>
+                <span className={`text-lg mr-3 flex-shrink-0 ${sidebarCollapsed ? 'mx-auto' : ''}`}>
                   {item.icon}
                 </span>
                 {!sidebarCollapsed && (
@@ -269,7 +286,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </div>
                 )}
                 {!sidebarCollapsed && !isCurrentPage && (
-                  <svg className="w-4 h-4 text-neutral-400 group-hover:text-primary-500 transition-colors opacity-0 group-hover:opacity-100" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="w-4 h-4 text-neutral-400 group-hover:text-primary-500 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0 ml-2" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
                   </svg>
                 )}

@@ -74,51 +74,44 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
   const loadInitialConfig = useCallback(async () => {
     // Evitar múltiples llamadas simultáneas
     if (isInitializing || isInitialized) {
-      console.log('🔄 [DEBUG] loadInitialConfig: Ya inicializando o inicializado', { isInitializing, isInitialized });
       return;
     }
     
     if (!authLoaded || profileLoading || !profile) {
-      console.log('🔄 [DEBUG] loadInitialConfig: Esperando auth/profile', { authLoaded, profileLoading, hasProfile: !!profile });
       return;
     }
 
-    console.log('🚀 [DEBUG] INICIANDO CARGA DE CONFIGURACIÓN');
     setIsInitializing(true);
 
     try {
       actions.setLoading(true);
       actions.setError(null);
       
-      // 🆕 VERIFICACIÓN AGRESIVA DE CACHE OBSOLETO
+      // Verificación de cache obsoleto
       const localStorageConfig = localStorage.getItem('interface-config');
-      console.log('🔍 [DEBUG] localStorage check:', localStorageConfig ? 'EXISTE' : 'VACÍO');
       
       if (localStorageConfig) {
         try {
           const parsed = JSON.parse(localStorageConfig);
           const appName = parsed.branding?.appName;
-          console.log('📝 [DEBUG] appName en localStorage:', appName);
           
-          // 🚨 DETECCIÓN AGRESIVA DE CONFIGURACIÓN OBSOLETA
+          // Detección de configuración obsoleta
           const obsoleteNames = ['WorkTecApp', 'Aplicación', 'Sistema', 'App'];
           const isObsolete = !appName || obsoleteNames.some(name => appName.includes(name));
           
           if (isObsolete) {
-            console.log('🗑️ [DEBUG] CONFIGURACIÓN OBSOLETA DETECTADA, LIMPIANDO...');
             localStorage.removeItem('interface-config');
             localStorage.removeItem('interface-config-timestamp');
             localStorage.removeItem('config-cache');
             
             // Forzar recarga para aplicar configuración limpia
             setTimeout(() => {
-              logger.warn('🔄 Recargando por configuración obsoleta detectada');
+              logger.warn('Recargando por configuración obsoleta detectada');
               window.location.reload();
             }, 100);
             return;
           }
         } catch (e) {
-          console.log('❌ [DEBUG] Cache corrupto, limpiando:', e);
           localStorage.removeItem('interface-config');
         }
       }
@@ -130,7 +123,6 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
         throw new Error('Usuario no válido');
       }
       
-      console.log('👤 [DEBUG] Usuario:', user.clerk_id);
       
       // Asegurar que tenemos un token válido antes de proceder
       const token = await getToken();
@@ -138,17 +130,10 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
         throw new Error('No se pudo obtener token de autenticación');
       }
       
-      console.log('🔑 [DEBUG] Token obtenido, llamando getConfigForUser...');
       const configResponse = await interfaceConfigService.getConfigForUser(user.clerk_id, getToken);
       
       if (configResponse) {
-        console.log('✅ [DEBUG] Configuración recibida:', {
-          source: configResponse.source,
-          appName: configResponse.config.branding?.appName,
-          isGlobalAdmin: configResponse.isGlobalAdmin
-        });
-        logger.info(`✅ Configuración cargada desde: ${configResponse.source}`);
-        logger.info(`📝 appName cargado: ${configResponse.config.branding?.appName}`);
+        logger.info(`Configuración cargada desde: ${configResponse.source}`);
         
         // Actualizar estado contextual
         actions.setContextualData({

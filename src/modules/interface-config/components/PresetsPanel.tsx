@@ -191,7 +191,6 @@ export const PresetsPanel: React.FC<PresetsPanelProps> = ({
   // Función simplificada que delega al padre (InterfaceConfigManager)
   // El padre se encarga de setConfig + saveChanges + aplicar DOM
   const handleApplyPresetWithSave = (preset: PresetConfig) => {
-    console.log('🎨 PresetsPanel: Delegando aplicación de preset al manager:', preset.name);
     onApplyPreset(preset);
   };
 
@@ -229,7 +228,6 @@ export const PresetsPanel: React.FC<PresetsPanelProps> = ({
 
     setIsCreating(true);
     try {
-      console.log('🎨 Creando preset con configuración actual...');
       
       // Crear preset con la configuración actual
       const newPreset = await interfaceConfigService.createPreset(
@@ -239,7 +237,6 @@ export const PresetsPanel: React.FC<PresetsPanelProps> = ({
         currentConfig
       );
 
-      console.log('✅ Preset creado exitosamente:', newPreset);
       
       // Limpiar formulario
       setNewPresetName('');
@@ -253,7 +250,6 @@ export const PresetsPanel: React.FC<PresetsPanelProps> = ({
       
       alert(`Preset "${newPreset.name}" creado exitosamente`);
     } catch (error) {
-      console.error('❌ Error creando preset:', error);
       alert('Error creando el preset. Verifica los permisos y que todos los campos estén completos.');
     } finally {
       setIsCreating(false);
@@ -266,12 +262,10 @@ export const PresetsPanel: React.FC<PresetsPanelProps> = ({
     }
 
     try {
-      console.log('🗑️ Eliminando preset:', presetId);
       
       // Eliminar preset usando el servicio
       await interfaceConfigService.deletePreset(getToken, presetId);
       
-      console.log('✅ Preset eliminado exitosamente');
       
       // Recargar lista de presets si existe el callback
       if (onPresetCreated) {
@@ -280,19 +274,16 @@ export const PresetsPanel: React.FC<PresetsPanelProps> = ({
       
       alert('Preset eliminado exitosamente');
     } catch (error) {
-      console.error('❌ Error eliminando preset:', error);
       alert('Error eliminando el preset. Verifica que tengas los permisos necesarios.');
     }
   };
 
   const handleEditPreset = (preset: PresetConfig) => {
-    console.log('✏️ Abriendo modal de edición para:', preset.name);
     setPresetToEdit(preset);
     setShowEditModal(true);
   };
 
   const handleSaveEditedPreset = async (updatedPreset: PresetConfig) => {
-    console.log('💾 Preset actualizado:', updatedPreset.name);
     
     // Recargar lista de presets
     if (onPresetCreated) {

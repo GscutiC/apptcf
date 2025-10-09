@@ -320,6 +320,7 @@ export class DOMConfigService {
 
   /**
    * Genera un favicon SVG dinámico mejorado basado en el nombre de la app
+   * Ahora genera múltiples tamaños para mejor calidad
    */
   private static generateDynamicFavicon(appName: string, config: InterfaceConfig): string {
     try {
@@ -336,48 +337,87 @@ export class DOMConfigService {
       const primaryDark = config.theme?.colors?.primary?.['600'] || '#059669';
       const textColor = '#FFFFFF';
       
-      // ✅ FAVICON MEJORADO: Mayor tamaño, mejor diseño, más visible
-      const svg = `
+      // ✅ MEJORADO: Generar múltiples tamaños de favicon dinámico
+      const sizes = [
+        { size: 32, fontSize: 14, shadow: 0.5 },   // Pequeño
+        { size: 64, fontSize: 28, shadow: 1 },     // Mediano (por defecto)
+        { size: 128, fontSize: 56, shadow: 2 },    // Grande
+        { size: 180, fontSize: 80, shadow: 2.5 }   // Apple Touch Icon
+      ];
+      
+      sizes.forEach(({ size, fontSize, shadow }) => {
+        const svg = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+            <defs>
+              <!-- Gradiente para dar profundidad -->
+              <linearGradient id="bgGradient${size}" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:${primaryColor};stop-opacity:1" />
+                <stop offset="100%" style="stop-color:${primaryDark};stop-opacity:1" />
+              </linearGradient>
+              <!-- Sombra para el texto proporcional al tamaño -->
+              <filter id="textShadow${size}" x="-50%" y="-50%" width="200%" height="200%">
+                <feDropShadow dx="0" dy="${shadow}" stdDeviation="${shadow}" flood-color="rgba(0,0,0,0.35)"/>
+              </filter>
+              <!-- Borde sutil -->
+              <filter id="border${size}" x="-10%" y="-10%" width="120%" height="120%">
+                <feDropShadow dx="0" dy="0" stdDeviation="${Math.max(0.5, size/128)}" flood-color="rgba(0,0,0,0.1)"/>
+              </filter>
+            </defs>
+            
+            <!-- Fondo con gradiente y bordes redondeados proporcionales -->
+            <rect width="${size}" height="${size}" rx="${Math.max(8, size/8)}" fill="url(#bgGradient${size})" filter="url(#border${size})"/>
+            
+            <!-- Texto con sombra y tamaño proporcional -->
+            <text x="${size/2}" y="${size/2 + fontSize*0.1}" 
+                  font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" 
+                  font-size="${fontSize}" 
+                  font-weight="700" 
+                  text-anchor="middle" 
+                  fill="${textColor}"
+                  filter="url(#textShadow${size})"
+                  dominant-baseline="middle">
+              ${initials}
+            </text>
+          </svg>
+        `.trim();
+        
+        const dataUrl = `data:image/svg+xml;base64,${btoa(svg)}`;
+        
+        // Aplicar favicon con tamaño específico
+        this.createFaviconLinkWithSize(dataUrl, size);
+        
+        logger.debug(`🎨 Favicon dinámico ${size}x${size} generado con iniciales: ${initials}`);
+      });
+      
+      logger.info(`✨ Favicon dinámico multi-tamaño generado para "${appName}": ${initials} (${sizes.map(s => s.size).join(', ')}px)`);
+      
+      // Retornar el tamaño mediano como referencia
+      const mediumSvg = `
         <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
           <defs>
-            <!-- Gradiente para dar profundidad -->
-            <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <linearGradient id="bgGradient64" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" style="stop-color:${primaryColor};stop-opacity:1" />
               <stop offset="100%" style="stop-color:${primaryDark};stop-opacity:1" />
             </linearGradient>
-            <!-- Sombra para el texto -->
-            <filter id="textShadow" x="-50%" y="-50%" width="200%" height="200%">
-              <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="rgba(0,0,0,0.3)"/>
-            </filter>
-            <!-- Borde sutil -->
-            <filter id="border" x="-10%" y="-10%" width="120%" height="120%">
-              <feDropShadow dx="0" dy="0" stdDeviation="0.5" flood-color="rgba(0,0,0,0.1)"/>
+            <filter id="textShadow64" x="-50%" y="-50%" width="200%" height="200%">
+              <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="rgba(0,0,0,0.35)"/>
             </filter>
           </defs>
-          
-          <!-- Fondo con gradiente y bordes redondeados -->
-          <rect width="64" height="64" rx="12" fill="url(#bgGradient)" filter="url(#border)"/>
-          
-          <!-- Texto con sombra y mayor tamaño -->
-          <text x="32" y="42" 
+          <rect width="64" height="64" rx="8" fill="url(#bgGradient64)"/>
+          <text x="32" y="35.8" 
                 font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" 
                 font-size="28" 
                 font-weight="700" 
                 text-anchor="middle" 
                 fill="${textColor}"
-                filter="url(#textShadow)"
+                filter="url(#textShadow64)"
                 dominant-baseline="middle">
             ${initials}
           </text>
         </svg>
       `.trim();
       
-      // Convertir a data URL
-      const dataUrl = `data:image/svg+xml;base64,${btoa(svg)}`;
-      
-      logger.info(`🎨 Favicon SVG mejorado generado para "${appName}": ${initials} (64x64px)`);
-      
-      return dataUrl;
+      return `data:image/svg+xml;base64,${btoa(mediumSvg)}`;
       
     } catch (error) {
       logger.error('Error generando favicon dinámico:', error);
@@ -409,14 +449,18 @@ export class DOMConfigService {
         // Para imágenes subidas (PNG, etc.) - optimizar para mejor visualización
         const type = this.getFaviconTypeFromUrl(faviconUrl);
         
-        // Favicon principal con tamaño sugerido grande
-        this.createFaviconLink(faviconUrl, 'icon', type, '64x64');
-        this.createFaviconLink(faviconUrl, 'shortcut icon', type);
+        // ⭐ SOLUCIÓN: Favicon principal SIN atributo sizes
+        // Esto permite que el navegador use el tamaño real de la imagen
+        // y la escale según necesite (16x16, 32x32, etc.)
+        this.createFaviconLink(faviconUrl, 'icon', type);          // Principal
+        this.createFaviconLink(faviconUrl, 'shortcut icon', type); // Fallback
         
-        // Versiones adicionales para diferentes contextos
+        logger.info(`✅ Favicon principal aplicado SIN restricción de tamaño (escalado automático por el navegador)`);
+        
+        // Versiones adicionales con tamaños específicos (algunos navegadores las prefieren)
+        this.createFaviconLink(faviconUrl, 'icon', type, '16x16');
         this.createFaviconLink(faviconUrl, 'icon', type, '32x32');
         this.createFaviconLink(faviconUrl, 'icon', type, '48x48');
-        this.createFaviconLink(faviconUrl, 'icon', type, '128x128');
         
         // Apple Touch Icon para iOS (más grande)
         const appleTouchIcon = document.createElement('link');
@@ -469,53 +513,87 @@ export class DOMConfigService {
       const primaryColor = config.theme?.colors?.primary?.['500'] || '#10B981';
       const primaryDark = config.theme?.colors?.primary?.['600'] || '#059669';
       
-      // ✅ OPTIMIZACIÓN: Logo ocupa 90% del espacio (solo 5% padding)
-      // Esto hace que logos transparentes se vean MUCHO más grandes
-      const size = 64;
-      const padding = 3; // Solo 3px de padding = 90% de ocupación
-      const logoSize = size - (padding * 2);
+      // ✅ MEJORA: Tamaños optimizados para diferentes contextos del navegador
+      // - Favicon en pestaña: 16x16 o 32x32 (el navegador escala automáticamente)
+      // - El tamaño base debe ser grande para mantener calidad al escalar
+      const sizes = [
+        { size: 32, padding: 2 },   // Tamaño pequeño (pestañas, favoritos)
+        { size: 64, padding: 3 },   // Tamaño mediano (general)
+        { size: 128, padding: 6 },  // Tamaño grande (pantallas HiDPI)
+        { size: 180, padding: 9 }   // Apple Touch Icon (iOS, macOS)
+      ];
       
-      // Crear SVG que contenga el logo con fondo y padding mínimo
-      const enhancedSvg = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-          <defs>
-            <linearGradient id="faviconBg" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" style="stop-color:${primaryColor};stop-opacity:1" />
-              <stop offset="100%" style="stop-color:${primaryDark};stop-opacity:1" />
-            </linearGradient>
-            <clipPath id="roundedCorners">
-              <rect width="${size}" height="${size}" rx="12" />
-            </clipPath>
-            <!-- Sombra sutil para dar profundidad -->
-            <filter id="logoShadow">
-              <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="rgba(0,0,0,0.2)"/>
-            </filter>
-          </defs>
-          
-          <!-- Fondo con gradiente y bordes redondeados -->
-          <rect width="${size}" height="${size}" rx="12" fill="url(#faviconBg)" />
-          
-          <!-- Logo centrado con padding mínimo (90% del tamaño total para máxima visibilidad) -->
-          <image href="${logoUrl}" 
-                 x="${padding}" y="${padding}" 
-                 width="${logoSize}" height="${logoSize}" 
-                 preserveAspectRatio="xMidYMid meet"
-                 filter="url(#logoShadow)"
-                 style="image-rendering: optimizeQuality;" />
-        </svg>
-      `.trim();
+      // Crear SVG para cada tamaño con optimización específica
+      sizes.forEach(({ size, padding }) => {
+        const logoSize = size - (padding * 2);
+        
+        const enhancedSvg = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+            <defs>
+              <linearGradient id="faviconBg${size}" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:${primaryColor};stop-opacity:1" />
+                <stop offset="100%" style="stop-color:${primaryDark};stop-opacity:1" />
+              </linearGradient>
+              <!-- Sombra sutil para dar profundidad -->
+              <filter id="logoShadow${size}">
+                <feDropShadow dx="0" dy="${Math.max(1, size/64)}" stdDeviation="${Math.max(1, size/64)}" flood-color="rgba(0,0,0,0.25)"/>
+              </filter>
+            </defs>
+            
+            <!-- Fondo con gradiente y bordes redondeados proporcionales -->
+            <rect width="${size}" height="${size}" rx="${Math.max(8, size/8)}" fill="url(#faviconBg${size})" />
+            
+            <!-- Logo centrado con padding mínimo para máxima visibilidad -->
+            <image href="${logoUrl}" 
+                   x="${padding}" y="${padding}" 
+                   width="${logoSize}" height="${logoSize}" 
+                   preserveAspectRatio="xMidYMid meet"
+                   filter="url(#logoShadow${size})"
+                   style="image-rendering: optimizeQuality;" />
+          </svg>
+        `.trim();
+        
+        const enhancedDataUrl = `data:image/svg+xml;base64,${btoa(enhancedSvg)}`;
+        
+        // Aplicar favicon con tamaño específico
+        this.createFaviconLinkWithSize(enhancedDataUrl, size);
+        
+        logger.debug(`📐 Favicon ${size}x${size}: Logo ocupa ${logoSize}x${logoSize}px (${Math.round(logoSize/size*100)}%)`);
+      });
       
-      const enhancedDataUrl = `data:image/svg+xml;base64,${btoa(enhancedSvg)}`;
-      
-      // Aplicar el favicon mejorado con el flag correcto
-      this.applyMultipleFaviconSizes(enhancedDataUrl, true);
-      
-      logger.info(`✨ Favicon mejorado: Logo ocupa ${logoSize}x${logoSize}px (${Math.round(logoSize/size*100)}% del espacio)`);
+      logger.info(`✨ Favicons multi-tamaño aplicados: ${sizes.map(s => s.size).join('x, ')}x para mejor calidad en todos los dispositivos`);
       
     } catch (error) {
       logger.error('Error creando favicon mejorado:', error);
       // Fallback: usar el logo original
       this.applyMultipleFaviconSizes(logoUrl, false);
+    }
+  }
+
+  /**
+   * Crea un favicon link con tamaño específico
+   */
+  private static createFaviconLinkWithSize(dataUrl: string, size: number): void {
+    // Limpiar favicons existentes del mismo tamaño
+    const existingFavicon = document.querySelector(`link[rel="icon"][sizes="${size}x${size}"]`);
+    if (existingFavicon) {
+      existingFavicon.remove();
+    }
+    
+    const link = document.createElement('link');
+    link.rel = 'icon';
+    link.type = 'image/svg+xml';
+    link.href = dataUrl;
+    link.setAttribute('sizes', `${size}x${size}`);
+    document.head.appendChild(link);
+    
+    // Para el tamaño más grande, también crear Apple Touch Icon
+    if (size === 180) {
+      const appleTouchIcon = document.createElement('link');
+      appleTouchIcon.rel = 'apple-touch-icon';
+      appleTouchIcon.href = dataUrl;
+      appleTouchIcon.setAttribute('sizes', `${size}x${size}`);
+      document.head.appendChild(appleTouchIcon);
     }
   }
 

@@ -14,7 +14,6 @@ const api = axios.create({
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error('API Error:', error);
     if (error.code === 'ECONNREFUSED') {
       throw new Error('No se pudo conectar con el servidor backend');
     }

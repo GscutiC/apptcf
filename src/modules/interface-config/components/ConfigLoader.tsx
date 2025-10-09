@@ -79,7 +79,6 @@ export const ConfigLoader: React.FC<ConfigLoaderProps> = ({
 
   // Si hay error, mostrar el contenido de todas formas con configuración por defecto
   if (error) {
-    console.error('ConfigLoader: Error en configuración, usando por defecto:', error);
   }
 
   if ((loading || !isReady) && !forceShow) {
