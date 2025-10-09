@@ -27,8 +27,10 @@ export interface LogoData {
 export class FileUploadService {
   /**
    * Subir logo al servidor
+   * @param file - Archivo a subir
+   * @param getToken - Función opcional para obtener token de autenticación
    */
-  static async uploadLogo(file: File): Promise<LogoData> {
+  static async uploadLogo(file: File, getToken?: () => Promise<string | null>): Promise<LogoData> {
     try {
       // Validaciones
       if (!file.type.startsWith('image/')) {
@@ -48,9 +50,24 @@ export class FileUploadService {
       logger.info(`📤 [FileUploadService] Uploading file: ${file.name} (${file.size} bytes)`);
       logger.info(`📡 [FileUploadService] Upload URL: ${API_BASE_URL}/api/files/upload`);
 
+      // ✅ Preparar headers con token si está disponible
+      const headers: HeadersInit = {};
+      if (getToken) {
+        try {
+          const token = await getToken();
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+            logger.info(`🔑 [FileUploadService] Token de autenticación incluido`);
+          }
+        } catch (error) {
+          logger.warn('⚠️ [FileUploadService] No se pudo obtener token, continuando sin autenticación');
+        }
+      }
+
       // Upload al backend
       const response = await fetch(`${API_BASE_URL}/api/files/upload`, {
         method: 'POST',
+        headers,
         body: formData,
         // No incluir Content-Type header, FormData lo maneja automáticamente
       });
@@ -99,13 +116,29 @@ export class FileUploadService {
 
   /**
    * Eliminar logo del servidor
+   * @param fileId - ID del archivo a eliminar
+   * @param getToken - Función opcional para obtener token de autenticación
    */
-  static async deleteLogo(fileId: string): Promise<boolean> {
+  static async deleteLogo(fileId: string, getToken?: () => Promise<string | null>): Promise<boolean> {
     try {
       logger.info(`🗑️ Eliminando logo: ${fileId}`);
 
+      // ✅ Preparar headers con token si está disponible
+      const headers: HeadersInit = {};
+      if (getToken) {
+        try {
+          const token = await getToken();
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+        } catch (error) {
+          logger.warn('⚠️ No se pudo obtener token para eliminación');
+        }
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/files/${fileId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers
       });
 
       if (response.ok) {

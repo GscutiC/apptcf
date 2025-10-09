@@ -36,6 +36,68 @@ export class DOMConfigService {
   }
 
   /**
+   * Aplica solo favicon al DOM (función pública para usar en LoginPage)
+   */
+  static applyFaviconOnly(config: InterfaceConfig): void {
+    this.applyFavicon(config);
+  }
+
+  /**
+   * Genera favicon SVG con tamaño específico (para Apple Touch Icon y otros)
+   */
+  private static generateFaviconWithSize(appName: string, config: InterfaceConfig, size: number): string {
+    try {
+      const initials = appName
+        .split(' ')
+        .filter(word => word.length > 0)
+        .map(word => word.charAt(0).toUpperCase())
+        .slice(0, 2)
+        .join('');
+      
+      const primaryColor = config.theme?.colors?.primary?.['500'] || '#10B981';
+      const primaryDark = config.theme?.colors?.primary?.['600'] || '#059669';
+      const textColor = '#FFFFFF';
+      
+      // Ajustar tamaño de fuente proporcionalmente
+      const fontSize = Math.floor(size * 0.44); // ~44% del tamaño total
+      const borderRadius = Math.floor(size * 0.1875); // ~18.75% para bordes redondeados
+      
+      const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+          <defs>
+            <linearGradient id="bgGradient${size}" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:${primaryColor};stop-opacity:1" />
+              <stop offset="100%" style="stop-color:${primaryDark};stop-opacity:1" />
+            </linearGradient>
+            <filter id="textShadow${size}" x="-50%" y="-50%" width="200%" height="200%">
+              <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="rgba(0,0,0,0.3)"/>
+            </filter>
+          </defs>
+          
+          <rect width="${size}" height="${size}" rx="${borderRadius}" fill="url(#bgGradient${size})"/>
+          
+          <text x="${size/2}" y="${size/2 + fontSize*0.1}" 
+                font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" 
+                font-size="${fontSize}" 
+                font-weight="700" 
+                text-anchor="middle" 
+                fill="${textColor}"
+                filter="url(#textShadow${size})"
+                dominant-baseline="middle">
+            ${initials}
+          </text>
+        </svg>
+      `.trim();
+      
+      return `data:image/svg+xml;base64,${btoa(svg)}`;
+      
+    } catch (error) {
+      logger.error(`Error generando favicon ${size}x${size}:`, error);
+      return '';
+    }
+  }
+
+  /**
    * Aplica las variables CSS del tema
    */
   private static applyThemeVariables(config: InterfaceConfig): void {
@@ -207,29 +269,253 @@ export class DOMConfigService {
   }
 
   /**
-   * Aplica favicon si está configurado
+   * Aplica favicon si está configurado, con fallback automático al logo principal
    */
   private static applyFavicon(config: InterfaceConfig): void {
     try {
-      const { logos } = config;
+      const { logos, branding } = config;
       
-      const faviconUrl = logos?.favicon?.imageUrl;
-      if (!faviconUrl) return;
-
-      let faviconElement = document.querySelector(this.FAVICON_SELECTOR) as HTMLLinkElement;
+      // Intentar usar favicon configurado primero
+      let faviconUrl = logos?.favicon?.imageUrl;
+      let faviconSource = 'favicon configurado';
+      let needsEnhancement = false;
       
-      if (!faviconElement) {
-        faviconElement = document.createElement('link');
-        faviconElement.rel = 'icon';
-        document.head.appendChild(faviconElement);
+      // ✅ FALLBACK 1: Si no hay favicon, usar logo principal
+      if (!faviconUrl && logos?.mainLogo?.imageUrl && logos?.mainLogo?.showImage) {
+        faviconUrl = logos.mainLogo.imageUrl;
+        faviconSource = 'logo principal (fallback)';
+        needsEnhancement = true; // Marcar para mejora automática
+        logger.info('🔄 Usando logo principal como favicon (fallback automático)');
+      }
+      
+      // ✅ FALLBACK 2: Si no hay ningún logo, generar favicon SVG dinámico
+      if (!faviconUrl && branding?.appName) {
+        faviconUrl = this.generateDynamicFavicon(branding.appName, config);
+        faviconSource = 'favicon SVG generado dinámicamente';
+        logger.info('🎨 Generando favicon SVG dinámico para:', branding.appName);
+      }
+      
+      // Si aún no hay URL, no hacer nada
+      if (!faviconUrl) {
+        logger.debug('⚪ No hay favicon, logo ni appName para generar favicon');
+        return;
       }
 
-      faviconElement.href = faviconUrl;
+      // ✅ MEJORA: Para logos usados como favicon, crear versión optimizada con fondo
+      if (needsEnhancement && !faviconUrl.startsWith('data:')) {
+        logger.info('🎨 Mejorando logo para usar como favicon (agregando fondo y padding)');
+        this.createEnhancedFaviconFromLogo(faviconUrl, config);
+      } else {
+        // ✅ MÚLTIPLES TAMAÑOS DE FAVICON PARA MEJOR CALIDAD
+        this.applyMultipleFaviconSizes(faviconUrl, faviconSource.includes('SVG generado'));
+      }
       
-      logger.debug('🎯 Favicon aplicado');
+      logger.info(`🎯 Favicon aplicado desde: ${faviconSource}`);
+      logger.debug(`📎 Favicon URL: ${faviconUrl.substring(0, 50)}...`);
 
     } catch (error) {
       logger.error('Error aplicando favicon:', error);
+    }
+  }
+
+  /**
+   * Genera un favicon SVG dinámico mejorado basado en el nombre de la app
+   */
+  private static generateDynamicFavicon(appName: string, config: InterfaceConfig): string {
+    try {
+      // Obtener las iniciales del nombre de la app
+      const initials = appName
+        .split(' ')
+        .filter(word => word.length > 0)
+        .map(word => word.charAt(0).toUpperCase())
+        .slice(0, 2)
+        .join('');
+      
+      // Obtener colores de la configuración
+      const primaryColor = config.theme?.colors?.primary?.['500'] || '#10B981';
+      const primaryDark = config.theme?.colors?.primary?.['600'] || '#059669';
+      const textColor = '#FFFFFF';
+      
+      // ✅ FAVICON MEJORADO: Mayor tamaño, mejor diseño, más visible
+      const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+          <defs>
+            <!-- Gradiente para dar profundidad -->
+            <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:${primaryColor};stop-opacity:1" />
+              <stop offset="100%" style="stop-color:${primaryDark};stop-opacity:1" />
+            </linearGradient>
+            <!-- Sombra para el texto -->
+            <filter id="textShadow" x="-50%" y="-50%" width="200%" height="200%">
+              <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="rgba(0,0,0,0.3)"/>
+            </filter>
+            <!-- Borde sutil -->
+            <filter id="border" x="-10%" y="-10%" width="120%" height="120%">
+              <feDropShadow dx="0" dy="0" stdDeviation="0.5" flood-color="rgba(0,0,0,0.1)"/>
+            </filter>
+          </defs>
+          
+          <!-- Fondo con gradiente y bordes redondeados -->
+          <rect width="64" height="64" rx="12" fill="url(#bgGradient)" filter="url(#border)"/>
+          
+          <!-- Texto con sombra y mayor tamaño -->
+          <text x="32" y="42" 
+                font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" 
+                font-size="28" 
+                font-weight="700" 
+                text-anchor="middle" 
+                fill="${textColor}"
+                filter="url(#textShadow)"
+                dominant-baseline="middle">
+            ${initials}
+          </text>
+        </svg>
+      `.trim();
+      
+      // Convertir a data URL
+      const dataUrl = `data:image/svg+xml;base64,${btoa(svg)}`;
+      
+      logger.info(`🎨 Favicon SVG mejorado generado para "${appName}": ${initials} (64x64px)`);
+      
+      return dataUrl;
+      
+    } catch (error) {
+      logger.error('Error generando favicon dinámico:', error);
+      return '';
+    }
+  }
+
+  /**
+   * Aplica múltiples tamaños de favicon para mejor calidad en diferentes contextos
+   */
+  private static applyMultipleFaviconSizes(faviconUrl: string, isDynamicSVG: boolean): void {
+    try {
+      // Limpiar favicons existentes
+      const existingFavicons = document.querySelectorAll('link[rel*="icon"]');
+      existingFavicons.forEach(favicon => favicon.remove());
+
+      if (isDynamicSVG) {
+        // Para SVG dinámico, crear múltiples versiones con diferentes tamaños
+        this.createFaviconLink(faviconUrl, 'icon', 'image/svg+xml');
+        this.createFaviconLink(faviconUrl, 'shortcut icon', 'image/svg+xml');
+        
+        // También crear versiones específicas para diferentes tamaños
+        const sizes = ['16x16', '32x32', '48x48', '64x64', '128x128'];
+        sizes.forEach(size => {
+          this.createFaviconLink(faviconUrl, 'icon', 'image/svg+xml', size);
+        });
+        
+      } else {
+        // Para imágenes subidas (PNG, etc.) - optimizar para mejor visualización
+        const type = this.getFaviconTypeFromUrl(faviconUrl);
+        
+        // Favicon principal con tamaño sugerido grande
+        this.createFaviconLink(faviconUrl, 'icon', type, '64x64');
+        this.createFaviconLink(faviconUrl, 'shortcut icon', type);
+        
+        // Versiones adicionales para diferentes contextos
+        this.createFaviconLink(faviconUrl, 'icon', type, '32x32');
+        this.createFaviconLink(faviconUrl, 'icon', type, '48x48');
+        this.createFaviconLink(faviconUrl, 'icon', type, '128x128');
+        
+        // Apple Touch Icon para iOS (más grande)
+        const appleTouchIcon = document.createElement('link');
+        appleTouchIcon.rel = 'apple-touch-icon';
+        appleTouchIcon.href = faviconUrl;
+        appleTouchIcon.setAttribute('sizes', '180x180');
+        document.head.appendChild(appleTouchIcon);
+      }
+
+      logger.debug(`🎯 Múltiples favicons aplicados (SVG dinámico: ${isDynamicSVG})`);
+
+    } catch (error) {
+      logger.error('Error aplicando múltiples tamaños de favicon:', error);
+    }
+  }
+
+  /**
+   * Crea un elemento link para favicon
+   */
+  private static createFaviconLink(href: string, rel: string, type: string, sizes?: string): void {
+    const link = document.createElement('link');
+    link.rel = rel;
+    link.type = type;
+    link.href = href;
+    
+    if (sizes) {
+      link.setAttribute('sizes', sizes);
+    }
+    
+    document.head.appendChild(link);
+  }
+
+  /**
+   * Determina el tipo MIME del favicon basado en la URL
+   */
+  private static getFaviconTypeFromUrl(url: string): string {
+    if (url.includes('data:image/svg')) return 'image/svg+xml';
+    if (url.includes('.png')) return 'image/png';
+    if (url.includes('.jpg') || url.includes('.jpeg')) return 'image/jpeg';
+    if (url.includes('.gif')) return 'image/gif';
+    return 'image/x-icon'; // Por defecto ICO
+  }
+
+  /**
+   * Crea un favicon mejorado a partir de un logo, agregando fondo y padding
+   * Esto hace que los logos sin fondo (transparentes) se vean mucho más grandes
+   */
+  private static createEnhancedFaviconFromLogo(logoUrl: string, config: InterfaceConfig): void {
+    try {
+      const primaryColor = config.theme?.colors?.primary?.['500'] || '#10B981';
+      const primaryDark = config.theme?.colors?.primary?.['600'] || '#059669';
+      
+      // ✅ OPTIMIZACIÓN: Logo ocupa 90% del espacio (solo 5% padding)
+      // Esto hace que logos transparentes se vean MUCHO más grandes
+      const size = 64;
+      const padding = 3; // Solo 3px de padding = 90% de ocupación
+      const logoSize = size - (padding * 2);
+      
+      // Crear SVG que contenga el logo con fondo y padding mínimo
+      const enhancedSvg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+          <defs>
+            <linearGradient id="faviconBg" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:${primaryColor};stop-opacity:1" />
+              <stop offset="100%" style="stop-color:${primaryDark};stop-opacity:1" />
+            </linearGradient>
+            <clipPath id="roundedCorners">
+              <rect width="${size}" height="${size}" rx="12" />
+            </clipPath>
+            <!-- Sombra sutil para dar profundidad -->
+            <filter id="logoShadow">
+              <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="rgba(0,0,0,0.2)"/>
+            </filter>
+          </defs>
+          
+          <!-- Fondo con gradiente y bordes redondeados -->
+          <rect width="${size}" height="${size}" rx="12" fill="url(#faviconBg)" />
+          
+          <!-- Logo centrado con padding mínimo (90% del tamaño total para máxima visibilidad) -->
+          <image href="${logoUrl}" 
+                 x="${padding}" y="${padding}" 
+                 width="${logoSize}" height="${logoSize}" 
+                 preserveAspectRatio="xMidYMid meet"
+                 filter="url(#logoShadow)"
+                 style="image-rendering: optimizeQuality;" />
+        </svg>
+      `.trim();
+      
+      const enhancedDataUrl = `data:image/svg+xml;base64,${btoa(enhancedSvg)}`;
+      
+      // Aplicar el favicon mejorado con el flag correcto
+      this.applyMultipleFaviconSizes(enhancedDataUrl, true);
+      
+      logger.info(`✨ Favicon mejorado: Logo ocupa ${logoSize}x${logoSize}px (${Math.round(logoSize/size*100)}% del espacio)`);
+      
+    } catch (error) {
+      logger.error('Error creando favicon mejorado:', error);
+      // Fallback: usar el logo original
+      this.applyMultipleFaviconSizes(logoUrl, false);
     }
   }
 

@@ -3,6 +3,7 @@
  */
 
 import React, { useState, useRef } from 'react';
+import { useAuth } from '@clerk/clerk-react';
 import { InterfaceConfig } from '../types';
 import { FileUploadService, LogoData } from '../services/fileUploadService';
 
@@ -17,7 +18,8 @@ interface LogoUploaderProps {
   currentImageUrl?: string;
   currentFileId?: string;
   onImageUpload: (data: LogoData) => void;
-  onImageRemove: () => void;
+  onImageRemove: () => void | Promise<void>;
+  getToken: () => Promise<string | null>;  // ✅ Añadir getToken
 }
 
 const LogoUploader: React.FC<LogoUploaderProps> = ({
@@ -26,11 +28,13 @@ const LogoUploader: React.FC<LogoUploaderProps> = ({
   currentImageUrl,
   currentFileId,
   onImageUpload,
-  onImageRemove
+  onImageRemove,
+  getToken  // ✅ Recibir getToken
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const handleFileSelect = async (file: File) => {
@@ -51,8 +55,8 @@ const LogoUploader: React.FC<LogoUploaderProps> = ({
     try {
       console.log('📤 [LogoConfigPanel] Iniciando upload de:', file.name);
       
-      // Upload al servidor (no más Base64)
-      const uploadedData = await FileUploadService.uploadLogo(file);
+      // ✅ Upload al servidor con autenticación
+      const uploadedData = await FileUploadService.uploadLogo(file, getToken);
       
       console.log('✅ [LogoConfigPanel] Upload exitoso:', uploadedData);
       
@@ -85,6 +89,17 @@ const LogoUploader: React.FC<LogoUploaderProps> = ({
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
+  };
+
+  const handleRemove = async () => {
+    setIsRemoving(true);
+    try {
+      await onImageRemove();
+    } catch (error) {
+      console.error('Error eliminando imagen:', error);
+    } finally {
+      setIsRemoving(false);
+    }
   };
 
   return (
@@ -131,11 +146,14 @@ const LogoUploader: React.FC<LogoUploaderProps> = ({
                 Cambiar
               </button>
               <button
-                onClick={onImageRemove}
-                disabled={isUploading}
-                className="px-3 py-1 text-sm text-red-600 border border-red-600 rounded hover:bg-red-50 disabled:opacity-50"
+                onClick={handleRemove}
+                disabled={isUploading || isRemoving}
+                className="px-3 py-1 text-sm text-red-600 border border-red-600 rounded hover:bg-red-50 disabled:opacity-50 flex items-center space-x-1"
               >
-                Eliminar
+                {isRemoving && (
+                  <div className="animate-spin rounded-full h-3 w-3 border-b border-red-600"></div>
+                )}
+                <span>{isRemoving ? 'Eliminando...' : 'Eliminar'}</span>
               </button>
             </div>
           </div>
@@ -184,6 +202,8 @@ const LogoUploader: React.FC<LogoUploaderProps> = ({
 };
 
 export const LogoConfigPanel: React.FC<LogoConfigPanelProps> = ({ config, onChange }) => {
+  const { getToken } = useAuth();  // ✅ Obtener getToken de Clerk
+  
   const handleMainLogoChange = (updates: Partial<typeof config.logos.mainLogo>) => {
     onChange({
       logos: {
@@ -218,6 +238,64 @@ export const LogoConfigPanel: React.FC<LogoConfigPanelProps> = ({ config, onChan
         }
       }
     });
+  };
+
+  // ✅ FUNCIONES MEJORADAS PARA ELIMINAR LOGOS DEL SERVIDOR
+  const handleRemoveMainLogo = async () => {
+    const fileId = config.logos.mainLogo.fileId;
+    if (fileId) {
+      try {
+        console.log('🗑️ Eliminando logo principal del servidor:', fileId);
+        const success = await FileUploadService.deleteLogo(fileId, getToken);
+        if (success) {
+          console.log('✅ Logo principal eliminado del servidor');
+        } else {
+          console.warn('⚠️ No se pudo eliminar el logo del servidor, pero se limpiará localmente');
+        }
+      } catch (error) {
+        console.error('❌ Error eliminando logo del servidor:', error);
+      }
+    }
+    // ✅ CRÍTICO: Enviar null explícitamente para que el backend elimine los campos
+    handleMainLogoChange({ imageUrl: null as any, fileId: null as any, showImage: false });
+  };
+
+  const handleRemoveSidebarLogo = async () => {
+    const fileId = config.logos.sidebarLogo.fileId;
+    if (fileId) {
+      try {
+        console.log('🗑️ Eliminando logo del sidebar del servidor:', fileId);
+        const success = await FileUploadService.deleteLogo(fileId, getToken);
+        if (success) {
+          console.log('✅ Logo del sidebar eliminado del servidor');
+        } else {
+          console.warn('⚠️ No se pudo eliminar el logo del servidor, pero se limpiará localmente');
+        }
+      } catch (error) {
+        console.error('❌ Error eliminando logo del servidor:', error);
+      }
+    }
+    // ✅ CRÍTICO: Enviar null explícitamente para que el backend elimine los campos
+    handleSidebarLogoChange({ imageUrl: null as any, fileId: null as any });
+  };
+
+  const handleRemoveFavicon = async () => {
+    const fileId = config.logos.favicon.fileId;
+    if (fileId) {
+      try {
+        console.log('🗑️ Eliminando favicon del servidor:', fileId);
+        const success = await FileUploadService.deleteLogo(fileId, getToken);
+        if (success) {
+          console.log('✅ Favicon eliminado del servidor');
+        } else {
+          console.warn('⚠️ No se pudo eliminar el favicon del servidor, pero se limpiará localmente');
+        }
+      } catch (error) {
+        console.error('❌ Error eliminando favicon del servidor:', error);
+      }
+    }
+    // ✅ CRÍTICO: Enviar null explícitamente para que el backend elimine los campos
+    handleFaviconChange({ imageUrl: null as any, fileId: null as any });
   };
 
   return (
@@ -279,7 +357,8 @@ export const LogoConfigPanel: React.FC<LogoConfigPanelProps> = ({ config, onChan
               fileId: logoData.fileId,
               showImage: true 
             })}
-            onImageRemove={() => handleMainLogoChange({ imageUrl: undefined, fileId: undefined, showImage: false })}
+            onImageRemove={handleRemoveMainLogo}
+            getToken={getToken}
           />
         </div>
 
@@ -381,7 +460,8 @@ export const LogoConfigPanel: React.FC<LogoConfigPanelProps> = ({ config, onChan
               fileId: logoData.fileId,
               showImage: true 
             })}
-            onImageRemove={() => handleSidebarLogoChange({ imageUrl: undefined, fileId: undefined })}
+            onImageRemove={handleRemoveSidebarLogo}
+            getToken={getToken}
           />
         </div>
       </div>
@@ -403,7 +483,8 @@ export const LogoConfigPanel: React.FC<LogoConfigPanelProps> = ({ config, onChan
               imageUrl: logoData.url,
               fileId: logoData.fileId
             })}
-            onImageRemove={() => handleFaviconChange({ imageUrl: undefined, fileId: undefined })}
+            onImageRemove={handleRemoveFavicon}
+            getToken={getToken}
           />
         </div>
       </div>

@@ -2,11 +2,11 @@
 <html lang="es">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <!-- Favicon será aplicado dinámicamente por DOMConfigService -->
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#000000" />
-    <meta name="description" content="Sistema de gestión integral" />
-    <title>Cargando...</title>
+    <meta name="description" content="ScutiTec - Soluciones empresariales sostenibles" />
+    <title>ScutiTec</title>
     
     <!-- Pre-carga de configuración ANTES de React -->
     <script>
@@ -16,13 +16,25 @@
           const cachedConfig = localStorage.getItem('interface-config');
           if (cachedConfig) {
             const config = JSON.parse(cachedConfig);
-            // Aplicar título INMEDIATAMENTE
-            if (config.branding && config.branding.appName) {
+            
+            // ✅ LIMPIAR CONFIGURACIONES OBSOLETAS
+            const obsoleteNames = ['Sistema en Mantenimiento', 'Sistema', 'WorkTecApp', 'Aplicación'];
+            const appName = config.branding?.appName || '';
+            
+            if (obsoleteNames.some(name => appName.includes(name))) {
+              console.warn('🧹 Limpiando configuración obsoleta de localStorage');
+              localStorage.removeItem('interface-config');
+              document.title = 'ScutiTec';
+            } else if (config.branding && config.branding.appName) {
+              // Aplicar título INMEDIATAMENTE si es válido
               document.title = config.branding.appName;
             }
+          } else {
+            document.title = 'ScutiTec';
           }
         } catch (error) {
           console.warn('No se pudo pre-cargar configuración:', error);
+          document.title = 'ScutiTec';
         }
       })();
     </script>

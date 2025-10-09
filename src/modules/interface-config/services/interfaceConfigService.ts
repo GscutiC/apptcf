@@ -568,7 +568,8 @@ class InterfaceConfigService {
       'Sistema en Mantenimiento',
       'Sistema',
       'App',
-      'WorkTec Solutions'
+      'WorkTec Solutions',
+      'Mi App Completa'
     ];
     
     if (appName && obsoleteNames.some(name => appName.includes(name))) {

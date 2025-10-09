@@ -111,6 +111,16 @@ export const LoginPage: React.FC<LoginPageProps> = () => {
         if (configData.branding?.appName) {
           document.title = configData.branding.appName;
         }
+        
+        // ✅ NUEVO: Aplicar favicon dinámicamente con fallback al logo principal
+        try {
+          // Importar dinámicamente el servicio DOM
+          import('../modules/interface-config/services/domConfigService').then(({ DOMConfigService }) => {
+            DOMConfigService.applyFaviconOnly(configData);
+          });
+        } catch (error) {
+          console.warn('No se pudo aplicar favicon en login:', error);
+        }
       } else {
         logger.warn('⚠️ No se pudo obtener configuración pública, usando valores por defecto');
         useDefaultConfig();
@@ -265,6 +275,34 @@ export const LoginPage: React.FC<LoginPageProps> = () => {
         }
       }
     });
+    
+    // ✅ NUEVO: Aplicar favicon también en configuración por defecto
+    try {
+      import('../modules/interface-config/services/domConfigService').then(({ DOMConfigService }) => {
+        DOMConfigService.applyFaviconOnly({
+          logos: {
+            mainLogo: {
+              imageUrl: '',
+              fileId: '',
+              text: 'ScutiTec',
+              showText: true,
+              showImage: false
+            },
+            favicon: { imageUrl: '', fileId: '' },
+            sidebarLogo: {
+              imageUrl: '',
+              fileId: '',
+              text: 'ST',
+              showText: true,
+              showImage: false,
+              collapsedText: 'ST'
+            }
+          }
+        } as any);
+      });
+    } catch (error) {
+      console.warn('No se pudo aplicar favicon por defecto:', error);
+    }
   };
 
   if (loading) {

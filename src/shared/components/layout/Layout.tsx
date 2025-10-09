@@ -315,31 +315,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       {/* Contenido Principal */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header Superior */}
-        <header className="bg-white border-b border-neutral-200 shadow-sm px-6 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <LogoWithFallback 
-                imageUrl={config?.logos?.mainLogo?.imageUrl}
-                showImage={config?.logos?.mainLogo?.showImage ?? false}
-                appName={config?.branding?.appName || 'App'}
-                size="w-10 h-10"
-              />
-              <div>
-                <h1 className="text-lg font-bold text-neutral-800">
-                  {config?.branding?.appName || 'Aplicación'}
-                </h1>
-                <p className="text-sm text-neutral-500">{config?.branding?.tagline || ''}</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-neutral-600">
-                Bienvenido, {userProfile?.first_name || 'Usuario'}
-              </span>
-            </div>
-          </div>
-        </header>
-        
         {/* Área de Contenido */}
         <main className="flex-1 overflow-auto bg-neutral-50">
           <div className="h-full">

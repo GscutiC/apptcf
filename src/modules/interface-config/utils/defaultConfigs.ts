@@ -87,25 +87,25 @@ const EMERGENCY_CONFIG: InterfaceConfig = {
   },
   logos: {
     mainLogo: {
-      text: 'Sistema',
+      text: 'ScutiTec',
       showText: true,
       showImage: false
     },
     favicon: {},
     sidebarLogo: {
-      text: 'Sistema',
+      text: 'ScutiTec',
       showText: true,
       showImage: false,
-      collapsedText: 'S'
+      collapsedText: 'SC'
     }
   },
   branding: {
-    appName: 'Sistema en Mantenimiento',
-    appDescription: 'Cargando configuración...',
+    appName: 'ScutiTec',
+    appDescription: 'Soluciones empresariales sostenibles',
     tagline: 'Conectando con servidor',
-    companyName: 'Sistema',
+    companyName: 'ScutiTec',
     welcomeMessage: 'Cargando...',
-    loginPageTitle: 'Accediendo al sistema',
+    loginPageTitle: 'Acceso ScutiTec',
     loginPageDescription: 'Estableciendo conexión segura'
   },
   customCSS: '',

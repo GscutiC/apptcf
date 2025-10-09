@@ -131,7 +131,8 @@ function isObsoleteName(name: string): boolean {
     'Sistema',
     'App',
     'WorkTec Solutions',
-    'Mi App Completa'
+    'Mi App Completa',
+    'Cargando...'
   ];
   
   return obsoleteNames.some(obsolete => 
