@@ -1,84 +1,51 @@
 /**
- * Página de Gestión de Roles y Permisos
+ * Página de Gestión de Roles y Permisos - Optimizada con React Query
  * Ruta: /roles
  * Protegida: Solo administradores o super_admin
+ *
+ * ✅ OPTIMIZADO: Usa React Query para cache automático y reducción de llamadas API
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { useAuthProfile } from '../hooks/useAuthProfile';
 import { adaptUserProfileToUser } from '../shared/utils/userAdapter';
 import { useProtectedRoute } from '../hooks/useProtectedRoute';
 import { PERMISSION_GROUPS, getRoleDisplayName, getRoleColor } from '../modules/user-management/utils/permissions.utils';
-import { authService } from '../services/authService';
 import Loading from '../shared/components/ui/Loading';
 import RoleFormModal, { RoleFormData } from '../shared/components/ui/RoleFormModal';
-import { RoleName, Permission } from '../modules/user-management/types/user.types';
 
-import { UserRole, UserProfile } from '../services/authService';
+import { UserRole } from '../services/authService';
 
-// Usar los tipos del servicio directamente
+// ✅ NUEVO: Importar hooks de React Query
+import { useUsers, useRoles, useCreateRole, useUpdateRole } from '../hooks/queries';
 
 export const RolesPage: React.FC = () => {
   const { getToken } = useAuth();
   const { userProfile, loading: userLoading } = useAuthProfile();
   const currentUser = adaptUserProfileToUser(userProfile);
   const { isSuperAdmin, isAdmin } = useProtectedRoute();
-  
-  const [roles, setRoles] = useState<UserRole[]>([]);
-  const [users, setUsers] = useState<UserProfile[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  // ✅ NUEVO: Usar React Query en lugar de useState + useEffect
+  const { data: roles = [], isLoading: rolesLoading, error: rolesError } = useRoles();
+  const { data: users = [], isLoading: usersLoading } = useUsers();
+  const createRole = useCreateRole();
+  const updateRole = useUpdateRole();
+
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingRole, setEditingRole] = useState<UserRole | null>(null);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    if (!getToken) return;
-    
-    try {
-      setLoading(true);
-      
-      // Cargar roles y usuarios en paralelo
-      const [rolesData, usersData] = await Promise.all([
-        authService.getAllRoles(getToken),
-        authService.getAllUsers(getToken)
-      ]);
-      
-      setRoles(rolesData);
-      setUsers(usersData);
-    } catch (error) {
-      console.error('Error cargando datos:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // ✅ OPTIMIZADO: handleCreateRole ahora usa mutación de React Query
   const handleCreateRole = async (roleData: RoleFormData) => {
     try {
-      if (!getToken) return;
-      
-      console.log('🔄 Creando rol:', roleData);
-      
-      const newRole = await authService.createRole(getToken, roleData);
-      
-      if (newRole) {
-        setRoles(prev => [...prev, newRole]);
-        setShowCreateModal(false);
-        alert('✅ Rol creado exitosamente!');
-        
-        // Recargar datos para mantener sincronización
-        await loadData();
-        
-        // También forzar recarga de roles en otros contextos
-        // Esto ayuda a que la gestión de usuarios vea los nuevos roles
-        console.log('🔄 Rol creado, forzando actualización global...');
-        window.dispatchEvent(new CustomEvent('rolesUpdated'));
-      }
-      
+      await createRole.mutateAsync(roleData);
+
+      setShowCreateModal(false);
+      alert('✅ Rol creado exitosamente!');
+      // ✅ React Query invalida automáticamente el cache de roles
+      // Ya no necesitamos eventos globales ni recargas manuales
+
     } catch (error) {
       console.error('❌ Error creando rol:', error);
       alert('❌ Error al crear el rol: ' + (error as Error).message);
@@ -86,35 +53,29 @@ export const RolesPage: React.FC = () => {
     }
   };
 
+  // ✅ OPTIMIZADO: handleEditRole ahora usa mutación de React Query
   const handleEditRole = async (roleData: RoleFormData) => {
     try {
-      if (!editingRole || !getToken) return;
-      
-      console.log('🔄 Editando rol:', editingRole.id, roleData);
-      
-      const updatedRole = await authService.updateRole(getToken, editingRole.id, roleData);
-      
-      if (updatedRole) {
-        setRoles(prev => prev.map(role => 
-          role.id === editingRole.id ? updatedRole : role
-        ));
-        
-        // Si el rol seleccionado es el que se editó, actualizarlo también
-        if (selectedRole?.id === editingRole.id) {
-          setSelectedRole(updatedRole);
+      if (!editingRole) return;
+
+      await updateRole.mutateAsync({
+        roleId: editingRole.id,
+        roleData
+      });
+
+      // Si el rol seleccionado es el que se editó, actualizarlo
+      if (selectedRole?.id === editingRole.id) {
+        // React Query actualizará el cache automáticamente
+        const updatedRoles = roles.find(r => r.id === editingRole.id);
+        if (updatedRoles) {
+          setSelectedRole(updatedRoles);
         }
-        
-        setEditingRole(null);
-        alert('✅ Rol actualizado exitosamente!');
-        
-        // Recargar datos para mantener sincronización
-        await loadData();
-        
-        // También forzar recarga de roles en otros contextos
-        console.log('🔄 Rol actualizado, forzando actualización global...');
-        window.dispatchEvent(new CustomEvent('rolesUpdated'));
       }
-      
+
+      setEditingRole(null);
+      alert('✅ Rol actualizado exitosamente!');
+      // ✅ React Query invalida automáticamente el cache
+
     } catch (error) {
       console.error('❌ Error editando rol:', error);
       alert('❌ Error al actualizar el rol: ' + (error as Error).message);
@@ -122,8 +83,27 @@ export const RolesPage: React.FC = () => {
     }
   };
 
-  if (userLoading || loading) {
+  // ✅ OPTIMIZADO: Loading unificado de React Query
+  if (userLoading || rolesLoading || usersLoading) {
     return <Loading message="Cargando gestión de roles..." />;
+  }
+
+  // ✅ NUEVO: Manejo de errores de React Query
+  if (rolesError) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <h2 className="text-red-800 font-semibold">Error al Cargar Roles</h2>
+          <p className="text-red-600">{rolesError instanceof Error ? rolesError.message : 'Error desconocido'}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Reintentar
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (!currentUser) {
@@ -160,7 +140,7 @@ export const RolesPage: React.FC = () => {
             <p><strong>Email:</strong> {currentUser.email}</p>
           </div>
           <div>
-            <p><strong>Rol actual:</strong> 
+            <p><strong>Rol actual:</strong>
               <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(currentUser.role?.name || 'user')}`}>
                 {currentUser.role?.display_name || 'Sin rol'}
               </span>
@@ -178,14 +158,15 @@ export const RolesPage: React.FC = () => {
             <div className="p-6 border-b border-gray-200">
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-semibold text-gray-900">
-                  � Roles del Sistema
+                  📋 Roles del Sistema
                 </h2>
                 {isSuperAdmin && (
-                  <button 
+                  <button
                     onClick={() => setShowCreateModal(true)}
-                    className="px-3 py-1 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 transition-colors"
+                    disabled={createRole.isPending}
+                    className="px-3 py-1 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
                   >
-                    + Nuevo
+                    {createRole.isPending ? '...' : '+ Nuevo'}
                   </button>
                 )}
               </div>
@@ -193,7 +174,7 @@ export const RolesPage: React.FC = () => {
                 {roles.length} roles configurados
               </p>
             </div>
-            
+
             <div className="p-4 space-y-3">
               {roles.map((role) => (
                 <div
@@ -205,7 +186,7 @@ export const RolesPage: React.FC = () => {
                   }`}
                 >
                   <div className="flex justify-between items-start mb-2">
-                    <div 
+                    <div
                       onClick={() => setSelectedRole(role)}
                       className="flex-1 cursor-pointer"
                     >
@@ -222,14 +203,15 @@ export const RolesPage: React.FC = () => {
                           e.stopPropagation();
                           setEditingRole(role);
                         }}
-                        className="ml-2 p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                        disabled={updateRole.isPending}
+                        className="ml-2 p-1 text-gray-400 hover:text-blue-600 transition-colors disabled:opacity-50"
                         title="Editar rol"
                       >
                         ✏️
                       </button>
                     )}
                   </div>
-                  <div 
+                  <div
                     onClick={() => setSelectedRole(role)}
                     className="cursor-pointer"
                   >
@@ -273,7 +255,7 @@ export const RolesPage: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   🔐 Permisos ({selectedRole.permissions.length})
                 </h3>
-                
+
                 <div className="space-y-4">
                   {PERMISSION_GROUPS
                     .filter(group => group.permissions.some(p => selectedRole.permissions.includes(p.permission)))
@@ -302,6 +284,27 @@ export const RolesPage: React.FC = () => {
                     ))}
                 </div>
               </div>
+
+              {/* Estadísticas de uso del rol */}
+              <div className="p-6 border-t border-gray-200 bg-gray-50">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                  📊 Estadísticas de Uso
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white rounded-lg p-4 border border-gray-200">
+                    <p className="text-sm text-gray-600">Usuarios con este rol</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {users.filter(u => u.role?.name === selectedRole.name).length}
+                    </p>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 border border-gray-200">
+                    <p className="text-sm text-gray-600">Total de permisos</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {selectedRole.permissions.length}
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="bg-white rounded-lg shadow-md border border-gray-200 p-8 text-center">
@@ -312,7 +315,7 @@ export const RolesPage: React.FC = () => {
           )}
         </div>
       </div>
-      
+
       {/* Modal para crear/editar roles */}
       {(showCreateModal || editingRole) && (
         <RoleFormModal

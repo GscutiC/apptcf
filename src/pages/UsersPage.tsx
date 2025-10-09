@@ -1,18 +1,19 @@
 /**
- * Página de Gestión de Usuarios Actualizada
+ * Página de Gestión de Usuarios - Optimizada con React Query
  * Ruta: /users
  * Protegida: Requiere permiso 'users.read'
+ *
+ * ✅ OPTIMIZADO: Usa React Query para cache automático y reducción de llamadas API
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { useAuthProfile } from '../hooks/useAuthProfile';
 import { adaptUserProfileToUser } from '../shared/utils/userAdapter';
 import { useProtectedRoute } from '../hooks/useProtectedRoute';
-import { authService } from '../services/authService';
 import Loading from '../shared/components/ui/Loading';
-import { useRoleContext } from '../modules/user-management/context/RoleContext';
-import { UserRole } from '../modules/user-management/types/user.types';
+// ✅ NUEVO: Importar hooks de React Query
+import { useUsers, useRoles, useUpdateUserRole } from '../hooks/queries';
 
 interface User {
   id: string;
@@ -37,76 +38,62 @@ export const UsersPage: React.FC = () => {
   const { userProfile, loading: userLoading } = useAuthProfile();
   const currentUser = adaptUserProfileToUser(userProfile);
   const { isSuperAdmin, isAdmin, checkPermission } = useProtectedRoute();
-  const { state: roleState, loadRoles } = useRoleContext();
-  
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  // ✅ NUEVO: Usar React Query en lugar de useState + useEffect
+  const { data: users = [], isLoading: usersLoading, error: usersError } = useUsers();
+  const { data: roles = [], isLoading: rolesLoading } = useRoles();
+  const updateUserRole = useUpdateUserRole();
+
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    loadUsers();
-    loadRoles(getToken);  // Cargar roles también
-  }, [getToken, loadRoles]);
-
-  const loadUsers = async () => {
-    if (!getToken) return;
-    
-    try {
-      setLoading(true);
-      const usersData = await authService.getAllUsers(getToken);
-      setUsers(usersData as User[]);
-    } catch (error) {
-      console.error('Error cargando usuarios:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // ✅ OPTIMIZADO: handleSaveUser ahora usa mutación de React Query
   const handleSaveUser = async (updatedData: any) => {
     if (!editingUser || !getToken) return;
-    
+
     try {
-      setSaving(true);
-      console.log('💾 Intentando guardar cambios:', updatedData);
-      
       // Si el rol cambió, actualizar el rol
       if (updatedData.role !== editingUser.role?.name) {
-        console.log('🔄 Actualizando rol de', editingUser.role?.name, 'a', updatedData.role);
-        console.log('🔍 Usuario completo:', editingUser);
-        console.log('🔑 clerk_id a usar:', editingUser.clerk_id || editingUser.id);
-        
-        const success = await authService.updateUserRole(
-          getToken, 
-          editingUser.clerk_id || editingUser.id, // Usar clerk_id correcto
-          updatedData.role
-        );
-        
-        if (!success) {
-          throw new Error('Error actualizando el rol del usuario');
-        }
-        
-        console.log('✅ Rol actualizado exitosamente');
+        await updateUserRole.mutateAsync({
+          clerkId: editingUser.clerk_id || editingUser.id,
+          roleName: updatedData.role
+        });
+
+        // ✅ React Query invalida automáticamente el cache de usuarios
+        // No necesitamos recargar manualmente
       }
-      
-      // Recargar la lista de usuarios para reflejar los cambios
-      await loadUsers();
+
       setEditingUser(null);
-      
       alert('✅ Usuario actualizado correctamente');
-      
+
     } catch (error) {
       console.error('❌ Error guardando usuario:', error);
       alert('❌ Error al guardar los cambios. Por favor, inténtalo de nuevo.');
-    } finally {
-      setSaving(false);
     }
   };
 
-  if (userLoading || loading) {
+  // ✅ OPTIMIZADO: Loading unificado de React Query
+  if (userLoading || usersLoading || rolesLoading) {
     return <Loading message="Cargando gestión de usuarios..." />;
+  }
+
+  // ✅ NUEVO: Manejo de errores de React Query
+  if (usersError) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <h2 className="text-red-800 font-semibold">Error al Cargar Usuarios</h2>
+          <p className="text-red-600">{usersError instanceof Error ? usersError.message : 'Error desconocido'}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Reintentar
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (!currentUser) {
@@ -242,7 +229,7 @@ export const UsersPage: React.FC = () => {
               Lista de Usuarios
             </h2>
             {(checkPermission('users.create') || isSuperAdmin) && (
-              <button 
+              <button
                 onClick={() => setShowCreateForm(true)}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
               >
@@ -322,11 +309,8 @@ export const UsersPage: React.FC = () => {
                         Ver
                       </button>
                       {(checkPermission('users.update') || isSuperAdmin) && (
-                        <button 
-                          onClick={() => {
-                            console.log('🔧 Botón Editar clickeado para:', user);
-                            setEditingUser(user);
-                          }}
+                        <button
+                          onClick={() => setEditingUser(user)}
                           className="text-indigo-600 hover:text-indigo-900"
                         >
                           Editar
@@ -371,7 +355,7 @@ export const UsersPage: React.FC = () => {
                   <label className="text-sm font-medium text-gray-600">Permisos:</label>
                   <div className="mt-2 space-y-1">
                     {selectedUser.role?.permissions.slice(0, 5).map(permission => (
-                      <span 
+                      <span
                         key={permission}
                         className="inline-block bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs mr-1 mb-1"
                       >
@@ -426,8 +410,7 @@ export const UsersPage: React.FC = () => {
                   role: formData.get('role'),
                   is_active: formData.has('is_active')
                 };
-                
-                console.log('📝 Datos del formulario:', updatedData);
+
                 handleSaveUser(updatedData);
               }}>
                 <div className="space-y-4">
@@ -464,9 +447,9 @@ export const UsersPage: React.FC = () => {
                       defaultValue={editingUser.role?.name || 'user'}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      {roleState.roles
-                        .filter((role: UserRole) => role.is_active)  
-                        .map((role: UserRole) => (
+                      {roles
+                        .filter((role: any) => role.is_active)
+                        .map((role: any) => (
                           <option key={role.id} value={role.name}>
                             {role.display_name}
                           </option>
@@ -490,17 +473,17 @@ export const UsersPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setEditingUser(null)}
-                    disabled={saving}
+                    disabled={updateUserRole.isPending}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 disabled:opacity-50"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    disabled={saving}
+                    disabled={updateUserRole.isPending}
                     className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center"
                   >
-                    {saving ? (
+                    {updateUserRole.isPending ? (
                       <>
                         <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>

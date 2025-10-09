@@ -1,11 +1,14 @@
 import React, { Suspense } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { queryClient } from './lib/queryClient';
 import { RoleProvider } from './modules/user-management/context/RoleContext';
 import { NotificationProvider } from './shared/components/ui/Notifications';
 import { InterfaceConfigProvider, ConfigLoader } from './modules/interface-config';
 import { ConfigDiagnosticWrapper } from './modules/interface-config/components/ConfigDiagnosticWrapper';
-import { Layout } from './shared/components/layout';  
+import { Layout } from './shared/components/layout';
 import { ProtectedRoute } from './shared/components/guards';
 import Loading from './shared/components/ui/Loading';
 import LoginPage from './components/LoginPage';
@@ -40,117 +43,122 @@ function App() {
 
   // Usuario autenticado - mostrar aplicación completa con Router
   return (
-    <ConfigDiagnosticWrapper>
-      <InterfaceConfigProvider>
-        <ConfigLoader>
-          <NotificationProvider>
+    <QueryClientProvider client={queryClient}>
+      <ConfigDiagnosticWrapper>
+        <InterfaceConfigProvider>
+          <ConfigLoader>
+            <NotificationProvider>
             <RoleProvider>
-            <Router
-              future={{
-                v7_startTransition: true,
-                v7_relativeSplatPath: true
-              }}
-            >
-            <div className="min-h-screen bg-gray-50">
-              <Layout>
-              <Suspense fallback={<Loading message="Cargando página..." />}>
-                <Routes>
-                  {/* Ruta principal - redirige a dashboard */}
-                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Router
+                future={{
+                  v7_startTransition: true,
+                  v7_relativeSplatPath: true
+                }}
+              >
+                <div className="min-h-screen bg-gray-50">
+                  <Layout>
+                    <Suspense fallback={<Loading message="Cargando página..." />}>
+                      <Routes>
+                        {/* Ruta principal - redirige a dashboard */}
+                        <Route path="/" element={<Navigate to="/dashboard" replace />} />
                   
-                  {/* Ruta de acceso denegado */}
-                  <Route path="/unauthorized" element={<UnauthorizedPage />} />
-                  
-                  {/* Rutas básicas - solo requieren autenticación */}
-                  <Route 
-                    path="/dashboard" 
-                    element={
-                      <ProtectedRoute requireAuth={true}>
-                        <DashboardPage />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/chat" 
-                    element={
-                      <ProtectedRoute requireAuth={true}>
-                        <ChatPage />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/profile" 
-                    element={
-                      <ProtectedRoute requireAuth={true}>
-                        <ProfilePage />
-                      </ProtectedRoute>
-                    } 
-                  />
-                
-                {/* Rutas con permisos específicos */}
-                <Route 
-                  path="/user-management" 
-                  element={
-                    <ProtectedRoute 
-                      requireAuth={true}
-                      permission="users.read"
-                      unauthorizedRedirect="/unauthorized"
-                    >
-                      <UserManagementDashboard />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/users" 
-                  element={
-                    <ProtectedRoute 
-                      requireAuth={true}
-                      permission="users.read"
-                      unauthorizedRedirect="/unauthorized"
-                    >
-                      <UsersPage />
-                    </ProtectedRoute>
-                  } 
-                />
-                
-                {/* Rutas de administrador */}
-                <Route 
-                  path="/roles" 
-                  element={
-                    <ProtectedRoute 
-                      requireAuth={true}
-                      anyRole={["admin", "super_admin"]}
-                      unauthorizedRedirect="/unauthorized"
-                    >
-                      <RolesPage />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/settings" 
-                  element={
-                    <ProtectedRoute 
-                      requireAuth={true}
-                      anyRole={["admin", "super_admin"]}
-                      unauthorizedRedirect="/unauthorized"
-                    >
-                      <SettingsPage />
-                    </ProtectedRoute>
-                  } 
-                />
-                
-                  {/* Ruta 404 - redirige a dashboard */}
-                  <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                </Routes>
-              </Suspense>
-            </Layout>
-          </div>
-          </Router>
-        </RoleProvider>
-      </NotificationProvider>
-      </ConfigLoader>
-    </InterfaceConfigProvider>
-    </ConfigDiagnosticWrapper>
+
+                        {/* Ruta de acceso denegado */}
+                        <Route path="/unauthorized" element={<UnauthorizedPage />} />
+
+                        {/* Rutas básicas - solo requieren autenticación */}
+                        <Route 
+                          path="/dashboard"
+                          element={
+                            <ProtectedRoute requireAuth={true}>
+                              <DashboardPage />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/chat" 
+                          element={
+                            <ProtectedRoute requireAuth={true}>
+                              <ChatPage />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/profile" 
+                          element={
+                            <ProtectedRoute requireAuth={true}>
+                              <ProfilePage />
+                            </ProtectedRoute>
+                          }
+                        />
+
+                        {/* Rutas con permisos específicos */}
+                        <Route 
+                          path="/user-management"
+                          element={
+                            <ProtectedRoute
+                              requireAuth={true}
+                              permission="users.read"
+                              unauthorizedRedirect="/unauthorized"
+                            >
+                              <UserManagementDashboard />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/users" 
+                          element={
+                            <ProtectedRoute
+                              requireAuth={true}
+                              permission="users.read"
+                              unauthorizedRedirect="/unauthorized"
+                            >
+                              <UsersPage />
+                            </ProtectedRoute>
+                          }
+                        />
+
+                        {/* Rutas de administrador */}
+                        <Route 
+                          path="/roles"
+                          element={
+                            <ProtectedRoute
+                              requireAuth={true}
+                              anyRole={["admin", "super_admin"]}
+                              unauthorizedRedirect="/unauthorized"
+                            >
+                              <RolesPage />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/settings" 
+                          element={
+                            <ProtectedRoute
+                              requireAuth={true}
+                              anyRole={["admin", "super_admin"]}
+                              unauthorizedRedirect="/unauthorized"
+                            >
+                              <SettingsPage />
+                            </ProtectedRoute>
+                          }
+                        />
+
+                        {/* Ruta 404 - redirige a dashboard */}
+                        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                      </Routes>
+                    </Suspense>
+                  </Layout>
+                </div>
+              </Router>
+            </RoleProvider>
+          </NotificationProvider>
+        </ConfigLoader>
+      </InterfaceConfigProvider>
+      </ConfigDiagnosticWrapper>
+      {/* React Query Devtools - solo visible en desarrollo */}
+      <ReactQueryDevtools initialIsOpen={false} />
+    </QueryClientProvider>
   );
 }
 
