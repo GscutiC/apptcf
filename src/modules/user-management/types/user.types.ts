@@ -29,7 +29,9 @@ export type Permission =
   // Admin permissions
   | 'admin.manage_settings'
   // Audit permissions
-  | 'audit.view_logs';
+  | 'audit.view_logs'
+  // Modules permissions
+  | 'modules.techo_propio';
 
 export type RoleName = 'user' | 'moderator' | 'admin' | 'super_admin';
 

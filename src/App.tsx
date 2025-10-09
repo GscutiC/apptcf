@@ -23,6 +23,9 @@ const SettingsPage = React.lazy(() => import('./pages/SettingsPage'));
 const UnauthorizedPage = React.lazy(() => import('./pages/UnauthorizedPage'));
 const UserManagementDashboard = React.lazy(() => import('./pages/UserManagementDashboard'));
 
+// Módulo Techo Propio
+const TechoPropio = React.lazy(() => import('./modules/techo-propio').then(m => ({ default: m.TechoPropio })));
+
 function App() {
   const { user, isSignedIn } = useUser();
 
@@ -119,7 +122,7 @@ function App() {
                         />
 
                         {/* Rutas de administrador */}
-                        <Route 
+                        <Route
                           path="/roles"
                           element={
                             <ProtectedRoute
@@ -132,7 +135,7 @@ function App() {
                           }
                         />
                         <Route
-                          path="/settings" 
+                          path="/settings"
                           element={
                             <ProtectedRoute
                               requireAuth={true}
@@ -140,6 +143,16 @@ function App() {
                               unauthorizedRedirect="/unauthorized"
                             >
                               <SettingsPage />
+                            </ProtectedRoute>
+                          }
+                        />
+
+                        {/* Módulo Techo Propio - Protegido con su propio guard interno */}
+                        <Route
+                          path="/techo-propio/*"
+                          element={
+                            <ProtectedRoute requireAuth={true}>
+                              <TechoPropio />
                             </ProtectedRoute>
                           }
                         />

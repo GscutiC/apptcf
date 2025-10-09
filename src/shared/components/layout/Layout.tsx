@@ -96,7 +96,8 @@ export type ModulePage =
   | 'user-management-module'
   | 'roles-management'
   | 'settings'
-  | 'profile';
+  | 'profile'
+  | 'techo-propio';
 
 interface MenuItem {
   id: ModulePage;
@@ -126,6 +127,13 @@ const MENU_ITEMS: MenuItem[] = [
     label: 'Chat IA',
     icon: '💬',
     description: 'Interactúa con la inteligencia artificial'
+  },
+  {
+    id: 'techo-propio',
+    path: '/techo-propio',
+    label: 'Techo Propio',
+    icon: '🏠',
+    description: 'Gestión de solicitudes del programa de vivienda'
   },
   {
     id: 'user-management-module',

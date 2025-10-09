@@ -11,6 +11,7 @@ interface RoleFormModalProps {
     name: string;
     description?: string;
     permissions: string[];
+    is_system_role?: boolean; // ✅ Agregar propiedad del sistema
   } | null;
   mode: 'create' | 'edit';
 }
@@ -69,19 +70,28 @@ const RoleFormModal: React.FC<RoleFormModalProps> = ({
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
+    const isSystemRole = role?.is_system_role || (role && ['user', 'moderator', 'admin', 'super_admin'].includes(role.name));
 
-    if (!formData.name.trim()) {
-      newErrors.name = 'El nombre del rol es requerido';
-    } else if (!/^[a-z_]+$/.test(formData.name)) {
-      newErrors.name = 'El nombre debe contener solo letras minúsculas y guiones bajos';
-    }
+    // Para roles del sistema en modo edición, solo validar permisos
+    if (mode === 'edit' && isSystemRole) {
+      if (formData.permissions.length === 0) {
+        newErrors.permissions = 'Debe seleccionar al menos un permiso';
+      }
+    } else {
+      // Validación completa para roles nuevos o no del sistema
+      if (!formData.name.trim()) {
+        newErrors.name = 'El nombre del rol es requerido';
+      } else if (!/^[a-z_]+$/.test(formData.name)) {
+        newErrors.name = 'El nombre debe contener solo letras minúsculas y guiones bajos';
+      }
 
-    if (!formData.display_name.trim()) {
-      newErrors.display_name = 'El nombre para mostrar es requerido';
-    }
+      if (!formData.display_name.trim()) {
+        newErrors.display_name = 'El nombre para mostrar es requerido';
+      }
 
-    if (formData.permissions.length === 0) {
-      newErrors.permissions = 'Debe seleccionar al menos un permiso';
+      if (formData.permissions.length === 0) {
+        newErrors.permissions = 'Debe seleccionar al menos un permiso';
+      }
     }
 
     setErrors(newErrors);
@@ -95,7 +105,39 @@ const RoleFormModal: React.FC<RoleFormModalProps> = ({
 
     setLoading(true);
     try {
-      await onSave(formData);
+      // ✅ MEJORA: Lógica inteligente para roles del sistema
+      const isSystemRole = role?.is_system_role || (role && ['user', 'moderator', 'admin', 'super_admin'].includes(role.name));
+      
+      let dataToSave = formData;
+      
+      if (mode === 'edit' && isSystemRole) {
+        // Para roles del sistema, solo enviar los permisos que cambiaron
+        const originalPermissions = role?.permissions || [];
+        const newPermissions = formData.permissions;
+        
+        // Verificar si realmente cambiaron los permisos
+        const permissionsChanged = originalPermissions.length !== newPermissions.length ||
+          originalPermissions.some(p => !newPermissions.includes(p)) ||
+          newPermissions.some(p => !originalPermissions.includes(p));
+        
+        if (!permissionsChanged) {
+          onClose();
+          return;
+        }
+        
+        // Solo enviar permisos para evitar error del backend
+        dataToSave = {
+          name: role.name,
+          display_name: getRoleDisplayName(role.name as RoleName),
+          description: role.description || '',
+          permissions: formData.permissions
+        };
+      } else {
+        // Para roles nuevos o personalizados, enviar todos los datos
+        dataToSave = formData;
+      }
+      
+      await onSave(dataToSave);
       onClose();
     } catch (error) {
       console.error('Error guardando rol:', error);
@@ -132,9 +174,22 @@ const RoleFormModal: React.FC<RoleFormModalProps> = ({
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-gray-200 sticky top-0 bg-white">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold text-gray-900">
-              {mode === 'create' ? '➕ Crear Nuevo Rol' : '✏️ Editar Rol'}
-            </h2>
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">
+                {mode === 'create' ? '➕ Crear Nuevo Rol' : '✏️ Editar Rol'}
+              </h2>
+              {/* ✅ Indicador para roles del sistema */}
+              {mode === 'edit' && role && (role.is_system_role || ['user', 'moderator', 'admin', 'super_admin'].includes(role.name)) && (
+                <div className="flex items-center mt-2">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    🛡️ Rol del Sistema
+                  </span>
+                  <span className="ml-2 text-xs text-gray-500">
+                    Solo se pueden modificar permisos
+                  </span>
+                </div>
+              )}
+            </div>
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
@@ -146,56 +201,80 @@ const RoleFormModal: React.FC<RoleFormModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Información básica del rol */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nombre del rol *
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value.toLowerCase() }))}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.name ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="ej: editor, supervisor"
-                disabled={mode === 'edit' || loading}
-              />
-              {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
-            </div>
+          {/* ✅ Detectar si es rol del sistema */}
+          {(() => {
+            const isSystemRole = role?.is_system_role || (role && ['user', 'moderator', 'admin', 'super_admin'].includes(role.name));
+            const isEditingSystemRole = Boolean(mode === 'edit' && isSystemRole);
+            
+            return (
+              <>
+                {/* Información básica del rol */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Nombre del rol *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value.toLowerCase() }))}
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        errors.name ? 'border-red-500' : 'border-gray-300'
+                      } ${isEditingSystemRole ? 'bg-gray-100' : ''}`}
+                      placeholder="ej: editor, supervisor"
+                      disabled={mode === 'edit' || loading}
+                      readOnly={isEditingSystemRole}
+                    />
+                    {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+                    {isEditingSystemRole && (
+                      <p className="text-xs text-gray-500 mt-1">🔒 Los roles del sistema no pueden cambiar de nombre</p>
+                    )}
+                  </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nombre para mostrar *
-              </label>
-              <input
-                type="text"
-                value={formData.display_name}
-                onChange={(e) => setFormData(prev => ({ ...prev, display_name: e.target.value }))}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.display_name ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="ej: Editor, Supervisor"
-                disabled={loading}
-              />
-              {errors.display_name && <p className="text-red-500 text-sm mt-1">{errors.display_name}</p>}
-            </div>
-          </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Nombre para mostrar *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.display_name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, display_name: e.target.value }))}
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        errors.display_name ? 'border-red-500' : 'border-gray-300'
+                      } ${isEditingSystemRole ? 'bg-gray-100' : ''}`}
+                      placeholder="ej: Editor, Supervisor"
+                      disabled={loading || isEditingSystemRole}
+                      readOnly={isEditingSystemRole}
+                    />
+                    {errors.display_name && <p className="text-red-500 text-sm mt-1">{errors.display_name}</p>}
+                    {isEditingSystemRole && (
+                      <p className="text-xs text-gray-500 mt-1">🔒 Los roles del sistema mantienen su nombre original</p>
+                    )}
+                  </div>
+                </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Descripción
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              rows={3}
-              placeholder="Descripción del rol y sus responsabilidades..."
-              disabled={loading}
-            />
-          </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Descripción
+                  </label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      isEditingSystemRole ? 'bg-gray-100' : ''
+                    }`}
+                    rows={3}
+                    placeholder="Descripción del rol y sus responsabilidades..."
+                    disabled={loading || isEditingSystemRole}
+                    readOnly={isEditingSystemRole}
+                  />
+                  {isEditingSystemRole && (
+                    <p className="text-xs text-gray-500 mt-1">🔒 Los roles del sistema mantienen su descripción original</p>
+                  )}
+                </div>
+              </>
+            );
+          })()}
 
           {/* Selección de permisos */}
           <div>

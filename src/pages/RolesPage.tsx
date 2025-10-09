@@ -56,8 +56,16 @@ export const RolesPage: React.FC = () => {
   // ✅ OPTIMIZADO: handleEditRole ahora usa mutación de React Query
   const handleEditRole = async (roleData: RoleFormData) => {
     try {
-      if (!editingRole) return;
+      if (!editingRole) {
+        console.error('❌ No hay rol seleccionado para editar');
+        return;
+      }
 
+      if (!editingRole.id) {
+        alert('❌ Error: El rol no tiene un ID válido');
+        return;
+      }
+      
       await updateRole.mutateAsync({
         roleId: editingRole.id,
         roleData
@@ -178,7 +186,7 @@ export const RolesPage: React.FC = () => {
             <div className="p-4 space-y-3">
               {roles.map((role) => (
                 <div
-                  key={role.id}
+                  key={role.id || `role-${role.name}`}
                   className={`p-4 rounded-lg border transition-colors ${
                     selectedRole?.id === role.id
                       ? 'border-blue-500 bg-blue-50'

@@ -3,16 +3,20 @@
  */
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthProfile } from '../../../hooks/useAuthProfile';
 import { useProtectedRoute } from '../../../hooks/useProtectedRoute';
 import { adaptUserProfileToUser } from '../../utils/userAdapter';
 import { useInterfaceConfig } from '../../../modules/interface-config/hooks/useInterfaceConfig';
+import { useModuleAccess } from '../../../modules/techo-propio';
 
 export const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
   const { userProfile, loading } = useAuthProfile();
   const currentUser = adaptUserProfileToUser(userProfile);
   const { isAdmin, isSuperAdmin } = useProtectedRoute();
-  
+  const hasTechoPropioAccess = useModuleAccess();
+
   // 🆕 Integrar configuración dinámica
   const { config, loading: configLoading, isReady } = useInterfaceConfig();
 
@@ -101,8 +105,48 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* Módulos Disponibles */}
+      {hasTechoPropioAccess && (
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Módulos Disponibles</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Tarjeta Techo Propio */}
+            <button
+              onClick={() => navigate('/techo-propio')}
+              className="bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-300 p-6 text-left group transform hover:-translate-y-1"
+              style={{
+                borderRadius: config.theme?.layout?.borderRadius?.lg || '0.5rem'
+              }}
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-blue-600 rounded-lg flex items-center justify-center text-3xl shadow-lg">
+                  🏠
+                </div>
+                <div className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full">
+                  NUEVO
+                </div>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-green-600 transition-colors">
+                Techo Propio
+              </h3>
+              <p className="text-gray-600 text-sm mb-4">
+                Gestión completa de solicitudes del programa de vivienda del gobierno
+              </p>
+              <div className="flex items-center text-green-600 font-semibold text-sm">
+                <span>Acceder al módulo</span>
+                <svg className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </button>
+
+            {/* Aquí se pueden agregar más módulos en el futuro */}
+          </div>
+        </div>
+      )}
+
       {/* Mensaje de navegación - Configuración Dinámica */}
-      <div 
+      <div
         className="bg-gray-50 p-6 text-center"
         style={{
           borderRadius: config.theme?.layout?.borderRadius?.lg || '0.5rem'

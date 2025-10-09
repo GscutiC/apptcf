@@ -52,6 +52,12 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     ]
   },
   {
+    category: 'Módulos del Sistema',
+    permissions: [
+      { permission: 'modules.techo_propio', description: 'Acceso al módulo Techo Propio' },
+    ]
+  },
+  {
     category: 'Auditoría',
     permissions: [
       { permission: 'audit.view_logs', description: 'Ver registros de auditoría' },
@@ -111,7 +117,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
     'messages.list',
     'ai.process',
     'admin.manage_settings',
-    'audit.view_logs'
+    'audit.view_logs',
+    'modules.techo_propio'
   ]
 };
 
