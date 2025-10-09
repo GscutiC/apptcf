@@ -90,15 +90,36 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
       actions.setLoading(true);
       actions.setError(null);
       
-      // Verificar localStorage ANTES de hacer llamada al servidor
+      // 🆕 VERIFICACIÓN AGRESIVA DE CACHE OBSOLETO
       const localStorageConfig = localStorage.getItem('interface-config');
-      console.log('� [DEBUG] localStorage check:', localStorageConfig ? 'EXISTE' : 'VACÍO');
+      console.log('🔍 [DEBUG] localStorage check:', localStorageConfig ? 'EXISTE' : 'VACÍO');
+      
       if (localStorageConfig) {
         try {
           const parsed = JSON.parse(localStorageConfig);
-          console.log('📝 [DEBUG] appName en localStorage:', parsed.branding?.appName);
+          const appName = parsed.branding?.appName;
+          console.log('📝 [DEBUG] appName en localStorage:', appName);
+          
+          // 🚨 DETECCIÓN AGRESIVA DE CONFIGURACIÓN OBSOLETA
+          const obsoleteNames = ['WorkTecApp', 'Aplicación', 'Sistema', 'App'];
+          const isObsolete = !appName || obsoleteNames.some(name => appName.includes(name));
+          
+          if (isObsolete) {
+            console.log('🗑️ [DEBUG] CONFIGURACIÓN OBSOLETA DETECTADA, LIMPIANDO...');
+            localStorage.removeItem('interface-config');
+            localStorage.removeItem('interface-config-timestamp');
+            localStorage.removeItem('config-cache');
+            
+            // Forzar recarga para aplicar configuración limpia
+            setTimeout(() => {
+              logger.warn('🔄 Recargando por configuración obsoleta detectada');
+              window.location.reload();
+            }, 100);
+            return;
+          }
         } catch (e) {
-          console.log('❌ [DEBUG] Error parseando localStorage:', e);
+          console.log('❌ [DEBUG] Cache corrupto, limpiando:', e);
+          localStorage.removeItem('interface-config');
         }
       }
       

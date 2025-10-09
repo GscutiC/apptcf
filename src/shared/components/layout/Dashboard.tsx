@@ -1,18 +1,22 @@
 /**
- * Dashboard principal simplificado
+ * Dashboard principal con configuración dinámica
  */
 
 import React from 'react';
 import { useAuthProfile } from '../../../hooks/useAuthProfile';
 import { useProtectedRoute } from '../../../hooks/useProtectedRoute';
 import { adaptUserProfileToUser } from '../../utils/userAdapter';
+import { useInterfaceConfig } from '../../../modules/interface-config/hooks/useInterfaceConfig';
 
 export const Dashboard: React.FC = () => {
   const { userProfile, loading } = useAuthProfile();
   const currentUser = adaptUserProfileToUser(userProfile);
   const { isAdmin, isSuperAdmin } = useProtectedRoute();
+  
+  // 🆕 Integrar configuración dinámica
+  const { config, loading: configLoading, isReady } = useInterfaceConfig();
 
-  if (loading) {
+  if (loading || configLoading || !isReady) {
     return (
       <div className="p-6">
         <div className="animate-pulse">
@@ -22,10 +26,23 @@ export const Dashboard: React.FC = () => {
     );
   }
 
+  // Obtener datos de configuración
+  const appName = config.branding?.appName || 'Mi Aplicación';
+  const appDescription = config.branding?.appDescription || 'Panel de control de la aplicación';
+  const welcomeMessage = config.branding?.welcomeMessage || `¡Bienvenido, ${currentUser?.first_name || 'Usuario'}!`;
+  const tagline = config.branding?.tagline || 'Tu panel de control está listo. Navega por los módulos del sistema para comenzar.';
+  const primaryColor = config.theme?.colors?.primary?.['500'] || '#3B82F6';
+
   return (
     <div className="p-6 space-y-6">
-      {/* Bienvenida Principal */}
-      <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow-lg text-white p-8">
+      {/* Bienvenida Principal - Configuración Dinámica */}
+      <div 
+        className="rounded-lg shadow-lg text-white p-8"
+        style={{
+          background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}CC 100%)`,
+          borderRadius: config.theme?.layout?.borderRadius?.lg || '0.5rem'
+        }}
+      >
         <div className="text-center space-y-4">
           <div className="flex justify-center">
             <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
@@ -34,17 +51,25 @@ export const Dashboard: React.FC = () => {
           </div>
           <div>
             <h1 className="text-3xl font-bold mb-2">
-              ¡Bienvenido, {currentUser?.first_name || 'Usuario'}!
+              {welcomeMessage}
             </h1>
-            <p className="text-blue-100 text-lg">
-              Tu panel de control está listo. Navega por los módulos del sistema para comenzar.
+            <p className="text-white/90 text-lg">
+              {tagline}
+            </p>
+            <p className="text-white/75 text-sm mt-2">
+              {appDescription}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Información del Usuario */}
-      <div className="bg-white rounded-lg shadow-md p-6">
+      {/* Información del Usuario - Configuración Dinámica */}
+      <div 
+        className="bg-white shadow-md p-6"
+        style={{
+          borderRadius: config.theme?.layout?.borderRadius?.lg || '0.5rem'
+        }}
+      >
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-semibold text-gray-900 mb-2">
@@ -62,22 +87,34 @@ export const Dashboard: React.FC = () => {
             <div className="text-lg font-semibold text-gray-900">
               {currentUser?.role?.display_name || 'Usuario'}
             </div>
-            <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mt-2">
+            <div 
+              className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium mt-2"
+              style={{
+                backgroundColor: `${primaryColor}20`,
+                color: primaryColor,
+                borderRadius: config.theme?.layout?.borderRadius?.full || '9999px'
+              }}
+            >
               {currentUser?.role?.permissions.length || 0} permisos
             </div>
           </div>
         </div>
       </div>
 
-      {/* Mensaje de navegación */}
-      <div className="bg-gray-50 rounded-lg p-6 text-center">
+      {/* Mensaje de navegación - Configuración Dinámica */}
+      <div 
+        className="bg-gray-50 p-6 text-center"
+        style={{
+          borderRadius: config.theme?.layout?.borderRadius?.lg || '0.5rem'
+        }}
+      >
         <div className="max-w-md mx-auto">
           <div className="text-6xl mb-4">🚀</div>
           <h3 className="text-xl font-semibold text-gray-900 mb-2">
             ¡Todo listo para comenzar!
           </h3>
           <p className="text-gray-600 mb-4">
-            Utiliza el menú lateral para navegar entre los diferentes módulos del sistema.
+            Utiliza el menú lateral para navegar entre los diferentes módulos de {appName}.
           </p>
         </div>
       </div>

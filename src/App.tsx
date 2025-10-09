@@ -1,16 +1,14 @@
 import React, { Suspense } from 'react';
-import { 
-  SignInButton, 
-  SignUpButton, 
-  useUser 
-} from '@clerk/clerk-react';
+import { useUser } from '@clerk/clerk-react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { RoleProvider } from './modules/user-management/context/RoleContext';
 import { NotificationProvider } from './shared/components/ui/Notifications';
 import { InterfaceConfigProvider, ConfigLoader } from './modules/interface-config';
+import { ConfigDiagnosticWrapper } from './modules/interface-config/components/ConfigDiagnosticWrapper';
 import { Layout } from './shared/components/layout';  
 import { ProtectedRoute } from './shared/components/guards';
 import Loading from './shared/components/ui/Loading';
+import LoginPage from './components/LoginPage';
 
 // Lazy loading de páginas para optimizar el rendimiento
 const DashboardPage = React.lazy(() => import('./pages/DashboardPage'));
@@ -35,47 +33,18 @@ function App() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Si no hay usuario autenticado, mostrar página de login
+  // Si no hay usuario autenticado, mostrar página de login dinámica
   if (!isSignedIn) {
-    return (
-      <div className="App">
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
-          <div className="max-w-md w-full mx-4">
-            <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
-              <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                <span className="text-white font-bold text-xl">AP</span>
-              </div>
-              <h1 className="text-3xl font-bold text-gray-800 mb-4">
-                ¡Bienvenido!
-              </h1>
-              <p className="text-gray-600 mb-8">
-                Inicia sesión o regístrate para acceder a todas las funcionalidades de la aplicación.
-              </p>
-              <div className="space-y-4">
-                <SignInButton mode="modal">
-                  <button className="w-full py-3 px-6 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium">
-                    Iniciar Sesión
-                  </button>
-                </SignInButton>
-                <SignUpButton mode="modal">
-                  <button className="w-full py-3 px-6 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors duration-200 font-medium">
-                    Crear Cuenta
-                  </button>
-                </SignUpButton>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <LoginPage />;
   }
 
   // Usuario autenticado - mostrar aplicación completa con Router
   return (
-    <InterfaceConfigProvider>
-      <ConfigLoader>
-        <NotificationProvider>
-          <RoleProvider>
+    <ConfigDiagnosticWrapper>
+      <InterfaceConfigProvider>
+        <ConfigLoader>
+          <NotificationProvider>
+            <RoleProvider>
             <Router
               future={{
                 v7_startTransition: true,
@@ -181,6 +150,7 @@ function App() {
       </NotificationProvider>
       </ConfigLoader>
     </InterfaceConfigProvider>
+    </ConfigDiagnosticWrapper>
   );
 }
 

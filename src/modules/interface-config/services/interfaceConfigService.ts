@@ -8,20 +8,17 @@ import { DEFAULT_INTERFACE_CONFIG } from '../utils/defaultConfigs';
 import { createAuthenticatedHttpService } from './httpService';
 import { logger } from '../../../shared/utils/logger';
 
-// Tipos para el sistema contextual
+// Tipos para el sistema contextual (actualizados para coincidir con backend)
 export interface ContextualConfigResponse {
   config: InterfaceConfig;
-  context: {
-    source: 'user' | 'role' | 'organization' | 'global';
-    source_id: string;
-    has_user_preferences: boolean;
-    effective_permissions: string[];
+  resolved_from: {
+    context_type: 'user' | 'role' | 'org' | 'global';
+    context_id: string | null;
   };
-  metadata: {
-    user_id: string;
-    resolved_at: string;
-    cache_key: string;
-  };
+  resolution_chain: Array<{
+    context_type: 'user' | 'role' | 'org' | 'global';
+    context_id: string | null;
+  }>;
 }
 
 export interface UserPreferences {
@@ -40,6 +37,14 @@ class InterfaceConfigService {
   // Sistema de caché en memoria para evitar llamadas duplicadas
   private permissionsCache: { can_modify: boolean; timestamp: number } | null = null;
   private readonly CACHE_DURATION = 30000; // 30 segundos de caché
+  
+  // 🆕 Control de limpieza automática
+  private hasRunCacheCleanup = false;
+  
+  constructor() {
+    // 🆕 LIMPIEZA AUTOMÁTICA AGRESIVA
+    this.performAutomaticCacheCleanup();
+  }
 
   /**
    * Obtener la configuración actual (con autenticación) - versión segura
@@ -264,9 +269,34 @@ class InterfaceConfigService {
   private getFromLocalStorage(): InterfaceConfig | null {
     try {
       const saved = localStorage.getItem(this.STORAGE_KEY);
-      return saved ? JSON.parse(saved) : null;
+      if (!saved) return null;
+      
+      const parsed = JSON.parse(saved);
+      
+      // 🆕 VALIDACIÓN DE FRESCURA: Si la config es muy antigua, ignorarla
+      const configAge = Date.now() - new Date(parsed.updatedAt || 0).getTime();
+      const MAX_CACHE_AGE = 24 * 60 * 60 * 1000; // 24 horas
+      
+      if (configAge > MAX_CACHE_AGE) {
+        logger.warn('⏰ Configuración en localStorage es muy antigua, ignorando cache');
+        localStorage.removeItem(this.STORAGE_KEY);
+        return null;
+      }
+      
+      // 🆕 VALIDACIÓN DE CONTENIDO: Si tiene appName obsoleto, es inválida
+      const appName = parsed.branding?.appName;
+      if (!appName || appName === 'WorkTecApp' || appName === 'Aplicación' || appName.includes('Sistema')) {
+        logger.warn('🗑️ Configuración obsoleta detectada en localStorage, limpiando');
+        localStorage.removeItem(this.STORAGE_KEY);
+        return null;
+      }
+      
+      logger.debug('📦 Configuración válida recuperada desde localStorage');
+      return parsed;
+      
     } catch (error) {
       logger.error('Error leyendo configuración de localStorage:', error);
+      localStorage.removeItem(this.STORAGE_KEY); // Limpiar cache corrupto
       return null;
     }
   }
@@ -448,6 +478,160 @@ class InterfaceConfigService {
   }
 
   /**
+   * 🆕 LIMPIEZA AUTOMÁTICA AGRESIVA DE CACHE OBSOLETO
+   * Se ejecuta automáticamente al instanciar el servicio
+   */
+  private performAutomaticCacheCleanup(): void {
+    if (this.hasRunCacheCleanup) return; // Solo ejecutar una vez
+    
+    try {
+      logger.info('🧹 Iniciando limpieza automática de cache obsoleto...');
+      
+      // Lista de claves que pueden contener configuración obsoleta
+      const obsoleteKeys = [
+        'interface-config',
+        'interface-config-timestamp',
+        'config-cache',
+        'user-preferences',
+        'permissions-cache-timestamp',
+        'user-permissions',
+        'theme-config',
+        'app-config'
+      ];
+      
+      let itemsRemoved = 0;
+      
+      // Verificar cada clave y eliminar si contiene datos obsoletos
+      obsoleteKeys.forEach(key => {
+        const stored = localStorage.getItem(key);
+        if (stored) {
+          try {
+            // Intentar parsear y verificar si es configuración obsoleta
+            const parsed = JSON.parse(stored);
+            
+            // Detectar configuraciones obsoletas por contenido
+            const isObsolete = this.isConfigurationObsolete(parsed);
+            
+            if (isObsolete) {
+              localStorage.removeItem(key);
+              itemsRemoved++;
+              logger.warn(`🗑️ Eliminada configuración obsoleta: ${key}`);
+            }
+          } catch (e) {
+            // Si no se puede parsear, también eliminar
+            localStorage.removeItem(key);
+            itemsRemoved++;
+            logger.warn(`🗑️ Eliminado cache corrupto: ${key}`);
+          }
+        }
+      });
+      
+      // Limpieza adicional: eliminar cualquier clave que contenga nombres obsoletos
+      this.cleanupObsoleteLocalStorageKeys();
+      
+      if (itemsRemoved > 0) {
+        logger.info(`✅ Limpieza completada: ${itemsRemoved} elementos obsoletos eliminados`);
+        
+        // 🆕 FORZAR RECARGA SI SE ELIMINÓ CACHE CRÍTICO
+        const wasUsingObsoleteConfig = itemsRemoved > 0;
+        if (wasUsingObsoleteConfig) {
+          logger.info('🔄 Configuración obsoleta detectada, preparando recarga...');
+          
+          // Pequeño delay para que se vean los logs
+          setTimeout(() => {
+            logger.info('🔄 Recargando para aplicar configuración actualizada...');
+            window.location.reload();
+          }, 1000);
+        }
+      } else {
+        logger.debug('✅ No se encontró cache obsoleto');
+      }
+      
+      this.hasRunCacheCleanup = true;
+      
+    } catch (error) {
+      logger.error('❌ Error durante limpieza automática:', error);
+    }
+  }
+
+  /**
+   * 🆕 DETECTAR SI UNA CONFIGURACIÓN ES OBSOLETA
+   */
+  private isConfigurationObsolete(config: any): boolean {
+    if (!config || typeof config !== 'object') return true;
+    
+    // Detectar por nombre de app obsoleto
+    const appName = config.branding?.appName || config.appName;
+    const obsoleteNames = [
+      'WorkTecApp',
+      'Aplicación',
+      'Sistema en Mantenimiento',
+      'Sistema',
+      'App',
+      'WorkTec Solutions'
+    ];
+    
+    if (appName && obsoleteNames.some(name => appName.includes(name))) {
+      logger.warn(`🚨 Configuración obsoleta detectada por appName: "${appName}"`);
+      return true;
+    }
+    
+    // Detectar por tema obsoleto
+    const themeName = config.theme?.name;
+    const obsoleteThemes = [
+      'Tema Corporativo',
+      'Tema por Defecto',
+      'Configuración por Defecto',
+      'Configuración de Emergencia'
+    ];
+    
+    if (themeName && obsoleteThemes.some(theme => themeName.includes(theme))) {
+      logger.warn(`🚨 Configuración obsoleta detectada por tema: "${themeName}"`);
+      return true;
+    }
+    
+    // Detectar por edad (más de 24 horas)
+    if (config.updatedAt) {
+      const configAge = Date.now() - new Date(config.updatedAt).getTime();
+      const MAX_AGE = 24 * 60 * 60 * 1000; // 24 horas
+      
+      if (configAge > MAX_AGE) {
+        logger.warn(`🚨 Configuración obsoleta por edad: ${Math.round(configAge / (60 * 60 * 1000))} horas`);
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  /**
+   * 🆕 LIMPIAR CLAVES OBSOLETAS DE LOCALSTORAGE
+   */
+  private cleanupObsoleteLocalStorageKeys(): void {
+    try {
+      const keysToCheck = Object.keys(localStorage);
+      const obsoletePatterns = [
+        /worktec/i,
+        /work-tec/i,
+        /aplicacion/i,
+        /app-config/i,
+        /old-config/i,
+        /backup-config/i
+      ];
+      
+      keysToCheck.forEach(key => {
+        const isObsolete = obsoletePatterns.some(pattern => pattern.test(key));
+        if (isObsolete) {
+          localStorage.removeItem(key);
+          logger.warn(`🗑️ Eliminada clave obsoleta: ${key}`);
+        }
+      });
+    } catch (error) {
+      logger.error('Error limpiando claves obsoletas:', error);
+    }
+  }
+
+  /**
    * Método inteligente que decide qué configuración usar según el contexto del usuario
    * @param userId - ID del usuario actual
    * @param getToken - Función para obtener token JWT
@@ -461,60 +645,87 @@ class InterfaceConfigService {
       const canModifyGlobal = await this.canModifyGlobalConfig(getToken);
       
       if (canModifyGlobal) {
-        // Admin global: intentar sistema contextual → MongoDB → localStorage → default
+        // 🔧 CORREGIDO: Admin global debe usar MongoDB directamente (/current), no contextual
+        logger.info('🔑 Super Admin detectado - usando configuración completa de MongoDB');
+        
+        try {
+          // Usar endpoint /current que da acceso completo a la configuración
+          const httpService = createAuthenticatedHttpService(getToken);
+          const response = await httpService.get<InterfaceConfig>(`${this.API_BASE}/current`);
+          
+          if (response.data) {
+            logger.info(`✅ Super Admin - Config cargada desde MongoDB: ${response.data.branding?.appName}`);
+            this.saveToLocalStorage(response.data); // Cache para offline
+            return {
+              config: response.data,
+              isGlobalAdmin: true,
+              source: 'global'
+            };
+          }
+        } catch (mongoError) {
+          logger.warn('⚠️ Error accediendo a MongoDB con privilegios admin:', mongoError);
+        }
+        
+        // Fallback: intentar sistema contextual como último recurso
         try {
           const effectiveConfigResponse = await this.getEffectiveConfig(userId, getToken);
           if (effectiveConfigResponse) {
-            logger.info(`✅ Config cargada desde: ${effectiveConfigResponse.context.source}`);
+            const sourceType = effectiveConfigResponse.resolved_from.context_type === 'org' ? 'organization' : effectiveConfigResponse.resolved_from.context_type;
+            logger.info(`✅ Admin - Config desde contextual: ${sourceType}`);
             return {
               config: effectiveConfigResponse.config,
               isGlobalAdmin: true,
-              source: effectiveConfigResponse.context.source
+              source: sourceType as 'user' | 'role' | 'organization' | 'global' | 'legacy' | 'localStorage'
             };
           }
         } catch (effectiveError) {
-          // Intentar MongoDB directo
-          try {
-            const currentConfig = await this.getCurrentConfig(getToken);
-            if (currentConfig) {
-              logger.info('✅ Admin usando config global desde MongoDB');
-              return {
-                config: currentConfig,
-                isGlobalAdmin: true,
-                source: 'global'
-              };
-            }
-          } catch (mongoError) {
-            logger.warn('⚠️ MongoDB no disponible');
-          }
+          logger.warn('⚠️ Sistema contextual tampoco disponible para admin');
         }
         
-        // Fallback: localStorage → default
+        // Último fallback: localStorage → default
         const localConfig = this.getFromLocalStorage();
         if (localConfig) {
           logger.info('✅ Admin usando config desde localStorage');
           return { config: localConfig, isGlobalAdmin: true, source: 'localStorage' };
         }
         
-        logger.warn('⚠️ Usando configuración por defecto');
+        logger.warn('⚠️ Admin usando configuración por defecto (último recurso)');
         return { config: DEFAULT_INTERFACE_CONFIG, isGlobalAdmin: true, source: 'global' };
         
       } else {
-        // Usuario normal: intentar sistema contextual → localStorage → default
+        // Usuario normal: intentar sistema contextual → configuración segura → localStorage → default
+        logger.info('👤 Usuario normal detectado - usando jerarquía contextual');
+        
         try {
           const effectiveConfigResponse = await this.getEffectiveConfig(userId, getToken);
           if (effectiveConfigResponse) {
-            logger.info(`✅ Config cargada desde: ${effectiveConfigResponse.context.source}`);
+            const sourceType = effectiveConfigResponse.resolved_from.context_type === 'org' ? 'organization' : effectiveConfigResponse.resolved_from.context_type;
+            logger.info(`✅ Usuario - Config desde contextual: ${sourceType}`);
             return {
               config: effectiveConfigResponse.config,
               isGlobalAdmin: false,
-              source: effectiveConfigResponse.context.source
+              source: sourceType as 'user' | 'role' | 'organization' | 'global' | 'legacy' | 'localStorage'
             };
           }
         } catch (effectiveError: any) {
           if (!effectiveError?.message?.includes('404')) {
             logger.warn('⚠️ Error obteniendo configuración efectiva:', effectiveError);
           }
+        }
+        
+        // Fallback: usar configuración global segura (/current/safe)
+        try {
+          const safeConfig = await this.getCurrentConfig(getToken); // Ya usa /current/safe
+          if (safeConfig) {
+            logger.info(`✅ Usuario normal - Config segura desde MongoDB: ${safeConfig.branding?.appName}`);
+            return {
+              config: safeConfig,
+              isGlobalAdmin: false,
+              source: 'global'
+            };
+          }
+        } catch (globalError) {
+          logger.warn('⚠️ No se pudo obtener configuración global segura:', globalError);
         }
       }
       
