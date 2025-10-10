@@ -25,12 +25,12 @@ export const ENDPOINTS = {
   STATISTICS: '/api/techo-propio/statistics',
 
   // Validations
-  VALIDATE_DNI: '/api/techo-propio/validate-dni',
+  VALIDATE_DNI: '/api/techo-propio/validate/dni',
 
   // UBIGEO
-  DEPARTMENTS: '/api/techo-propio/ubigeo/departments',
-  PROVINCES: (deptCode: string) => `/api/techo-propio/ubigeo/provinces/${deptCode}`,
-  DISTRICTS: (provCode: string) => `/api/techo-propio/ubigeo/districts/${provCode}`,
+  DEPARTMENTS: '/api/techo-propio/locations/departments',
+  PROVINCES: (deptName: string) => `/api/techo-propio/locations/provinces/${deptName}`,
+  DISTRICTS: (deptName: string, provName: string) => `/api/techo-propio/locations/districts/${deptName}/${provName}`,
 
   // Status
   CHANGE_STATUS: (id: string) => `/api/techo-propio/applications/${id}/status`,

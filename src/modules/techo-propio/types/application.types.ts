@@ -234,14 +234,15 @@ export interface UbigeoDistrict {
 // ==================== RENIEC ====================
 
 export interface ReniecValidationResponse {
-  success: boolean;
-  data?: {
-    dni: string;
-    first_name: string;
-    last_name: string;
-    full_name: string;
-  };
-  error?: string;
+  dni: string;
+  is_valid: boolean;
+  names: string;  // Nombres (estándar peruano)
+  paternal_surname: string;  // Apellido paterno (estándar peruano)
+  maternal_surname: string;  // Apellido materno (estándar peruano)
+  full_name: string;  // Nombre completo
+  birth_date?: string;  // Fecha de nacimiento (opcional)
+  error_message?: string;  // Mensaje de error si aplica
+  validation_date: string;  // Fecha de validación
 }
 
 // ==================== FORM STATE ====================

@@ -147,17 +147,13 @@ export interface ValidateDniResponse {
 
 // ==================== UBIGEO ====================
 
-export interface GetDepartmentsResponse {
-  success: boolean;
-  data: UbigeoDepartment[];
-}
+export interface GetDepartmentsResponse extends Array<UbigeoDepartment> {}
 
-export interface GetProvincesResponse {
-  success: boolean;
-  data: UbigeoProvince[];
-}
+export interface GetProvincesResponse extends Array<UbigeoProvince> {}
 
-export interface GetDistrictsResponse {
+export interface GetDistrictsResponse extends Array<UbigeoDistrict> {}
+
+export interface GetDistrictsResponseOLD {
   success: boolean;
   data: UbigeoDistrict[];
 }

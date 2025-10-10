@@ -34,6 +34,7 @@ import { API_BASE_URL, ENDPOINTS, ERROR_MESSAGES } from '../utils';
  */
 class TechoPropioApiService {
   private client: AxiosInstance;
+  private getToken: (() => Promise<string | null>) | null = null;
 
   constructor() {
     this.client = axios.create({
@@ -46,11 +47,13 @@ class TechoPropioApiService {
 
     // Request interceptor to add auth token
     this.client.interceptors.request.use(
-      (config) => {
-        // Get token from localStorage (Clerk integration)
-        const token = localStorage.getItem('clerk-db-jwt');
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
+      async (config) => {
+        // Get token from Clerk using proper method
+        if (this.getToken) {
+          const token = await this.getToken();
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+          }
         }
         return config;
       },
@@ -66,6 +69,13 @@ class TechoPropioApiService {
         return Promise.reject(this.handleError(error));
       }
     );
+  }
+
+  /**
+   * Set the token getter function for authentication
+   */
+  setTokenGetter(getToken: () => Promise<string | null>) {
+    this.getToken = getToken;
   }
 
   /**
@@ -218,22 +228,24 @@ class TechoPropioApiService {
   }
 
   /**
-   * Get provinces by department code
+   * Get provinces by department name
    */
-  async getProvinces(departmentCode: string): Promise<GetProvincesResponse> {
-    const response = await this.client.get<GetProvincesResponse>(
-      ENDPOINTS.PROVINCES(departmentCode)
-    );
+  async getProvinces(departmentName: string): Promise<GetProvincesResponse> {
+    const url = ENDPOINTS.PROVINCES(encodeURIComponent(departmentName));
+    console.log(`📡 [API] getProvinces URL: ${url}`);
+    const response = await this.client.get<GetProvincesResponse>(url);
+    console.log(`✅ [API] getProvinces response:`, response.data);
     return response.data;
   }
 
   /**
-   * Get districts by province code
+   * Get districts by department and province name
    */
-  async getDistricts(provinceCode: string): Promise<GetDistrictsResponse> {
-    const response = await this.client.get<GetDistrictsResponse>(
-      ENDPOINTS.DISTRICTS(provinceCode)
-    );
+  async getDistricts(departmentName: string, provinceName: string): Promise<GetDistrictsResponse> {
+    const url = ENDPOINTS.DISTRICTS(encodeURIComponent(departmentName), encodeURIComponent(provinceName));
+    console.log(`📡 [API] getDistricts URL: ${url}`);
+    const response = await this.client.get<GetDistrictsResponse>(url);
+    console.log(`✅ [API] getDistricts response:`, response.data);
     return response.data;
   }
 

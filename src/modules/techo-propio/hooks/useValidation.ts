@@ -2,22 +2,32 @@
  * Custom hook for validation operations (RENIEC and UBIGEO)
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '@clerk/clerk-react';
 import { techoPropioApi } from '../services';
 import {
   ReniecValidationResponse,
+  ValidateDniResponse,
   UbigeoDepartment,
   UbigeoProvince,
   UbigeoDistrict
 } from '../types';
 
 export const useValidation = () => {
+  const { getToken } = useAuth();
   const [isValidating, setIsValidating] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
+  // Configure token getter for API service
+  useEffect(() => {
+    if (getToken) {
+      techoPropioApi.setTokenGetter(getToken);
+    }
+  }, [getToken]);
+
   // ==================== RENIEC VALIDATION ====================
 
-  const validateDNI = async (dni: string): Promise<ReniecValidationResponse | null> => {
+  const validateDNI = async (dni: string): Promise<ValidateDniResponse | null> => {
     setIsValidating(true);
     setValidationError(null);
 
@@ -25,7 +35,8 @@ export const useValidation = () => {
       const response = await techoPropioApi.validateDni(dni);
 
       if (response.success && response.data) {
-        return response.data;
+        console.log('Validación DNI exitosa:', dni);
+        return response;
       } else {
         throw new Error(response.error || 'Error al validar DNI');
       }
@@ -50,14 +61,9 @@ export const useValidation = () => {
     setValidationError(null);
 
     try {
-      const response = await techoPropioApi.getDepartments();
-
-      if (response.success) {
-        setDepartments(response.data);
-        return response.data;
-      } else {
-        throw new Error('Error al cargar departamentos');
-      }
+      const data = await techoPropioApi.getDepartments();
+      setDepartments(data);
+      return data;
     } catch (err: any) {
       const errorMessage = err.error || err.message || 'Error al cargar departamentos';
       setValidationError(errorMessage);
@@ -67,20 +73,20 @@ export const useValidation = () => {
     }
   };
 
-  const loadProvinces = async (departmentCode: string): Promise<UbigeoProvince[]> => {
+  const loadProvinces = async (departmentName: string): Promise<UbigeoProvince[]> => {
+    console.log(`🔍 [FRONTEND] loadProvinces llamado con departmentName: '${departmentName}'`);
     setIsLoadingUbigeo(true);
     setValidationError(null);
 
     try {
-      const response = await techoPropioApi.getProvinces(departmentCode);
-
-      if (response.success) {
-        setProvinces(response.data);
-        return response.data;
-      } else {
-        throw new Error('Error al cargar provincias');
-      }
+      console.log(`📡 [FRONTEND] Llamando techoPropioApi.getProvinces('${departmentName}')`);
+      const data = await techoPropioApi.getProvinces(departmentName);
+      console.log(`✅ [FRONTEND] Respuesta recibida:`, data);
+      console.log(`📊 [FRONTEND] ${data.length} provincias recibidas para '${departmentName}'`);
+      setProvinces(data);
+      return data;
     } catch (err: any) {
+      console.error('💥 loadProvinces: Error capturado:', err);
       const errorMessage = err.error || err.message || 'Error al cargar provincias';
       setValidationError(errorMessage);
       return [];
@@ -89,20 +95,20 @@ export const useValidation = () => {
     }
   };
 
-  const loadDistricts = async (provinceCode: string): Promise<UbigeoDistrict[]> => {
+  const loadDistricts = async (departmentName: string, provinceName: string): Promise<UbigeoDistrict[]> => {
+    console.log(`🔍 [FRONTEND] loadDistricts llamado con: '${departmentName}' > '${provinceName}'`);
     setIsLoadingUbigeo(true);
     setValidationError(null);
 
     try {
-      const response = await techoPropioApi.getDistricts(provinceCode);
-
-      if (response.success) {
-        setDistricts(response.data);
-        return response.data;
-      } else {
-        throw new Error('Error al cargar distritos');
-      }
+      console.log(`📡 [FRONTEND] Llamando techoPropioApi.getDistricts('${departmentName}', '${provinceName}')`);
+      const data = await techoPropioApi.getDistricts(departmentName, provinceName);
+      console.log(`✅ [FRONTEND] Respuesta recibida:`, data);
+      console.log(`📊 [FRONTEND] ${data.length} distritos recibidos para '${departmentName}' > '${provinceName}'`);
+      setDistricts(data);
+      return data;
     } catch (err: any) {
+      console.error('💥 loadDistricts: Error capturado:', err);
       const errorMessage = err.error || err.message || 'Error al cargar distritos';
       setValidationError(errorMessage);
       return [];

@@ -20,19 +20,22 @@ export const ApplicantForm: React.FC<ApplicantFormProps> = ({
   errors = {}
 }) => {
   const [dniValidated, setDniValidated] = useState(false);
-
+  
   const handleDniValidated = (reniecData: {
     dni: string;
     first_name: string;
     last_name: string;
   }) => {
     setDniValidated(true);
-    onChange({
+    
+    const newData = {
       ...data,
       dni: reniecData.dni,
       first_name: reniecData.first_name,
       last_name: reniecData.last_name
-    });
+    };
+    
+    onChange(newData);
   };
 
   const handleFieldChange = (field: keyof Applicant, value: any) => {

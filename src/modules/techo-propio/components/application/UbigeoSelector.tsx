@@ -45,6 +45,12 @@ export const UbigeoSelector: React.FC<UbigeoSelectorProps> = ({
     validationError
   } = useValidation();
 
+  // Debug: Log cuando cambian las provincias
+  React.useEffect(() => {
+    console.log(`🔄 [COMPONENT] Provincias actualizadas:`, provinces);
+    console.log(`📊 [COMPONENT] Total provincias: ${provinces.length}`);
+  }, [provinces]);
+
   const [selectedDept, setSelectedDept] = useState(department);
   const [selectedProv, setSelectedProv] = useState(province);
   const [selectedDist, setSelectedDist] = useState(district);
@@ -57,18 +63,27 @@ export const UbigeoSelector: React.FC<UbigeoSelectorProps> = ({
   // Load provinces when department changes
   useEffect(() => {
     if (selectedDept) {
-      loadProvinces(selectedDept);
+      // Find department name from code
+      const deptObj = departments.find(d => d.code === selectedDept);
+      if (deptObj) {
+        loadProvinces(deptObj.name);
+      }
     } else {
       clearUbigeo();
     }
-  }, [selectedDept]);
+  }, [selectedDept, departments]);
 
   // Load districts when province changes
   useEffect(() => {
-    if (selectedProv) {
-      loadDistricts(selectedProv);
+    if (selectedProv && selectedDept) {
+      // Find department and province names from codes
+      const deptObj = departments.find(d => d.code === selectedDept);
+      const provObj = provinces.find(p => p.code === selectedProv);
+      if (deptObj && provObj) {
+        loadDistricts(deptObj.name, provObj.name);
+      }
     }
-  }, [selectedProv]);
+  }, [selectedProv, selectedDept, departments, provinces]);
 
   const handleDepartmentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value;
@@ -104,6 +119,11 @@ export const UbigeoSelector: React.FC<UbigeoSelectorProps> = ({
     label: prov.name
   }));
 
+  // Debug: Log las opciones generadas
+  React.useEffect(() => {
+    console.log(`🎯 [COMPONENT] Province options generadas:`, provinceOptions);
+  }, [provinceOptions]);
+
   const districtOptions = districts.map((dist) => ({
     value: dist.code,
     label: dist.name
@@ -123,6 +143,7 @@ export const UbigeoSelector: React.FC<UbigeoSelectorProps> = ({
       />
 
       <FormSelect
+        key={`province-${selectedDept}-${provinces.length}`}
         label="Provincia"
         required={required}
         value={selectedProv}
@@ -134,6 +155,7 @@ export const UbigeoSelector: React.FC<UbigeoSelectorProps> = ({
       />
 
       <FormSelect
+        key={`district-${selectedProv}-${districts.length}`}
         label="Distrito"
         required={required}
         value={selectedDist}

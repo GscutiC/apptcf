@@ -53,9 +53,25 @@ export const DniValidator: React.FC<DniValidatorProps> = ({
     const result = await validateWithReniec(value);
 
     if (result && result.success && result.data) {
+      // Verificar que la validación fue exitosa
+      if (!result.data.is_valid) {
+        setLocalError(result.data.error_message || 'DNI no válido en RENIEC');
+        setValidated(false);
+        return;
+      }
+
       setValidated(true);
       setLocalError('');
-      onValidated?.(result.data);
+      
+      // Mapear respuesta backend al formato del frontend
+      const mappedData = {
+        dni: result.data.dni,
+        first_name: result.data.names,
+        last_name: `${result.data.paternal_surname} ${result.data.maternal_surname}`.trim(),
+        full_name: result.data.full_name
+      };
+      
+      onValidated?.(mappedData);
     } else {
       setLocalError(result?.error || validationError || 'No se pudo validar el DNI');
       setValidated(false);

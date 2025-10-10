@@ -58,11 +58,16 @@ export const FormSelect: React.FC<FormSelectProps> = ({
         {...selectProps}
       >
         <option value="">{placeholder}</option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
+        {options.map((option) => {
+          if (selectProps.name === 'province') {
+            console.log(`🔧 [FormSelect] Rendering option:`, option);
+          }
+          return (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          );
+        })}
       </select>
 
       {hint && !error && (
