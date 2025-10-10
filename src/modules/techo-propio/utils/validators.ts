@@ -247,25 +247,30 @@ export const validateEconomicInfo = (economicInfo: Partial<EconomicInfo>): { isV
 export const validatePropertyInfo = (propertyInfo: Partial<PropertyInfo>): { isValid: boolean; errors: Record<string, string> } => {
   const errors: Record<string, string> = {};
 
-  // Property type
-  if (!propertyInfo.property_type) errors.property_type = 'El tipo de predio es requerido';
+  // Campos obligatorios del nuevo PropertyInfo (alineado con backend)
+  if (!propertyInfo.department?.trim()) errors.department = 'El departamento es requerido';
+  if (!propertyInfo.province?.trim()) errors.province = 'La provincia es requerida';  
+  if (!propertyInfo.district?.trim()) errors.district = 'El distrito es requerido';
+  if (!propertyInfo.lote?.trim()) errors.lote = 'El lote es requerido';
+  if (!propertyInfo.address?.trim()) errors.address = 'La dirección es requerida';
 
-  // Land ownership
-  if (!propertyInfo.land_ownership) errors.land_ownership = 'El tipo de tenencia es requerido';
+  // Validación de dirección (debe tener al menos 5 caracteres)
+  if (propertyInfo.address && propertyInfo.address.trim().length < 5) {
+    errors.address = 'La dirección debe tener al menos 5 caracteres';
+  }
 
-  // Land area
-  const areaValidation = validatePositiveNumber(propertyInfo.land_area || 0);
-  if (!areaValidation.isValid) errors.land_area = 'El área del terreno es requerida';
-  if (propertyInfo.land_area && propertyInfo.land_area <= 0) errors.land_area = 'El área debe ser mayor a 0';
+  // Validación de coordenadas si se proporcionan
+  if (propertyInfo.latitude !== undefined) {
+    if (propertyInfo.latitude < -90 || propertyInfo.latitude > 90) {
+      errors.latitude = 'La latitud debe estar entre -90 y 90 grados';
+    }
+  }
 
-  // Has services
-  if (propertyInfo.has_services === undefined) errors.has_services = 'Debe indicar si tiene servicios';
-
-  // Property location
-  if (!propertyInfo.property_location?.department) errors['property_location.department'] = 'El departamento es requerido';
-  if (!propertyInfo.property_location?.province) errors['property_location.province'] = 'La provincia es requerida';
-  if (!propertyInfo.property_location?.district) errors['property_location.district'] = 'El distrito es requerido';
-  if (!propertyInfo.property_location?.address?.trim()) errors['property_location.address'] = 'La dirección es requerida';
+  if (propertyInfo.longitude !== undefined) {
+    if (propertyInfo.longitude < -180 || propertyInfo.longitude > 180) {
+      errors.longitude = 'La longitud debe estar entre -180 y 180 grados';
+    }
+  }
 
   return {
     isValid: Object.keys(errors).length === 0,

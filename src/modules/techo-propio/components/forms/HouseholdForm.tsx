@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import { 
   HouseholdMember, 
-  MaritalStatus,
+  CivilStatus,
   EducationLevel,
   EmploymentSituation,
   EmploymentCondition,
@@ -15,7 +15,7 @@ import {
 import { Button, Card } from '../common';
 import { AddMemberModal } from './AddMemberModal';
 import { 
-  MARITAL_STATUS_OPTIONS,
+  CIVIL_STATUS_OPTIONS,
   EDUCATION_LEVEL_OPTIONS,
   EMPLOYMENT_SITUATION_OPTIONS,
   EMPLOYMENT_CONDITION_OPTIONS,
@@ -106,7 +106,7 @@ export const HouseholdForm: React.FC<HouseholdFormProps> = ({
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2 text-sm text-gray-600">
               <span>DNI: {member.dni}</span>
-              <span>Estado Civil: {MARITAL_STATUS_OPTIONS.find(s => s.value === member.marital_status)?.label || 'N/A'}</span>
+              <span>Estado Civil: {CIVIL_STATUS_OPTIONS.find(s => s.value === member.marital_status)?.label || 'N/A'}</span>
               <span>Educación: {EDUCATION_LEVEL_OPTIONS.find(e => e.value === member.education_level)?.label || 'N/A'}</span>
               <span>Ocupación: {member.occupation || 'N/A'}</span>
             </div>
@@ -128,7 +128,7 @@ export const HouseholdForm: React.FC<HouseholdFormProps> = ({
               <span>Nacimiento: {new Date(member.birth_date).toLocaleDateString('es-PE')}</span>
             )}
             {member.marital_status && (
-              <span>Estado Civil: {MARITAL_STATUS_OPTIONS.find(s => s.value === member.marital_status)?.label}</span>
+              <span>Estado Civil: {CIVIL_STATUS_OPTIONS.find(s => s.value === member.marital_status)?.label}</span>
             )}
           </div>
         )}

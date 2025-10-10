@@ -4,9 +4,7 @@
 
 import {
   ApplicationStatus,
-  MaritalStatus,
-  PropertyType,
-  LandOwnership,
+  CivilStatus,
   Gender,
   RelationshipType,
   EducationLevel,
@@ -14,7 +12,9 @@ import {
   EmploymentCondition,
   DisabilityType,
   PaymentMethod,
-  MemberType
+  MemberType,
+  FamilyRelationship,
+  WorkCondition
 } from '../types';
 
 // ==================== API ENDPOINTS ====================
@@ -61,13 +61,21 @@ export const STATUS_CONFIG = {
     borderColor: 'border-blue-300',
     icon: '📤'
   },
-  [ApplicationStatus.IN_REVIEW]: {
+  [ApplicationStatus.UNDER_REVIEW]: {
     label: 'En Revisión',
     color: 'yellow',
     bgColor: 'bg-yellow-100',
     textColor: 'text-yellow-800',
     borderColor: 'border-yellow-300',
     icon: '🔍'
+  },
+  [ApplicationStatus.ADDITIONAL_INFO_REQUIRED]: {
+    label: 'Info Adicional',
+    color: 'orange',
+    bgColor: 'bg-orange-100',
+    textColor: 'text-orange-800',
+    borderColor: 'border-orange-300',
+    icon: '📋'
   },
   [ApplicationStatus.APPROVED]: {
     label: 'Aprobada',
@@ -99,21 +107,30 @@ export const STATUS_CONFIG = {
 
 export const ALLOWED_STATUS_TRANSITIONS: Record<ApplicationStatus, ApplicationStatus[]> = {
   [ApplicationStatus.DRAFT]: [ApplicationStatus.SUBMITTED, ApplicationStatus.CANCELLED],
-  [ApplicationStatus.SUBMITTED]: [ApplicationStatus.IN_REVIEW, ApplicationStatus.CANCELLED],
-  [ApplicationStatus.IN_REVIEW]: [ApplicationStatus.APPROVED, ApplicationStatus.REJECTED],
+  [ApplicationStatus.SUBMITTED]: [ApplicationStatus.UNDER_REVIEW, ApplicationStatus.CANCELLED],
+  [ApplicationStatus.UNDER_REVIEW]: [ApplicationStatus.APPROVED, ApplicationStatus.REJECTED, ApplicationStatus.ADDITIONAL_INFO_REQUIRED],
+  [ApplicationStatus.ADDITIONAL_INFO_REQUIRED]: [ApplicationStatus.UNDER_REVIEW, ApplicationStatus.CANCELLED],
   [ApplicationStatus.APPROVED]: [],
-  [ApplicationStatus.REJECTED]: [ApplicationStatus.IN_REVIEW],
+  [ApplicationStatus.REJECTED]: [ApplicationStatus.UNDER_REVIEW],
   [ApplicationStatus.CANCELLED]: []
 };
 
-// ==================== MARITAL STATUS ====================
+// ==================== CIVIL STATUS ====================
 
-export const MARITAL_STATUS_OPTIONS = [
-  { value: MaritalStatus.SINGLE, label: 'Soltero/a' },
-  { value: MaritalStatus.MARRIED, label: 'Casado/a' },
-  { value: MaritalStatus.DIVORCED, label: 'Divorciado/a' },
-  { value: MaritalStatus.WIDOWED, label: 'Viudo/a' },
-  { value: MaritalStatus.COHABITING, label: 'Conviviente' }
+export const CIVIL_STATUS_OPTIONS = [
+  { value: CivilStatus.SINGLE, label: 'Soltero/a' },
+  { value: CivilStatus.MARRIED, label: 'Casado/a' },
+  { value: CivilStatus.DIVORCED, label: 'Divorciado/a' },
+  { value: CivilStatus.WIDOWED, label: 'Viudo/a' },
+  { value: CivilStatus.COHABITING, label: 'Conviviente' }
+];
+
+// ==================== DOCUMENT TYPE ====================
+
+export const DOCUMENT_TYPE_OPTIONS = [
+  { value: 'dni', label: 'DNI' },
+  { value: 'ce', label: 'Carnet de Extranjería' },
+  { value: 'passport', label: 'Pasaporte' }
 ];
 
 // ==================== GENDER ====================
@@ -124,40 +141,31 @@ export const GENDER_OPTIONS = [
   { value: Gender.OTHER, label: 'Otro' }
 ];
 
-// ==================== PROPERTY TYPE ====================
+// ==================== FAMILY RELATIONSHIP ====================
 
-export const PROPERTY_TYPE_OPTIONS = [
-  { value: PropertyType.URBAN, label: 'Urbano' },
-  { value: PropertyType.RURAL, label: 'Rural' }
-];
-
-// ==================== LAND OWNERSHIP ====================
-
-export const LAND_OWNERSHIP_OPTIONS = [
-  { value: LandOwnership.OWN, label: 'Propio' },
-  { value: LandOwnership.POSSESSION, label: 'Posesión' },
-  { value: LandOwnership.LEASE, label: 'Alquiler' },
-  { value: LandOwnership.ASSIGNMENT, label: 'Cesión' }
-];
-
-// ==================== RELATIONSHIP TYPE ====================
-
-export const RELATIONSHIP_OPTIONS = [
-  { value: RelationshipType.SPOUSE, label: 'Cónyuge' },
-  { value: RelationshipType.CHILD, label: 'Hijo/a' },
-  { value: RelationshipType.PARENT, label: 'Padre/Madre' },
-  { value: RelationshipType.SIBLING, label: 'Hermano/a' },
-  { value: RelationshipType.OTHER, label: 'Otro' }
+export const FAMILY_RELATIONSHIP_OPTIONS = [
+  { value: FamilyRelationship.SPOUSE, label: 'Cónyuge' },
+  { value: FamilyRelationship.PARTNER, label: 'Conviviente' },
+  { value: FamilyRelationship.CHILD, label: 'Hijo/a' },
+  { value: FamilyRelationship.PARENT, label: 'Padre/Madre' },
+  { value: FamilyRelationship.SIBLING, label: 'Hermano/a' },
+  { value: FamilyRelationship.GRANDPARENT, label: 'Abuelo/a' },
+  { value: FamilyRelationship.GRANDCHILD, label: 'Nieto/a' },
+  { value: FamilyRelationship.OTHER, label: 'Otro' }
 ];
 
 // ==================== EDUCATION LEVEL ====================
 
 export const EDUCATION_LEVEL_OPTIONS = [
-  { value: EducationLevel.NONE, label: 'Ninguno' },
-  { value: EducationLevel.PRIMARY, label: 'Primaria' },
-  { value: EducationLevel.SECONDARY, label: 'Secundaria' },
-  { value: EducationLevel.TECHNICAL, label: 'Técnica' },
-  { value: EducationLevel.UNIVERSITY, label: 'Universitaria' },
+  { value: EducationLevel.NO_EDUCATION, label: 'Sin estudios' },
+  { value: EducationLevel.PRIMARY_INCOMPLETE, label: 'Primaria incompleta' },
+  { value: EducationLevel.PRIMARY_COMPLETE, label: 'Primaria completa' },
+  { value: EducationLevel.SECONDARY_INCOMPLETE, label: 'Secundaria incompleta' },
+  { value: EducationLevel.SECONDARY_COMPLETE, label: 'Secundaria completa' },
+  { value: EducationLevel.TECHNICAL_INCOMPLETE, label: 'Técnico incompleto' },
+  { value: EducationLevel.TECHNICAL_COMPLETE, label: 'Técnico completo' },
+  { value: EducationLevel.UNIVERSITY_INCOMPLETE, label: 'Universitario incompleto' },
+  { value: EducationLevel.UNIVERSITY_COMPLETE, label: 'Universitario completo' },
   { value: EducationLevel.POSTGRADUATE, label: 'Posgrado' }
 ];
 
@@ -165,7 +173,10 @@ export const EDUCATION_LEVEL_OPTIONS = [
 
 export const EMPLOYMENT_SITUATION_OPTIONS = [
   { value: EmploymentSituation.DEPENDENT, label: 'Dependiente' },
-  { value: EmploymentSituation.INDEPENDENT, label: 'Independiente' }
+  { value: EmploymentSituation.INDEPENDENT, label: 'Independiente' },
+  { value: EmploymentSituation.UNEMPLOYED, label: 'Desempleado' },
+  { value: EmploymentSituation.RETIRED, label: 'Jubilado' },
+  { value: EmploymentSituation.STUDENT, label: 'Estudiante' }
 ];
 
 // ==================== EMPLOYMENT CONDITION ====================
@@ -179,8 +190,19 @@ export const EMPLOYMENT_CONDITION_OPTIONS = [
 
 export const DISABILITY_TYPE_OPTIONS = [
   { value: DisabilityType.NONE, label: 'Ninguna' },
-  { value: DisabilityType.PERMANENT, label: 'Permanente' },
-  { value: DisabilityType.SEVERE, label: 'Severa' }
+  { value: DisabilityType.PHYSICAL, label: 'Física' },
+  { value: DisabilityType.VISUAL, label: 'Visual' },
+  { value: DisabilityType.HEARING, label: 'Auditiva' },
+  { value: DisabilityType.INTELLECTUAL, label: 'Intelectual' },
+  { value: DisabilityType.PSYCHOSOCIAL, label: 'Psicosocial' },
+  { value: DisabilityType.MULTIPLE, label: 'Múltiple' }
+];
+
+// ==================== WORK CONDITION ====================
+
+export const WORK_CONDITION_OPTIONS = [
+  { value: WorkCondition.FORMAL, label: 'Formal' },
+  { value: WorkCondition.INFORMAL, label: 'Informal' }
 ];
 
 // ==================== PAYMENT METHOD ====================
@@ -232,15 +254,15 @@ export const FORM_STEPS = [
   },
   {
     id: 3,
-    title: 'Información Económica',
-    description: 'Ingresos y gastos',
-    icon: '💰'
-  },
-  {
-    id: 4,
     title: 'Datos del Predio',
     description: 'Información del terreno',
     icon: '🏠'
+  },
+  {
+    id: 4,
+    title: 'Información Económica',
+    description: 'Ingresos y gastos',
+    icon: '💰'
   },
   {
     id: 5,

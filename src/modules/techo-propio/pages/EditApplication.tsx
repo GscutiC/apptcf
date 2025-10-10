@@ -79,19 +79,19 @@ export const EditApplication: React.FC = () => {
         }
         break;
       case 3:
-        if (!formData.economic_info) {
-          stepErrors.push('Debe completar la información económica');
-        } else {
-          const economicErrors = validateEconomicForm(formData.economic_info);
-          stepErrors.push(...economicErrors);
-        }
-        break;
-      case 4:
         if (!formData.property_info) {
           stepErrors.push('Debe completar los datos del predio');
         } else {
           const propertyErrors = validatePropertyForm(formData.property_info);
           stepErrors.push(...propertyErrors);
+        }
+        break;
+      case 4:
+        if (!formData.economic_info) {
+          stepErrors.push('Debe completar la información económica');
+        } else {
+          const economicErrors = validateEconomicForm(formData.economic_info);
+          stepErrors.push(...economicErrors);
         }
         break;
       case 5:
@@ -180,16 +180,16 @@ export const EditApplication: React.FC = () => {
         );
       case 3:
         return (
-          <EconomicForm
-            data={formData.economic_info || {}}
-            onChange={(economic_info) => updateFormData({ economic_info })}
+          <PropertyForm
+            data={formData.property_info || {}}
+            onChange={(property_info) => updateFormData({ property_info })}
           />
         );
       case 4:
         return (
-          <PropertyForm
-            data={formData.property_info || {}}
-            onChange={(property_info) => updateFormData({ property_info })}
+          <EconomicForm
+            data={formData.economic_info || {}}
+            onChange={(economic_info) => updateFormData({ economic_info })}
           />
         );
       case 5:

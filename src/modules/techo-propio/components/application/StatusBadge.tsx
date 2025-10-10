@@ -17,7 +17,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   size = 'md',
   showIcon = true
 }) => {
-  const config = STATUS_CONFIG[status];
+  const config = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG];
 
   if (!config) {
     return <span className="text-gray-500">Estado desconocido</span>;

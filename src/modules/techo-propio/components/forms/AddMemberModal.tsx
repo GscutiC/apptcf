@@ -5,8 +5,8 @@
 import React, { useState } from 'react';
 import { 
   HouseholdMember, 
-  RelationshipType,
-  MaritalStatus,
+  FamilyRelationship,
+  CivilStatus,
   EducationLevel,
   EmploymentSituation,
   EmploymentCondition,
@@ -16,8 +16,8 @@ import {
 import { FormInput, FormSelect, Button, Modal } from '../common';
 import { DniValidator } from '../application';
 import { 
-  RELATIONSHIP_OPTIONS,
-  MARITAL_STATUS_OPTIONS,
+  FAMILY_RELATIONSHIP_OPTIONS,
+  CIVIL_STATUS_OPTIONS,
   EDUCATION_LEVEL_OPTIONS,
   EMPLOYMENT_SITUATION_OPTIONS,
   EMPLOYMENT_CONDITION_OPTIONS,
@@ -527,8 +527,8 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
                     label="Estado Civil"
                     required
                     value={currentMember.marital_status || ''}
-                    onChange={(e) => setCurrentMember({ ...currentMember, marital_status: e.target.value as MaritalStatus })}
-                    options={MARITAL_STATUS_OPTIONS}
+                    onChange={(e) => setCurrentMember({ ...currentMember, marital_status: e.target.value as CivilStatus })}
+                    options={CIVIL_STATUS_OPTIONS}
                     error={errors.marital_status}
                   />
 
@@ -557,8 +557,8 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
                   <FormSelect
                     label="Relación con el Solicitante"
                     value={currentMember.relationship || ''}
-                    onChange={(e) => setCurrentMember({ ...currentMember, relationship: e.target.value as RelationshipType })}
-                    options={RELATIONSHIP_OPTIONS}
+                    onChange={(e) => setCurrentMember({ ...currentMember, relationship: e.target.value as FamilyRelationship })}
+                    options={FAMILY_RELATIONSHIP_OPTIONS}
                     placeholder="Seleccionar relación (opcional)"
                     hint="Este campo es opcional y se usa solo para referencia interna"
                   />
@@ -681,8 +681,8 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
                 <FormSelect
                   label="Estado Civil"
                   value={currentMember.marital_status || ''}
-                  onChange={(e) => setCurrentMember({ ...currentMember, marital_status: e.target.value as MaritalStatus })}
-                  options={MARITAL_STATUS_OPTIONS}
+                  onChange={(e) => setCurrentMember({ ...currentMember, marital_status: e.target.value as CivilStatus })}
+                  options={CIVIL_STATUS_OPTIONS}
                   placeholder="Seleccionar (opcional)"
                   hint="Opcional"
                 />

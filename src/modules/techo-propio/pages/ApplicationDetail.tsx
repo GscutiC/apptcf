@@ -94,9 +94,17 @@ export const ApplicationDetail: React.FC = () => {
       {/* Predio */}
       <Card title="Datos del Predio">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-          <div><span className="text-gray-600">Área:</span> <span className="font-medium">{app.property_info.land_area} m²</span></div>
-          <div><span className="text-gray-600">Servicios:</span> <span className="font-medium">{app.property_info.has_services ? 'Sí' : 'No'}</span></div>
-          <div className="col-span-3"><span className="text-gray-600">Ubicación:</span> <span className="font-medium">{app.property_info.property_location.address}, {formatShortAddress(app.property_info.property_location.district, app.property_info.property_location.province, app.property_info.property_location.department)}</span></div>
+          <div><span className="text-gray-600">Departamento:</span> <span className="font-medium">{app.property_info.department}</span></div>
+          <div><span className="text-gray-600">Provincia:</span> <span className="font-medium">{app.property_info.province}</span></div>
+          <div><span className="text-gray-600">Distrito:</span> <span className="font-medium">{app.property_info.district}</span></div>
+          <div><span className="text-gray-600">Lote:</span> <span className="font-medium">{app.property_info.lote}</span></div>
+          {app.property_info.manzana && (
+            <div><span className="text-gray-600">Manzana:</span> <span className="font-medium">{app.property_info.manzana}</span></div>
+          )}
+          {app.property_info.populated_center && (
+            <div><span className="text-gray-600">Centro Poblado:</span> <span className="font-medium">{app.property_info.populated_center}</span></div>
+          )}
+          <div className="col-span-3"><span className="text-gray-600">Ubicación:</span> <span className="font-medium">{formatShortAddress(app.property_info.district, app.property_info.province, app.property_info.department)}</span></div>
         </div>
       </Card>
 

@@ -1,12 +1,12 @@
 /**
- * PropertyForm - Step 4: Datos del Predio
+ * PropertyForm - Step 3: Datos del Predio
+ * Formulario alineado con PropertyInfoCreateDTO del backend
  */
 
 import React from 'react';
-import { PropertyInfo, PropertyType, LandOwnership } from '../../types';
-import { FormInput, FormSelect, Card } from '../common';
+import { PropertyInfo } from '../../types';
+import { FormInput, Card } from '../common';
 import { UbigeoSelector } from '../application';
-import { PROPERTY_TYPE_OPTIONS, LAND_OWNERSHIP_OPTIONS } from '../../utils';
 
 interface PropertyFormProps {
   data: Partial<PropertyInfo>;
@@ -19,155 +19,183 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
   onChange,
   errors = {}
 }) => {
-  const handleLocationChange = (field: string, value: string) => {
-    // Crear el nuevo objeto de ubicación con los valores actualizados
-    const updatedLocation = {
-      department: data.property_location?.department || '',
-      province: data.property_location?.province || '',
-      district: data.property_location?.district || '',
-      address: data.property_location?.address || '',
-      reference: data.property_location?.reference || ''
-    };
+  const handleFieldChange = (field: keyof PropertyInfo, value: string | number | undefined) => {
+    onChange({
+      ...data,
+      [field]: value
+    });
+  };
 
-    // Actualizar el campo específico
-    updatedLocation[field as keyof typeof updatedLocation] = value;
+  const handleUbigeoChange = (field: 'department' | 'province' | 'district', value: string) => {
+    const updates: Partial<PropertyInfo> = {
+      ...data,
+      [field]: value
+    };
 
     // Si cambia el departamento, limpiar provincia y distrito
     if (field === 'department') {
-      updatedLocation.province = '';
-      updatedLocation.district = '';
+      updates.province = '';
+      updates.district = '';
     }
 
     // Si cambia la provincia, limpiar distrito
     if (field === 'province') {
-      updatedLocation.district = '';
+      updates.district = '';
     }
 
-    onChange({
-      ...data,
-      property_location: updatedLocation
-    });
+    onChange(updates);
   };
 
   return (
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Paso 4: Datos del Predio
+          Paso 3: Datos del Predio
         </h3>
         <p className="text-sm text-gray-600 mb-6">
           Información sobre el terreno donde se construirá la vivienda.
         </p>
       </div>
 
-      {/* Tipo de Predio y Tenencia */}
-      <Card title="Información General">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormSelect
-            label="Tipo de Predio"
-            required
-            value={data.property_type || ''}
-            onChange={(e) => onChange({ ...data, property_type: e.target.value as PropertyType })}
-            options={PROPERTY_TYPE_OPTIONS}
-            error={errors.property_type}
-          />
+      {/* Información General del Predio */}
+      <Card title="Información General del Predio">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Departamento, Provincia, Distrito */}
+          <div className="md:col-span-2">
+            <UbigeoSelector
+              department={data.department || ''}
+              province={data.province || ''}
+              district={data.district || ''}
+              onDepartmentChange={(value) => handleUbigeoChange('department', value)}
+              onProvinceChange={(value) => handleUbigeoChange('province', value)}
+              onDistrictChange={(value) => handleUbigeoChange('district', value)}
+              required
+              errors={{
+                department: errors.department,
+                province: errors.province,
+                district: errors.district
+              }}
+            />
+          </div>
 
-          <FormSelect
-            label="Tipo de Tenencia"
-            required
-            value={data.land_ownership || ''}
-            onChange={(e) => onChange({ ...data, land_ownership: e.target.value as LandOwnership })}
-            options={LAND_OWNERSHIP_OPTIONS}
-            error={errors.land_ownership}
-            hint="Documento que acredita la posesión del terreno"
-          />
-        </div>
-      </Card>
-
-      {/* Área y Servicios */}
-      <Card title="Características del Terreno">
-        <div className="space-y-4">
+          {/* Centro Poblado */}
           <FormInput
-            type="number"
-            label="Área del Terreno (m²)"
-            required
-            value={data.land_area || ''}
-            onChange={(e) => onChange({ ...data, land_area: parseFloat(e.target.value) || 0 })}
-            min="0"
-            step="0.01"
-            error={errors.land_area}
-            hint="Área en metros cuadrados"
+            label="Centro Poblado"
+            value={data.populated_center || ''}
+            onChange={(e) => handleFieldChange('populated_center', e.target.value)}
+            placeholder="Nombre del centro poblado"
+            error={errors.populated_center}
           />
 
+          {/* Dirección */}
           <FormInput
-            label="Código Catastral (Opcional)"
-            value={data.cadastral_code || ''}
-            onChange={(e) => onChange({ ...data, cadastral_code: e.target.value })}
-            placeholder="Ej: 12345678901234"
+            label="Dirección"
+            required
+            value={data.address || ''}
+            onChange={(e) => handleFieldChange('address', e.target.value)}
+            placeholder="Av. Principal 123"
+            error={errors.address}
           />
 
-          <div>
-            <div className="flex items-center gap-3 mb-3">
-              <input
-                type="checkbox"
-                id="has_services"
-                checked={data.has_services || false}
-                onChange={(e) => onChange({ ...data, has_services: e.target.checked })}
-                className="w-4 h-4 text-blue-600 rounded"
-              />
-              <label htmlFor="has_services" className="text-sm font-medium text-gray-700">
-                El terreno cuenta con servicios básicos
-              </label>
-            </div>
+          {/* Manzana */}
+          <FormInput
+            label="Manzana"
+            value={data.manzana || ''}
+            onChange={(e) => handleFieldChange('manzana', e.target.value)}
+            placeholder="A"
+            error={errors.manzana}
+          />
 
-            {data.has_services && (
-              <FormInput
-                label="Descripción de Servicios"
-                value={data.services_description || ''}
-                onChange={(e) => onChange({ ...data, services_description: e.target.value })}
-                placeholder="Ej: Agua, luz, desagüe"
-                hint="Indique qué servicios tiene disponibles"
-              />
-            )}
+          {/* Lote */}
+          <FormInput
+            label="Lote"
+            required
+            value={data.lote || ''}
+            onChange={(e) => handleFieldChange('lote', e.target.value)}
+            placeholder="5"
+            error={errors.lote}
+          />
+
+          {/* Sub-Lote */}
+          <FormInput
+            label="Sub-Lote"
+            value={data.sub_lote || ''}
+            onChange={(e) => handleFieldChange('sub_lote', e.target.value)}
+            placeholder="A"
+            error={errors.sub_lote}
+          />
+
+          {/* Referencia */}
+          <div className="md:col-span-2">
+            <FormInput
+              label="Referencia"
+              value={data.reference || ''}
+              onChange={(e) => handleFieldChange('reference', e.target.value)}
+              placeholder="Cerca del mercado central, al costado de la iglesia..."
+              error={errors.reference}
+              hint="Descripción de referencias para ubicar el predio"
+            />
           </div>
         </div>
       </Card>
 
-      {/* Ubicación del Predio */}
-      <Card title="Ubicación del Predio">
-        <div className="space-y-4">
-          <UbigeoSelector
-            department={data.property_location?.department || ''}
-            province={data.property_location?.province || ''}
-            district={data.property_location?.district || ''}
-            onDepartmentChange={(value) => handleLocationChange('department', value)}
-            onProvinceChange={(value) => handleLocationChange('province', value)}
-            onDistrictChange={(value) => handleLocationChange('district', value)}
-            required
-            errors={{
-              department: errors['property_location.department'],
-              province: errors['property_location.province'],
-              district: errors['property_location.district']
-            }}
+      {/* Coordenadas Geográficas (Opcional) */}
+      <Card title="Coordenadas Geográficas (Opcional)">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <FormInput
+            type="number"
+            label="Latitud"
+            value={data.latitude || ''}
+            onChange={(e) => handleFieldChange('latitude', parseFloat(e.target.value) || undefined)}
+            placeholder="-12.0464"
+            step="0.000001"
+            min={-90}
+            max={90}
+            error={errors.latitude}
+            hint="Entre -90 y 90 grados"
           />
 
           <FormInput
-            label="Dirección del Predio"
-            required
-            value={data.property_location?.address || ''}
-            onChange={(e) => handleLocationChange('address', e.target.value)}
-            placeholder="Av. Principal 123, Mz. A Lt. 5"
-            error={errors['property_location.address']}
-          />
-
-          <FormInput
-            label="Referencia (Opcional)"
-            value={data.property_location?.reference || ''}
-            onChange={(e) => handleLocationChange('reference', e.target.value)}
-            placeholder="Cerca del mercado central, al costado de..."
+            type="number"
+            label="Longitud"
+            value={data.longitude || ''}
+            onChange={(e) => handleFieldChange('longitude', parseFloat(e.target.value) || undefined)}
+            placeholder="-77.0428"
+            step="0.000001"
+            min={-180}
+            max={180}
+            error={errors.longitude}
+            hint="Entre -180 y 180 grados"
           />
         </div>
       </Card>
+
+      {/* Información de Validación */}
+      {data.ubigeo_validated && (
+        <Card>
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <svg
+                className="w-6 h-6 text-green-600 flex-shrink-0"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <div>
+                <p className="font-semibold text-green-800">Ubicación Validada</p>
+                <p className="text-sm text-green-700">
+                  Los datos de ubicación han sido verificados con el sistema UBIGEO.
+                </p>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
     </div>
   );
 };

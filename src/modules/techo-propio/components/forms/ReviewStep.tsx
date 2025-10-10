@@ -6,7 +6,7 @@ import React from 'react';
 import { ApplicationFormData } from '../../types';
 import { Card } from '../common';
 import { formatDate, formatCurrency, formatDNI, formatPhone, formatShortAddress } from '../../utils';
-import { MARITAL_STATUS_OPTIONS, GENDER_OPTIONS, RELATIONSHIP_OPTIONS, PROPERTY_TYPE_OPTIONS, LAND_OWNERSHIP_OPTIONS } from '../../utils';
+import { CIVIL_STATUS_OPTIONS, GENDER_OPTIONS, FAMILY_RELATIONSHIP_OPTIONS } from '../../utils';
 
 interface ReviewStepProps {
   data: ApplicationFormData;
@@ -44,7 +44,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ data, onEdit }) => {
             <div><span className="text-gray-600">Nombre:</span> <span className="font-medium">{applicant.first_name} {applicant.last_name}</span></div>
             <div><span className="text-gray-600">Fecha Nacimiento:</span> <span className="font-medium">{applicant.birth_date ? formatDate(applicant.birth_date) : '-'}</span></div>
             <div><span className="text-gray-600">Género:</span> <span className="font-medium">{GENDER_OPTIONS.find(g => g.value === applicant.gender)?.label || '-'}</span></div>
-            <div><span className="text-gray-600">Estado Civil:</span> <span className="font-medium">{MARITAL_STATUS_OPTIONS.find(m => m.value === applicant.marital_status)?.label || '-'}</span></div>
+            <div><span className="text-gray-600">Estado Civil:</span> <span className="font-medium">{CIVIL_STATUS_OPTIONS.find(m => m.value === applicant.marital_status)?.label || '-'}</span></div>
             <div><span className="text-gray-600">Teléfono:</span> <span className="font-medium">{formatPhone(applicant.phone || '')}</span></div>
             <div className="col-span-2"><span className="text-gray-600">Email:</span> <span className="font-medium">{applicant.email}</span></div>
             <div className="col-span-2"><span className="text-gray-600">Dirección:</span> <span className="font-medium">{applicant.current_address?.address}</span></div>
@@ -62,7 +62,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ data, onEdit }) => {
                 <p className="font-medium">{member.first_name} {member.apellido_paterno} {member.apellido_materno}</p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2 text-sm text-gray-600">
                   <span>DNI: {formatDNI(member.dni)}</span>
-                  <span>Relación: {RELATIONSHIP_OPTIONS.find(r => r.value === member.relationship)?.label}</span>
+                  <span>Relación: {FAMILY_RELATIONSHIP_OPTIONS.find(r => r.value === member.relationship)?.label}</span>
                   <span>Ocupación: {member.occupation || 'N/A'}</span>
                   <span className="text-green-700 font-medium">{formatCurrency(member.monthly_income || 0)}</span>
                 </div>
@@ -75,8 +75,32 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ data, onEdit }) => {
         ) : <p className="text-gray-500">Sin miembros agregados</p>}
       </Card>
 
+      {/* Datos del Predio */}
+      <Card title="Datos del Predio" actions={<EditButton step={3} />}>
+        {property_info && (
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div><span className="text-gray-600">Departamento:</span> <span className="font-medium">{property_info.department || '-'}</span></div>
+            <div><span className="text-gray-600">Provincia:</span> <span className="font-medium">{property_info.province || '-'}</span></div>
+            <div><span className="text-gray-600">Distrito:</span> <span className="font-medium">{property_info.district || '-'}</span></div>
+            <div><span className="text-gray-600">Centro Poblado:</span> <span className="font-medium">{property_info.populated_center || '-'}</span></div>
+            <div><span className="text-gray-600">Manzana:</span> <span className="font-medium">{property_info.manzana || '-'}</span></div>
+            <div><span className="text-gray-600">Lote:</span> <span className="font-medium">{property_info.lote || '-'}</span></div>
+            {property_info.sub_lote && (
+              <div><span className="text-gray-600">Sub-Lote:</span> <span className="font-medium">{property_info.sub_lote}</span></div>
+            )}
+            {property_info.address && (
+              <div className="col-span-2"><span className="text-gray-600">Dirección:</span> <span className="font-medium">{property_info.address}</span></div>
+            )}
+            {property_info.reference && (
+              <div className="col-span-2"><span className="text-gray-600">Referencia:</span> <span className="font-medium">{property_info.reference}</span></div>
+            )}
+            <div className="col-span-2"><span className="text-gray-600">Ubicación:</span> <span className="font-medium">{formatShortAddress(property_info.district || '', property_info.province || '', property_info.department || '')}</span></div>
+          </div>
+        )}
+      </Card>
+
       {/* Información Económica */}
-      <Card title="Información Económica" actions={<EditButton step={3} />}>
+      <Card title="Información Económica" actions={<EditButton step={4} />}>
         {economic_info && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
@@ -104,20 +128,6 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ data, onEdit }) => {
                 </span>
               </p>
             </div>
-          </div>
-        )}
-      </Card>
-
-      {/* Datos del Predio */}
-      <Card title="Datos del Predio" actions={<EditButton step={4} />}>
-        {property_info && (
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div><span className="text-gray-600">Tipo:</span> <span className="font-medium">{PROPERTY_TYPE_OPTIONS.find(p => p.value === property_info.property_type)?.label || '-'}</span></div>
-            <div><span className="text-gray-600">Tenencia:</span> <span className="font-medium">{LAND_OWNERSHIP_OPTIONS.find(l => l.value === property_info.land_ownership)?.label || '-'}</span></div>
-            <div><span className="text-gray-600">Área:</span> <span className="font-medium">{property_info.land_area} m²</span></div>
-            <div><span className="text-gray-600">Servicios:</span> <span className="font-medium">{property_info.has_services ? 'Sí' : 'No'}</span></div>
-            <div className="col-span-2"><span className="text-gray-600">Dirección:</span> <span className="font-medium">{property_info.property_location?.address}</span></div>
-            <div className="col-span-2"><span className="text-gray-600">Ubicación:</span> <span className="font-medium">{property_info.property_location && formatShortAddress(property_info.property_location.district, property_info.property_location.province, property_info.property_location.department)}</span></div>
           </div>
         )}
       </Card>

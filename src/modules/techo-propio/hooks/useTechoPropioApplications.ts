@@ -46,7 +46,8 @@ export const useTechoPropioApplications = () => {
         throw new Error('Error al crear solicitud');
       }
     } catch (err: any) {
-      const errorMessage = err.error || err.message || 'Error al crear solicitud';
+      console.error('❌ Error detallado al crear aplicación:', err);
+      const errorMessage = err?.response?.data?.detail || err.error || err.message || 'Error al crear solicitud';
       setError(errorMessage);
       return null;
     } finally {

@@ -1,5 +1,5 @@
 /**
- * EconomicForm - Step 3: Información Económica
+ * EconomicForm - Step 4: Información Económica
  */
 
 import React, { useEffect } from 'react';
@@ -38,7 +38,7 @@ export const EconomicForm: React.FC<EconomicFormProps> = ({
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Paso 3: Información Económica
+          Paso 4: Información Económica
         </h3>
         <p className="text-sm text-gray-600 mb-6">
           Registre los ingresos y gastos mensuales del hogar.

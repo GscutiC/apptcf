@@ -89,9 +89,9 @@ export const ApplicationCard: React.FC<ApplicationCardProps> = ({
             <p className="text-gray-500">Ubicación</p>
             <p className="font-medium text-gray-900">
               {formatShortAddress(
-                property_info.property_location.district,
-                property_info.property_location.province,
-                property_info.property_location.department
+                property_info.district || '',
+                property_info.province || '',
+                property_info.department || ''
               )}
             </p>
           </div>

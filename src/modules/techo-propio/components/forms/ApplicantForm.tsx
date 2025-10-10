@@ -3,10 +3,10 @@
  */
 
 import React, { useState } from 'react';
-import { Applicant, Gender, MaritalStatus } from '../../types';
+import { Applicant, Gender, CivilStatus } from '../../types';
 import { FormInput, FormSelect } from '../common';
 import { DniValidator, UbigeoSelector } from '../application';
-import { MARITAL_STATUS_OPTIONS, GENDER_OPTIONS } from '../../utils';
+import { CIVIL_STATUS_OPTIONS, GENDER_OPTIONS } from '../../utils';
 
 interface ApplicantFormProps {
   data: Partial<Applicant>;
@@ -144,8 +144,8 @@ export const ApplicantForm: React.FC<ApplicantFormProps> = ({
           label="Estado Civil"
           required
           value={data.marital_status || ''}
-          onChange={(e) => handleFieldChange('marital_status', e.target.value as MaritalStatus)}
-          options={MARITAL_STATUS_OPTIONS}
+          onChange={(e) => handleFieldChange('marital_status', e.target.value as CivilStatus)}
+          options={CIVIL_STATUS_OPTIONS}
           error={errors.marital_status}
         />
       </div>

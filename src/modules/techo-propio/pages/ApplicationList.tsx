@@ -31,9 +31,9 @@ export const ApplicationList: React.FC = () => {
     }
   };
 
-  const statusOptions = Object.keys(ApplicationStatus).map(key => ({
-    value: ApplicationStatus[key as keyof typeof ApplicationStatus],
-    label: STATUS_CONFIG[ApplicationStatus[key as keyof typeof ApplicationStatus]].label
+  const statusOptions = Object.values(ApplicationStatus).map(value => ({
+    value: value,
+    label: STATUS_CONFIG[value as keyof typeof STATUS_CONFIG]?.label || value
   }));
 
   return (

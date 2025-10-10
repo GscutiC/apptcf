@@ -91,7 +91,8 @@ export const formatStatus = (status: ApplicationStatus): string => {
   const statusMap: Record<ApplicationStatus, string> = {
     [ApplicationStatus.DRAFT]: 'Borrador',
     [ApplicationStatus.SUBMITTED]: 'Enviada',
-    [ApplicationStatus.IN_REVIEW]: 'En Revisión',
+    [ApplicationStatus.UNDER_REVIEW]: 'En Revisión',
+    [ApplicationStatus.ADDITIONAL_INFO_REQUIRED]: 'Info Adicional Requerida',
     [ApplicationStatus.APPROVED]: 'Aprobada',
     [ApplicationStatus.REJECTED]: 'Rechazada',
     [ApplicationStatus.CANCELLED]: 'Cancelada'

@@ -22,10 +22,12 @@ import {
 // ==================== CREATE APPLICATION ====================
 
 export interface CreateApplicationRequest {
-  applicant: Applicant;
+  main_applicant: Applicant;
   household_members: HouseholdMember[];
-  economic_info: EconomicInfo;
+  main_applicant_economic: EconomicInfo;
   property_info: PropertyInfo;
+  spouse?: Applicant;
+  spouse_economic?: EconomicInfo;
   comments?: string;
 }
 

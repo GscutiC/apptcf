@@ -90,7 +90,7 @@ export const Dashboard: React.FC = () => {
               <p className="text-sm font-medium text-yellow-600 mb-1">En Proceso</p>
               <p className="text-3xl font-bold text-yellow-900">
                 {(statistics?.by_status?.[ApplicationStatus.SUBMITTED] || 0) +
-                 (statistics?.by_status?.[ApplicationStatus.IN_REVIEW] || 0)}
+                 (statistics?.by_status?.[ApplicationStatus.UNDER_REVIEW] || 0)}
               </p>
             </div>
             <div className="p-3 bg-yellow-500 rounded-full">

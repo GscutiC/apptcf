@@ -1,38 +1,82 @@
 /**
  * Domain Types for Techo Propio Module
- * Maps to backend DTOs and domain entities
+ * Maps to backend DTOs and domain entities - Aligned with backend enums
  */
 
-// ==================== ENUMS ====================
+// ==================== ENUMS (Aligned with Backend) ====================
 
 export enum ApplicationStatus {
-  DRAFT = 'BORRADOR',
-  SUBMITTED = 'ENVIADA',
-  IN_REVIEW = 'EN_REVISION',
-  APPROVED = 'APROBADA',
-  REJECTED = 'RECHAZADA',
-  CANCELLED = 'CANCELADA'
+  DRAFT = 'draft',
+  SUBMITTED = 'submitted',
+  UNDER_REVIEW = 'under_review',
+  ADDITIONAL_INFO_REQUIRED = 'additional_info_required',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+  CANCELLED = 'cancelled'
 }
 
-export enum MaritalStatus {
-  SINGLE = 'SOLTERO',
-  MARRIED = 'CASADO',
-  DIVORCED = 'DIVORCIADO',
-  WIDOWED = 'VIUDO',
-  COHABITING = 'CONVIVIENTE'
+export enum DocumentType {
+  DNI = 'dni',
+  CE = 'ce',
+  PASSPORT = 'passport'
 }
 
-export enum PropertyType {
-  URBAN = 'URBANO',
-  RURAL = 'RURAL'
+export enum CivilStatus {
+  SINGLE = 'soltero',
+  MARRIED = 'casado',
+  DIVORCED = 'divorciado',
+  WIDOWED = 'viudo',
+  COHABITING = 'conviviente'
 }
 
-export enum LandOwnership {
-  OWN = 'PROPIO',
-  POSSESSION = 'POSESION',
-  LEASE = 'ALQUILER',
-  ASSIGNMENT = 'CESION'
+export enum EducationLevel {
+  NO_EDUCATION = 'sin_estudios',
+  PRIMARY_INCOMPLETE = 'primaria_incompleta',
+  PRIMARY_COMPLETE = 'primaria_completa',
+  SECONDARY_INCOMPLETE = 'secundaria_incompleta',
+  SECONDARY_COMPLETE = 'secundaria_completa',
+  TECHNICAL_INCOMPLETE = 'tecnico_incompleto',
+  TECHNICAL_COMPLETE = 'tecnico_completo',
+  UNIVERSITY_INCOMPLETE = 'universitario_incompleto',
+  UNIVERSITY_COMPLETE = 'universitario_completo',
+  POSTGRADUATE = 'postgrado'
 }
+
+export enum EmploymentSituation {
+  DEPENDENT = 'dependiente',
+  INDEPENDENT = 'independiente',
+  UNEMPLOYED = 'desempleado',
+  RETIRED = 'jubilado',
+  STUDENT = 'estudiante'
+}
+
+export enum WorkCondition {
+  FORMAL = 'formal',
+  INFORMAL = 'informal'
+}
+
+export enum FamilyRelationship {
+  SPOUSE = 'conyuge',
+  PARTNER = 'conviviente',
+  CHILD = 'hijo',
+  PARENT = 'padre',
+  SIBLING = 'hermano',
+  GRANDPARENT = 'abuelo',
+  GRANDCHILD = 'nieto',
+  OTHER = 'otro'
+}
+
+export enum DisabilityType {
+  NONE = 'ninguna',
+  PHYSICAL = 'fisica',
+  VISUAL = 'visual',
+  HEARING = 'auditiva',
+  INTELLECTUAL = 'intelectual',
+  PSYCHOSOCIAL = 'psicosocial',
+  MULTIPLE = 'multiple'
+}
+
+// ==================== LEGACY ENUMS (For compatibility, will be removed) ====================
 
 export enum Gender {
   MALE = 'M',
@@ -48,29 +92,9 @@ export enum RelationshipType {
   OTHER = 'OTRO'
 }
 
-export enum EducationLevel {
-  NONE = 'NINGUNO',
-  PRIMARY = 'PRIMARIA',
-  SECONDARY = 'SECUNDARIA',
-  TECHNICAL = 'TECNICA',
-  UNIVERSITY = 'UNIVERSITARIA',
-  POSTGRADUATE = 'POSGRADO'
-}
-
-export enum EmploymentSituation {
-  DEPENDENT = 'DEPENDIENTE',
-  INDEPENDENT = 'INDEPENDIENTE'
-}
-
 export enum EmploymentCondition {
   FORMAL = 'FORMAL',
   INFORMAL = 'INFORMAL'
-}
-
-export enum DisabilityType {
-  NONE = 'NINGUNA',
-  PERMANENT = 'PERMANENTE',
-  SEVERE = 'SEVERA'
 }
 
 export enum PaymentMethod {
@@ -121,7 +145,7 @@ export interface Applicant {
   last_name: string;
   birth_date: string; // ISO date string
   gender: Gender;
-  marital_status: MaritalStatus;
+  marital_status: CivilStatus;
   phone: string;
   email: string;
   current_address: Location;
@@ -134,14 +158,14 @@ export interface HouseholdMember {
   apellido_paterno: string;
   apellido_materno: string;
   birth_date?: string; // ISO date string - opcional para familia adicional
-  marital_status?: MaritalStatus; // opcional para familia adicional
+  marital_status?: CivilStatus; // opcional para familia adicional
   education_level?: EducationLevel; // opcional para familia adicional
   occupation?: string; // opcional para familia adicional
   employment_situation?: EmploymentSituation; // opcional para familia adicional
   employment_condition?: EmploymentCondition; // opcional para familia adicional
   monthly_income?: number; // opcional para familia adicional
   disability_type?: DisabilityType; // opcional para familia adicional
-  relationship?: RelationshipType;
+  relationship?: FamilyRelationship;
   member_type: MemberType; // tipo de miembro
   payment_method?: PaymentMethod; // solo para jefe de familia
   // Campos específicos para familia adicional
@@ -160,13 +184,32 @@ export interface EconomicInfo {
 }
 
 export interface PropertyInfo {
-  property_type: PropertyType;
-  land_ownership: LandOwnership;
-  land_area: number;
-  has_services: boolean;
-  services_description?: string;
-  property_location: Location;
-  cadastral_code?: string;
+  // Ubicación política (obligatorios)
+  department: string;
+  province: string;
+  district: string;
+  lote: string;
+  
+  // Dirección (obligatoria)
+  address: string;
+  
+  // Ubicación opcional
+  ubigeo_code?: string;
+  populated_center?: string;
+  manzana?: string;
+  sub_lote?: string;
+  reference?: string;
+  
+  // Coordenadas geográficas (opcional)
+  latitude?: number;
+  longitude?: number;
+  
+  // Validación
+  ubigeo_validated?: boolean;
+  
+  // Propiedades calculadas (solo lectura en respuestas)
+  full_address?: string;
+  short_address?: string;
 }
 
 export interface Document {

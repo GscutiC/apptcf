@@ -86,19 +86,19 @@ export const NewApplication: React.FC = () => {
         }
         break;
       case 3:
-        if (!formData.economic_info) {
-          stepErrors.push('Debe completar la información económica');
-        } else {
-          const economicErrors = validateEconomicForm(formData.economic_info);
-          stepErrors.push(...economicErrors);
-        }
-        break;
-      case 4:
         if (!formData.property_info) {
           stepErrors.push('Debe completar los datos del predio');
         } else {
           const propertyErrors = validatePropertyForm(formData.property_info);
           stepErrors.push(...propertyErrors);
+        }
+        break;
+      case 4:
+        if (!formData.economic_info) {
+          stepErrors.push('Debe completar la información económica');
+        } else {
+          const economicErrors = validateEconomicForm(formData.economic_info);
+          stepErrors.push(...economicErrors);
         }
         break;
       case 5:
@@ -141,16 +141,50 @@ export const NewApplication: React.FC = () => {
       return;
     }
 
-    // Preparar datos para el backend
+    // Transformar datos del frontend al formato que espera el backend
+    const transformedApplicant = {
+      document_type: 'dni', // Asumiendo DNI por defecto
+      document_number: formData.applicant?.dni || '',
+      first_name: formData.applicant?.first_name || '',
+      paternal_surname: formData.applicant?.last_name?.split(' ')[0] || 'Sin Apellido',
+      maternal_surname: formData.applicant?.last_name?.split(' ').slice(1).join(' ') || 'Sin Apellido',
+      birth_date: formData.applicant?.birth_date || '1990-01-01',
+      civil_status: formData.applicant?.marital_status || 'soltero',
+      education_level: 'secundaria_completa', // Valor por defecto - necesita agregar campo al formulario
+      phone_number: formData.applicant?.phone || '',
+      email: formData.applicant?.email || '',
+      disability_type: 'ninguna', // Valor por defecto
+      is_main_applicant: true
+    };
+
+    const hasAdditionalIncome = (formData.economic_info?.income?.additional_income || 0) > 0;
+    
+    const transformedEconomic = {
+      employment_situation: 'dependiente', // Valor por defecto - necesita agregar campo al formulario
+      monthly_income: formData.economic_info?.income?.total_income || 0,
+      work_condition: 'formal', // Valor por defecto - necesita agregar campo al formulario  
+      occupation_detail: formData.economic_info?.occupation || 'Trabajador',
+      has_additional_income: hasAdditionalIncome,
+      additional_income_amount: hasAdditionalIncome ? (formData.economic_info?.income?.additional_income || 0) : undefined,
+      additional_income_source: hasAdditionalIncome ? 'Ingreso extra no especificado' : undefined,
+      employer_name: formData.economic_info?.employer_name || 'No especificado',
+      is_main_applicant: true
+    };
+
+    // Preparar datos para el backend (ajustar estructura para TechoPropioApplicationCreateDTO)
     const requestData = {
-      applicant: formData.applicant as any, // Forzar tipo ya que validamos arriba
+      main_applicant: transformedApplicant,
       household_members: formData.household_members || [],
-      economic_info: formData.economic_info as any, // Forzar tipo ya que validamos arriba
+      main_applicant_economic: transformedEconomic,
       property_info: formData.property_info as any, // Forzar tipo ya que validamos arriba
       comments: formData.comments
     };
 
-    const result = await createApplication(requestData);
+    // Debug: imprimir datos que se van a enviar
+    console.log('🔍 Datos originales del frontend:', JSON.stringify(formData, null, 2));
+    console.log('🔍 Datos transformados para el backend:', JSON.stringify(requestData, null, 2));
+
+    const result = await createApplication(requestData as any);
 
     if (result) {
       // Limpiar borrador
@@ -189,16 +223,16 @@ export const NewApplication: React.FC = () => {
         );
       case 3:
         return (
-          <EconomicForm
-            data={formData.economic_info || {}}
-            onChange={(economic_info) => updateFormData({ economic_info })}
+          <PropertyForm
+            data={formData.property_info || {}}
+            onChange={(property_info) => updateFormData({ property_info })}
           />
         );
       case 4:
         return (
-          <PropertyForm
-            data={formData.property_info || {}}
-            onChange={(property_info) => updateFormData({ property_info })}
+          <EconomicForm
+            data={formData.economic_info || {}}
+            onChange={(economic_info) => updateFormData({ economic_info })}
           />
         );
       case 5:
@@ -264,8 +298,8 @@ export const NewApplication: React.FC = () => {
                 >
                   {step === 1 && 'Solicitante'}
                   {step === 2 && 'Grupo Familiar'}
-                  {step === 3 && 'Económica'}
-                  {step === 4 && 'Predio'}
+                  {step === 3 && 'Predio'}
+                  {step === 4 && 'Económica '}
                   {step === 5 && 'Revisión'}
                 </span>
               </div>
