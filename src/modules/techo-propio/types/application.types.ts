@@ -48,6 +48,44 @@ export enum RelationshipType {
   OTHER = 'OTRO'
 }
 
+export enum EducationLevel {
+  NONE = 'NINGUNO',
+  PRIMARY = 'PRIMARIA',
+  SECONDARY = 'SECUNDARIA',
+  TECHNICAL = 'TECNICA',
+  UNIVERSITY = 'UNIVERSITARIA',
+  POSTGRADUATE = 'POSGRADO'
+}
+
+export enum EmploymentSituation {
+  DEPENDENT = 'DEPENDIENTE',
+  INDEPENDENT = 'INDEPENDIENTE'
+}
+
+export enum EmploymentCondition {
+  FORMAL = 'FORMAL',
+  INFORMAL = 'INFORMAL'
+}
+
+export enum DisabilityType {
+  NONE = 'NINGUNA',
+  PERMANENT = 'PERMANENTE',
+  SEVERE = 'SEVERA'
+}
+
+export enum PaymentMethod {
+  CASH = 'AL_CONTADO',
+  FINANCING = 'FINANCIADO'
+}
+
+export enum MemberType {
+  HEAD_OF_FAMILY = 'JEFE_FAMILIA',
+  SPOUSE = 'CONYUGE',
+  ADDITIONAL_FAMILY = 'FAMILIA_ADICIONAL',
+  FAMILY_DEPENDENT = 'CARGA_FAMILIAR',
+  OTHER = 'OTRO'
+}
+
 // ==================== VALUE OBJECTS ====================
 
 export interface Location {
@@ -93,11 +131,21 @@ export interface HouseholdMember {
   id?: string;
   dni: string;
   first_name: string;
-  last_name: string;
-  birth_date: string; // ISO date string
-  relationship: RelationshipType;
-  occupation: string;
-  monthly_income: number;
+  apellido_paterno: string;
+  apellido_materno: string;
+  birth_date?: string; // ISO date string - opcional para familia adicional
+  marital_status?: MaritalStatus; // opcional para familia adicional
+  education_level?: EducationLevel; // opcional para familia adicional
+  occupation?: string; // opcional para familia adicional
+  employment_situation?: EmploymentSituation; // opcional para familia adicional
+  employment_condition?: EmploymentCondition; // opcional para familia adicional
+  monthly_income?: number; // opcional para familia adicional
+  disability_type?: DisabilityType; // opcional para familia adicional
+  relationship?: RelationshipType;
+  member_type: MemberType; // tipo de miembro
+  payment_method?: PaymentMethod; // solo para jefe de familia
+  // Campos específicos para familia adicional
+  family_bond?: string; // vínculo familiar (para ADDITIONAL_FAMILY)
 }
 
 export interface EconomicInfo {

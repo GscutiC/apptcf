@@ -72,7 +72,7 @@ export const EditApplication: React.FC = () => {
       case 2:
         if (formData.household_members && formData.household_members.length > 0) {
           formData.household_members.forEach((member, idx) => {
-            if (!member.dni || !member.first_name || !member.last_name) {
+            if (!member.dni || !member.first_name || !member.apellido_paterno || !member.apellido_materno) {
               stepErrors.push(`Miembro ${idx + 1}: Faltan datos obligatorios`);
             }
           });

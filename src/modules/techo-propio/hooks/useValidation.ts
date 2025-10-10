@@ -35,7 +35,6 @@ export const useValidation = () => {
       const response = await techoPropioApi.validateDni(dni);
 
       if (response.success && response.data) {
-        console.log('Validación DNI exitosa:', dni);
         return response;
       } else {
         throw new Error(response.error || 'Error al validar DNI');
@@ -74,19 +73,15 @@ export const useValidation = () => {
   };
 
   const loadProvinces = async (departmentName: string): Promise<UbigeoProvince[]> => {
-    console.log(`🔍 [FRONTEND] loadProvinces llamado con departmentName: '${departmentName}'`);
     setIsLoadingUbigeo(true);
     setValidationError(null);
 
     try {
-      console.log(`📡 [FRONTEND] Llamando techoPropioApi.getProvinces('${departmentName}')`);
       const data = await techoPropioApi.getProvinces(departmentName);
-      console.log(`✅ [FRONTEND] Respuesta recibida:`, data);
-      console.log(`📊 [FRONTEND] ${data.length} provincias recibidas para '${departmentName}'`);
       setProvinces(data);
       return data;
     } catch (err: any) {
-      console.error('💥 loadProvinces: Error capturado:', err);
+      console.error('Error al cargar provincias:', err);
       const errorMessage = err.error || err.message || 'Error al cargar provincias';
       setValidationError(errorMessage);
       return [];
@@ -96,19 +91,15 @@ export const useValidation = () => {
   };
 
   const loadDistricts = async (departmentName: string, provinceName: string): Promise<UbigeoDistrict[]> => {
-    console.log(`🔍 [FRONTEND] loadDistricts llamado con: '${departmentName}' > '${provinceName}'`);
     setIsLoadingUbigeo(true);
     setValidationError(null);
 
     try {
-      console.log(`📡 [FRONTEND] Llamando techoPropioApi.getDistricts('${departmentName}', '${provinceName}')`);
       const data = await techoPropioApi.getDistricts(departmentName, provinceName);
-      console.log(`✅ [FRONTEND] Respuesta recibida:`, data);
-      console.log(`📊 [FRONTEND] ${data.length} distritos recibidos para '${departmentName}' > '${provinceName}'`);
       setDistricts(data);
       return data;
     } catch (err: any) {
-      console.error('💥 loadDistricts: Error capturado:', err);
+      console.error('Error al cargar distritos:', err);
       const errorMessage = err.error || err.message || 'Error al cargar distritos';
       setValidationError(errorMessage);
       return [];

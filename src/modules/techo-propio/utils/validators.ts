@@ -162,21 +162,37 @@ export const validateHouseholdMember = (member: Partial<HouseholdMember>): { isV
 
   // Names
   if (!member.first_name?.trim()) errors.first_name = 'El nombre es requerido';
-  if (!member.last_name?.trim()) errors.last_name = 'El apellido es requerido';
+  if (!member.apellido_paterno?.trim()) errors.apellido_paterno = 'El apellido paterno es requerido';
+  if (!member.apellido_materno?.trim()) errors.apellido_materno = 'El apellido materno es requerido';
 
   // Birth date
   const birthDateValidation = validateDate(member.birth_date || '');
   if (!birthDateValidation.isValid) errors.birth_date = birthDateValidation.error!;
 
-  // Relationship
-  if (!member.relationship) errors.relationship = 'La relación es requerida';
+  // Marital status
+  if (!member.marital_status) errors.marital_status = 'El estado civil es requerido';
+
+  // Education level
+  if (!member.education_level) errors.education_level = 'El grado de instrucción es requerido';
 
   // Occupation
   if (!member.occupation?.trim()) errors.occupation = 'La ocupación es requerida';
 
+  // Employment situation
+  if (!member.employment_situation) errors.employment_situation = 'La situación laboral es requerida';
+
+  // Employment condition
+  if (!member.employment_condition) errors.employment_condition = 'La condición laboral es requerida';
+
   // Monthly income
   const incomeValidation = validatePositiveNumber(member.monthly_income || 0);
   if (!incomeValidation.isValid) errors.monthly_income = incomeValidation.error!;
+
+  // Disability type
+  if (!member.disability_type) errors.disability_type = 'Debe indicar si tiene discapacidad';
+
+  // Relationship (optional)
+  // No es requerido porque puede ser el cónyuge/conviviente
 
   return {
     isValid: Object.keys(errors).length === 0,

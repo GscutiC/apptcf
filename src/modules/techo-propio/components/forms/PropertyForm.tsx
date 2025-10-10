@@ -20,17 +20,32 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
   errors = {}
 }) => {
   const handleLocationChange = (field: string, value: string) => {
+    // Crear el nuevo objeto de ubicación con los valores actualizados
+    const updatedLocation = {
+      department: data.property_location?.department || '',
+      province: data.property_location?.province || '',
+      district: data.property_location?.district || '',
+      address: data.property_location?.address || '',
+      reference: data.property_location?.reference || ''
+    };
+
+    // Actualizar el campo específico
+    updatedLocation[field as keyof typeof updatedLocation] = value;
+
+    // Si cambia el departamento, limpiar provincia y distrito
+    if (field === 'department') {
+      updatedLocation.province = '';
+      updatedLocation.district = '';
+    }
+
+    // Si cambia la provincia, limpiar distrito
+    if (field === 'province') {
+      updatedLocation.district = '';
+    }
+
     onChange({
       ...data,
-      property_location: {
-        ...data.property_location,
-        [field]: value,
-        department: field === 'department' ? value : data.property_location?.department || '',
-        province: field === 'province' ? value : data.property_location?.province || '',
-        district: field === 'district' ? value : data.property_location?.district || '',
-        address: data.property_location?.address || '',
-        reference: data.property_location?.reference
-      }
+      property_location: updatedLocation
     });
   };
 

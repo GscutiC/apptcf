@@ -59,17 +59,17 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ data, onEdit }) => {
           <div className="space-y-3">
             {household_members.map((member, idx) => (
               <div key={idx} className="p-3 bg-gray-50 rounded-lg">
-                <p className="font-medium">{member.first_name} {member.last_name}</p>
+                <p className="font-medium">{member.first_name} {member.apellido_paterno} {member.apellido_materno}</p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2 text-sm text-gray-600">
                   <span>DNI: {formatDNI(member.dni)}</span>
                   <span>Relación: {RELATIONSHIP_OPTIONS.find(r => r.value === member.relationship)?.label}</span>
-                  <span>Ocupación: {member.occupation}</span>
-                  <span className="text-green-700 font-medium">{formatCurrency(member.monthly_income)}</span>
+                  <span>Ocupación: {member.occupation || 'N/A'}</span>
+                  <span className="text-green-700 font-medium">{formatCurrency(member.monthly_income || 0)}</span>
                 </div>
               </div>
             ))}
             <div className="pt-3 border-t text-right">
-              <span className="text-sm font-medium">Total: {household_members.length} miembro(s) | Ingreso: <span className="text-green-700 text-lg">{formatCurrency(household_members.reduce((sum, m) => sum + m.monthly_income, 0))}</span></span>
+              <span className="text-sm font-medium">Total: {household_members.length} miembro(s) | Ingreso: <span className="text-green-700 text-lg">{formatCurrency(household_members.reduce((sum, m) => sum + (m.monthly_income || 0), 0))}</span></span>
             </div>
           </div>
         ) : <p className="text-gray-500">Sin miembros agregados</p>}

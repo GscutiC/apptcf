@@ -60,10 +60,10 @@ export const ApplicationDetail: React.FC = () => {
           {app.household_members.map((member, idx) => (
             <div key={idx} className="p-3 bg-gray-50 rounded-lg flex justify-between">
               <div>
-                <p className="font-medium">{member.first_name} {member.last_name}</p>
-                <p className="text-sm text-gray-600">DNI: {formatDNI(member.dni)} | {member.occupation}</p>
+                <p className="font-medium">{member.first_name} {member.apellido_paterno} {member.apellido_materno}</p>
+                <p className="text-sm text-gray-600">DNI: {formatDNI(member.dni)} | {member.occupation || 'N/A'}</p>
               </div>
-              <p className="font-semibold text-green-700">{formatCurrency(member.monthly_income)}</p>
+              <p className="font-semibold text-green-700">{formatCurrency(member.monthly_income || 0)}</p>
             </div>
           ))}
         </div>

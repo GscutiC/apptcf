@@ -232,9 +232,7 @@ class TechoPropioApiService {
    */
   async getProvinces(departmentName: string): Promise<GetProvincesResponse> {
     const url = ENDPOINTS.PROVINCES(encodeURIComponent(departmentName));
-    console.log(`📡 [API] getProvinces URL: ${url}`);
     const response = await this.client.get<GetProvincesResponse>(url);
-    console.log(`✅ [API] getProvinces response:`, response.data);
     return response.data;
   }
 
@@ -243,9 +241,7 @@ class TechoPropioApiService {
    */
   async getDistricts(departmentName: string, provinceName: string): Promise<GetDistrictsResponse> {
     const url = ENDPOINTS.DISTRICTS(encodeURIComponent(departmentName), encodeURIComponent(provinceName));
-    console.log(`📡 [API] getDistricts URL: ${url}`);
     const response = await this.client.get<GetDistrictsResponse>(url);
-    console.log(`✅ [API] getDistricts response:`, response.data);
     return response.data;
   }
 

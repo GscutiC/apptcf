@@ -8,7 +8,13 @@ import {
   PropertyType,
   LandOwnership,
   Gender,
-  RelationshipType
+  RelationshipType,
+  EducationLevel,
+  EmploymentSituation,
+  EmploymentCondition,
+  DisabilityType,
+  PaymentMethod,
+  MemberType
 } from '../types';
 
 // ==================== API ENDPOINTS ====================
@@ -142,6 +148,71 @@ export const RELATIONSHIP_OPTIONS = [
   { value: RelationshipType.PARENT, label: 'Padre/Madre' },
   { value: RelationshipType.SIBLING, label: 'Hermano/a' },
   { value: RelationshipType.OTHER, label: 'Otro' }
+];
+
+// ==================== EDUCATION LEVEL ====================
+
+export const EDUCATION_LEVEL_OPTIONS = [
+  { value: EducationLevel.NONE, label: 'Ninguno' },
+  { value: EducationLevel.PRIMARY, label: 'Primaria' },
+  { value: EducationLevel.SECONDARY, label: 'Secundaria' },
+  { value: EducationLevel.TECHNICAL, label: 'Técnica' },
+  { value: EducationLevel.UNIVERSITY, label: 'Universitaria' },
+  { value: EducationLevel.POSTGRADUATE, label: 'Posgrado' }
+];
+
+// ==================== EMPLOYMENT SITUATION ====================
+
+export const EMPLOYMENT_SITUATION_OPTIONS = [
+  { value: EmploymentSituation.DEPENDENT, label: 'Dependiente' },
+  { value: EmploymentSituation.INDEPENDENT, label: 'Independiente' }
+];
+
+// ==================== EMPLOYMENT CONDITION ====================
+
+export const EMPLOYMENT_CONDITION_OPTIONS = [
+  { value: EmploymentCondition.FORMAL, label: 'Formal' },
+  { value: EmploymentCondition.INFORMAL, label: 'Informal' }
+];
+
+// ==================== DISABILITY TYPE ====================
+
+export const DISABILITY_TYPE_OPTIONS = [
+  { value: DisabilityType.NONE, label: 'Ninguna' },
+  { value: DisabilityType.PERMANENT, label: 'Permanente' },
+  { value: DisabilityType.SEVERE, label: 'Severa' }
+];
+
+// ==================== PAYMENT METHOD ====================
+
+export const PAYMENT_METHOD_OPTIONS = [
+  { value: PaymentMethod.CASH, label: 'Al Contado' },
+  { value: PaymentMethod.FINANCING, label: 'Financiado' }
+];
+
+// ==================== MEMBER TYPE ====================
+
+export const MEMBER_TYPE_OPTIONS = [
+  { value: MemberType.HEAD_OF_FAMILY, label: 'Jefe de Familia' },
+  { value: MemberType.SPOUSE, label: 'Cónyuge/Conviviente' },
+  { value: MemberType.ADDITIONAL_FAMILY, label: 'Familia Adicional' },
+  { value: MemberType.FAMILY_DEPENDENT, label: 'Carga Familiar' },
+  { value: MemberType.OTHER, label: 'Otro Miembro' }
+];
+
+// ==================== FAMILY BONDS ====================
+
+export const FAMILY_BOND_OPTIONS = [
+  { value: 'HIJO', label: 'Hijo/a' },
+  { value: 'NIETO', label: 'Nieto/a' },
+  { value: 'PADRE', label: 'Padre' },
+  { value: 'MADRE', label: 'Madre' },
+  { value: 'ABUELO', label: 'Abuelo/a' },
+  { value: 'HERMANO', label: 'Hermano/a' },
+  { value: 'TIO', label: 'Tío/a' },
+  { value: 'PRIMO', label: 'Primo/a' },
+  { value: 'SOBRINO', label: 'Sobrino/a' },
+  { value: 'OTRO', label: 'Otro' }
 ];
 
 // ==================== FORM STEPS ====================

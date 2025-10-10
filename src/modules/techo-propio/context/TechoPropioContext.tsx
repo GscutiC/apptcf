@@ -4,6 +4,7 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useAuth } from '@clerk/clerk-react';
 import {
   TechoPropioApplication,
   ApplicationFilters,
@@ -55,6 +56,9 @@ interface TechoPropioProviderProps {
 }
 
 export const TechoPropioProvider: React.FC<TechoPropioProviderProps> = ({ children }) => {
+  // Auth
+  const { getToken } = useAuth();
+  
   // State
   const [applications, setApplications] = useState<TechoPropioApplication[]>([]);
   const [selectedApplication, setSelectedApplication] = useState<TechoPropioApplication | null>(null);
@@ -68,6 +72,13 @@ export const TechoPropioProvider: React.FC<TechoPropioProviderProps> = ({ childr
   });
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Configurar token getter al montar el provider
+  useEffect(() => {
+    if (getToken) {
+      techoPropioApi.setTokenGetter(getToken);
+    }
+  }, [getToken]);
 
   // ==================== ACTIONS - APPLICATIONS ====================
 
@@ -163,7 +174,11 @@ export const TechoPropioProvider: React.FC<TechoPropioProviderProps> = ({ childr
         setStatistics(response.data);
       }
     } catch (err: any) {
-      console.error('Error loading statistics:', err);
+      // Silenciar error de estadísticas - no es crítico
+      // Solo logear si hay error de servidor (500+)
+      if (err.status_code && err.status_code >= 500) {
+        console.error('Error del servidor al cargar estadísticas:', err);
+      }
     }
   };
 

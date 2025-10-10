@@ -2,7 +2,8 @@
  * Custom hook for CRUD operations on Techo Propio applications
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '@clerk/clerk-react';
 import { techoPropioApi } from '../services';
 import {
   TechoPropioApplication,
@@ -14,9 +15,17 @@ import {
 import { SUCCESS_MESSAGES } from '../utils';
 
 export const useTechoPropioApplications = () => {
+  const { getToken } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Configurar token getter al montar el hook
+  useEffect(() => {
+    if (getToken) {
+      techoPropioApi.setTokenGetter(getToken);
+    }
+  }, [getToken]);
 
   // ==================== CREATE ====================
 

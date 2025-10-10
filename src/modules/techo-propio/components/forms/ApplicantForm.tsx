@@ -46,17 +46,32 @@ export const ApplicantForm: React.FC<ApplicantFormProps> = ({
   };
 
   const handleLocationChange = (field: string, value: string) => {
+    // Crear el nuevo objeto de dirección con los valores actualizados
+    const updatedAddress = {
+      department: data.current_address?.department || '',
+      province: data.current_address?.province || '',
+      district: data.current_address?.district || '',
+      address: data.current_address?.address || '',
+      reference: data.current_address?.reference || ''
+    };
+
+    // Actualizar el campo específico
+    updatedAddress[field as keyof typeof updatedAddress] = value;
+
+    // Si cambia el departamento, limpiar provincia y distrito
+    if (field === 'department') {
+      updatedAddress.province = '';
+      updatedAddress.district = '';
+    }
+
+    // Si cambia la provincia, limpiar distrito
+    if (field === 'province') {
+      updatedAddress.district = '';
+    }
+
     onChange({
       ...data,
-      current_address: {
-        ...data.current_address,
-        [field]: value,
-        department: field === 'department' ? value : data.current_address?.department || '',
-        province: field === 'province' ? value : data.current_address?.province || '',
-        district: field === 'district' ? value : data.current_address?.district || '',
-        address: data.current_address?.address || '',
-        reference: data.current_address?.reference
-      }
+      current_address: updatedAddress
     });
   };
 

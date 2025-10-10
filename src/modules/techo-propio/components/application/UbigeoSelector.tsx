@@ -45,12 +45,6 @@ export const UbigeoSelector: React.FC<UbigeoSelectorProps> = ({
     validationError
   } = useValidation();
 
-  // Debug: Log cuando cambian las provincias
-  React.useEffect(() => {
-    console.log(`🔄 [COMPONENT] Provincias actualizadas:`, provinces);
-    console.log(`📊 [COMPONENT] Total provincias: ${provinces.length}`);
-  }, [provinces]);
-
   const [selectedDept, setSelectedDept] = useState(department);
   const [selectedProv, setSelectedProv] = useState(province);
   const [selectedDist, setSelectedDist] = useState(district);
@@ -63,27 +57,20 @@ export const UbigeoSelector: React.FC<UbigeoSelectorProps> = ({
   // Load provinces when department changes
   useEffect(() => {
     if (selectedDept) {
-      // Find department name from code
-      const deptObj = departments.find(d => d.code === selectedDept);
-      if (deptObj) {
-        loadProvinces(deptObj.name);
-      }
+      // Now selectedDept is already the department name
+      loadProvinces(selectedDept);
     } else {
       clearUbigeo();
     }
-  }, [selectedDept, departments]);
+  }, [selectedDept]);
 
   // Load districts when province changes
   useEffect(() => {
     if (selectedProv && selectedDept) {
-      // Find department and province names from codes
-      const deptObj = departments.find(d => d.code === selectedDept);
-      const provObj = provinces.find(p => p.code === selectedProv);
-      if (deptObj && provObj) {
-        loadDistricts(deptObj.name, provObj.name);
-      }
+      // Now selectedDept and selectedProv are already the names
+      loadDistricts(selectedDept, selectedProv);
     }
-  }, [selectedProv, selectedDept, departments, provinces]);
+  }, [selectedProv, selectedDept]);
 
   const handleDepartmentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value;
@@ -91,8 +78,7 @@ export const UbigeoSelector: React.FC<UbigeoSelectorProps> = ({
     setSelectedProv('');
     setSelectedDist('');
     onDepartmentChange(value);
-    onProvinceChange('');
-    onDistrictChange('');
+    // NO limpiar provincia y distrito en el padre - ApplicantForm lo hará
   };
 
   const handleProvinceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -100,7 +86,7 @@ export const UbigeoSelector: React.FC<UbigeoSelectorProps> = ({
     setSelectedProv(value);
     setSelectedDist('');
     onProvinceChange(value);
-    onDistrictChange('');
+    // NO limpiar distrito en el padre - ApplicantForm lo hará
   };
 
   const handleDistrictChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -110,22 +96,17 @@ export const UbigeoSelector: React.FC<UbigeoSelectorProps> = ({
   };
 
   const departmentOptions = departments.map((dept) => ({
-    value: dept.code,
+    value: dept.name,
     label: dept.name
   }));
 
   const provinceOptions = provinces.map((prov) => ({
-    value: prov.code,
+    value: prov.name,
     label: prov.name
   }));
 
-  // Debug: Log las opciones generadas
-  React.useEffect(() => {
-    console.log(`🎯 [COMPONENT] Province options generadas:`, provinceOptions);
-  }, [provinceOptions]);
-
   const districtOptions = districts.map((dist) => ({
-    value: dist.code,
+    value: dist.name,
     label: dist.name
   }));
 
