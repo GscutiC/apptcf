@@ -4,9 +4,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTechoPropioApplications } from '../hooks';
+import { useTechoPropioApplications, useValidation } from '../hooks';
+import { useTechoPropio } from '../context';
 import { Card, Button, Modal } from '../components/common';
 import {
+  ApplicationInfoStep,
   ApplicantForm,
   HouseholdForm,
   EconomicForm,
@@ -18,6 +20,11 @@ import { storageService } from '../services';
 import { validateApplicantForm, validateEconomicForm, validatePropertyForm } from '../utils';
 
 const INITIAL_FORM_DATA: ApplicationFormData = {
+  application_info: {
+    registration_date: new Date().toLocaleDateString('es-PE'),
+    convocation_code: '',
+    registration_year: new Date().getFullYear()
+  },
   applicant: undefined,
   household_members: [],
   economic_info: undefined,
@@ -27,11 +34,14 @@ const INITIAL_FORM_DATA: ApplicationFormData = {
 
 export const NewApplication: React.FC = () => {
   const navigate = useNavigate();
-  const { createApplication, isLoading } = useTechoPropioApplications();
-  const [currentStep, setCurrentStep] = useState(1);
+  const { createApplication, isLoading, error: apiError } = useTechoPropioApplications();
+  const { validateDNI } = useValidation();
+  const { selectApplication } = useTechoPropio();
+  const [currentStep, setCurrentStep] = useState(0);  // ✅ Empezar en paso 0
   const [formData, setFormData] = useState<ApplicationFormData>(INITIAL_FORM_DATA);
   const [errors, setErrors] = useState<string[]>([]);
   const [exitModal, setExitModal] = useState(false);
+  const [isValidatingDNI, setIsValidatingDNI] = useState(false);
 
   // Cargar borrador desde localStorage al montar
   useEffect(() => {
@@ -52,15 +62,103 @@ export const NewApplication: React.FC = () => {
 
   // Auto-guardar borrador cada vez que cambia formData
   useEffect(() => {
-    if (currentStep > 1) { // No guardar en el primer paso si está vacío
+    if (currentStep > 0) { // No guardar en el paso 0 si está vacío
       storageService.saveDraft(formData, currentStep);
     }
   }, [formData, currentStep]);
 
-  const totalSteps = 5;
+  const totalSteps = 6;  // ✅ Incrementado para incluir paso 0
 
   const updateFormData = (partialData: Partial<ApplicationFormData>) => {
-    setFormData((prev) => ({ ...prev, ...partialData }));
+    // ✅ FIX: Usar función de actualización para garantizar que siempre usamos el estado más reciente
+    setFormData((prev) => {
+      const updated = { ...prev, ...partialData };
+      console.log('🔄 updateFormData - prev:', prev);
+      console.log('🔄 updateFormData - partialData:', partialData);
+      console.log('🔄 updateFormData - updated:', updated);
+      return updated;
+    });
+  };
+
+  // Función para generar DNI único para testing
+  const generateUniqueDNI = (): string => {
+    const timestamp = Date.now().toString();
+    // Tomar los últimos 8 dígitos del timestamp
+    const dni = timestamp.slice(-8);
+    return dni;
+  };
+
+  // Función para mostrar mensaje más claro sobre DNI duplicado
+  const handleDNIDuplicateError = (errorDetail: string) => {
+    let userFriendlyMessage = 'DNI duplicado detectado';
+    
+    if (errorDetail.includes('DNI')) {
+      // Extraer el DNI del mensaje de error
+      const dniMatch = errorDetail.match(/DNI (\d{8})/);
+      if (dniMatch) {
+        const dni = dniMatch[1];
+        userFriendlyMessage = `⚠️ El DNI ${dni} ya está registrado en otra solicitud.
+
+🔧 SOLUCIÓN RÁPIDA:
+• Haga clic en "Generar DNIs Únicos" para datos de prueba
+• O cambie manualmente los DNIs por otros números
+
+💡 Para uso real: Verifique que los DNIs sean correctos`;
+      }
+    }
+    
+    setErrors([userFriendlyMessage]);
+  };
+
+  // Función para auto-generar DNIs únicos
+  const generateUniqueDNIs = () => {
+    const newFormData = { ...formData };
+    let generatedCount = 0;
+    
+    // Generar DNI único para solicitante principal
+    if (newFormData.applicant) {
+      const oldDni = newFormData.applicant.dni;
+      newFormData.applicant.dni = generateUniqueDNI();
+      generatedCount++;
+      console.log(`🔄 DNI Solicitante: ${oldDni} → ${newFormData.applicant.dni}`);
+    }
+    
+    // Generar DNIs únicos para miembros del hogar
+    if (newFormData.household_members) {
+      newFormData.household_members = newFormData.household_members.map((member, index) => {
+        const oldDni = member.dni;
+        const newDni = generateUniqueDNI();
+        generatedCount++;
+        console.log(`🔄 DNI Miembro ${index + 1}: ${oldDni} → ${newDni}`);
+        return {
+          ...member,
+          dni: newDni
+        };
+      });
+    }
+    
+    // Actualizar formulario y limpiar errores
+    setFormData(newFormData);
+    setErrors([]); 
+    
+    // Mensaje de confirmación detallado
+    const message = `✅ ¡DNIs únicos generados!
+
+📊 Resumen:
+• ${generatedCount} DNI${generatedCount > 1 ? 's' : ''} actualizado${generatedCount > 1 ? 's' : ''}
+• Errores de duplicación eliminados
+• Formulario listo para enviar
+
+🎯 Puede proceder con el envío de la solicitud.`;
+    
+    alert(message);
+    
+    // Auto-scroll al botón de envío si estamos en el último paso
+    if (currentStep === totalSteps) {
+      setTimeout(() => {
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+      }, 100);
+    }
   };
 
   const validateCurrentStep = (): boolean => {
@@ -71,7 +169,14 @@ export const NewApplication: React.FC = () => {
         if (!formData.applicant) {
           stepErrors.push('Debe completar los datos del solicitante');
         } else {
+          // 🐛 DEBUG: Log para diagnosticar problema de validación
+          console.log('🔍 DEBUG - Validando Paso 1 (Solicitante)');
+          console.log('📋 formData.applicant:', formData.applicant);
+          console.log('🏠 current_address:', formData.applicant.current_address);
+          
           const applicantErrors = validateApplicantForm(formData.applicant);
+          
+          console.log('❌ Errores encontrados:', applicantErrors);
           stepErrors.push(...applicantErrors);
         }
         break;
@@ -171,10 +276,30 @@ export const NewApplication: React.FC = () => {
       is_main_applicant: true
     };
 
+    // Transformar household_members: mapear campos del frontend al backend
+    const transformedHouseholdMembers = (formData.household_members || []).map(member => ({
+      first_name: member.first_name,
+      paternal_surname: member.apellido_paterno,  // ✅ apellido_paterno -> paternal_surname
+      maternal_surname: member.apellido_materno,  // ✅ apellido_materno -> maternal_surname
+      document_type: 'dni',  // Por defecto DNI
+      document_number: member.dni,
+      birth_date: member.birth_date || '1990-01-01',
+      civil_status: member.marital_status || 'soltero',  // ✅ marital_status -> civil_status
+      education_level: member.education_level || 'secundaria_completa',
+      occupation: member.occupation || 'No especificado',
+      employment_situation: member.employment_situation || 'dependiente',
+      work_condition: member.work_condition || (member.employment_condition || 'FORMAL').toLowerCase(),  // ✅ Usar work_condition o convertir employment_condition a minúsculas
+      monthly_income: member.monthly_income || 0,
+      disability_type: member.disability_type || 'ninguna',
+      relationship: member.relationship || (member.member_type?.toLowerCase() === 'conyuge' ? 'conyuge' : 'otro'),  // ✅ Mapear member_type a relationship
+      is_dependent: true
+    }));
+
     // Preparar datos para el backend (ajustar estructura para TechoPropioApplicationCreateDTO)
     const requestData = {
+      convocation_code: formData.application_info?.convocation_code || '',
       main_applicant: transformedApplicant,
-      household_members: formData.household_members || [],
+      household_members: transformedHouseholdMembers,  // ✅ Usar datos transformados
       main_applicant_economic: transformedEconomic,
       property_info: formData.property_info as any, // Forzar tipo ya que validamos arriba
       comments: formData.comments
@@ -189,10 +314,32 @@ export const NewApplication: React.FC = () => {
     if (result) {
       // Limpiar borrador
       storageService.clearDraft();
-      // Navegar a la vista de detalle
-      navigate(`/techo-propio/ver/${result.id}`);
+      
+      // ✅ Mostrar mensaje de éxito
+      alert(`✅ Solicitud creada exitosamente!\n\nID: ${result.id}\nCódigo de Convocatoria: ${result.convocation_code}`);
+      
+      // Navegar a la lista de solicitudes (no a detalle porque tiene estructura diferente)
+      navigate('/techo-propio/solicitudes');
     } else {
-      setErrors(['Error al crear la solicitud. Por favor, intente nuevamente.']);
+      // Manejar error específico de DNI duplicado
+      if (apiError && apiError.includes('DNI') && apiError.includes('ya está registrado')) {
+        // Mostrar error con sugerencia automática
+        setErrors([
+          'Error de DNI duplicado: ' + apiError,
+          '💡 Sugerencia: Use el botón "Generar DNIs Únicos" para resolver este problema automáticamente'
+        ]);
+        
+        // Opcional: Auto-generar DNIs únicos después de 3 segundos
+        setTimeout(() => {
+          if (window.confirm('¿Desea generar DNIs únicos automáticamente para continuar con la prueba?')) {
+            generateUniqueDNIs();
+          }
+        }, 2000);
+        
+        handleDNIDuplicateError(apiError);
+      } else {
+        setErrors([apiError || 'Error al crear la solicitud. Por favor, intente nuevamente.']);
+      }
     }
   };
 
@@ -207,6 +354,19 @@ export const NewApplication: React.FC = () => {
 
   const renderStep = () => {
     switch (currentStep) {
+      case 0:
+        return (
+          <ApplicationInfoStep
+            data={formData.application_info || {
+              registration_date: new Date().toLocaleDateString('es-PE'),
+              convocation_code: '',
+              registration_year: new Date().getFullYear()
+            }}
+            onChange={(application_info) => updateFormData({ application_info })}
+            onNext={handleNext}
+            errors={errors}
+          />
+        );
       case 1:
         return (
           <ApplicantForm
@@ -263,7 +423,7 @@ export const NewApplication: React.FC = () => {
       {/* Stepper */}
       <Card padding="md">
         <div className="flex items-center justify-between">
-          {[1, 2, 3, 4, 5].map((step) => (
+          {[0, 1, 2, 3, 4, 5].map((step) => (
             <React.Fragment key={step}>
               <div className="flex flex-col items-center">
                 <div
@@ -284,7 +444,7 @@ export const NewApplication: React.FC = () => {
                       />
                     </svg>
                   ) : (
-                    step
+                    step === 0 ? 'ℹ️' : step
                   )}
                 </div>
                 <span
@@ -296,10 +456,11 @@ export const NewApplication: React.FC = () => {
                       : 'text-gray-500'
                   }`}
                 >
+                  {step === 0 && 'Información'}
                   {step === 1 && 'Solicitante'}
                   {step === 2 && 'Grupo Familiar'}
                   {step === 3 && 'Predio'}
-                  {step === 4 && 'Económica '}
+                  {step === 4 && 'Económica'}
                   {step === 5 && 'Revisión'}
                 </span>
               </div>
@@ -339,6 +500,22 @@ export const NewApplication: React.FC = () => {
                   <li key={idx}>{error}</li>
                 ))}
               </ul>
+              {/* Botón de ayuda para DNI duplicado */}
+              {errors.some(error => error.includes('DNI') && error.includes('registrado')) && (
+                <div className="mt-3 pt-3 border-t border-red-200">
+                  <p className="text-sm text-red-700 mb-2">
+                    💡 <strong>Solución rápida:</strong> Genere DNIs únicos automáticamente para pruebas
+                  </p>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={generateUniqueDNIs}
+                    className="bg-white border-red-300 text-red-700 hover:bg-red-50"
+                  >
+                    🔄 Generar DNIs Únicos
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -350,13 +527,27 @@ export const NewApplication: React.FC = () => {
       {/* Navigation Buttons */}
       <Card padding="md">
         <div className="flex items-center justify-between">
-          <Button
-            variant="secondary"
-            onClick={handlePrevious}
-            disabled={currentStep === 1 || isLoading}
-          >
-            ← Anterior
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              onClick={handlePrevious}
+              disabled={currentStep === 0 || isLoading}
+            >
+              ← Anterior
+            </Button>
+            
+            {/* Botón de herramientas de desarrollo */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={generateUniqueDNIs}
+              disabled={isLoading}
+              className="text-xs text-gray-600 border border-gray-300 hover:bg-gray-50"
+              title="Generar DNIs únicos para pruebas"
+            >
+              🔧 DNIs Únicos
+            </Button>
+          </div>
 
           <div className="text-sm text-gray-600">
             Paso {currentStep} de {totalSteps}

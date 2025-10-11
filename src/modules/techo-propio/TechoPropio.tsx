@@ -14,6 +14,7 @@ import {
   NewApplication,
   EditApplication
 } from './pages';
+import { ConvocationManagement } from './components';
 
 /**
  * Main Techo Propio module component
@@ -33,6 +34,9 @@ export const TechoPropio: React.FC = () => {
           <Route path="/ver/:id" element={<ApplicationDetail />} />
           <Route path="/nueva" element={<NewApplication />} />
           <Route path="/editar/:id" element={<EditApplication />} />
+
+          {/* Convocatorias Management */}
+          <Route path="/convocatorias" element={<ConvocationManagement />} />
 
           {/* Redirect old paths for compatibility */}
           <Route path="/dashboard" element={<Navigate to="/techo-propio/" replace />} />

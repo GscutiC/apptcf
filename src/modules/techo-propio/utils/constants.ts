@@ -35,8 +35,8 @@ export const ENDPOINTS = {
 
   // UBIGEO
   DEPARTMENTS: '/api/techo-propio/locations/departments',
-  PROVINCES: (deptName: string) => `/api/techo-propio/locations/provinces/${deptName}`,
-  DISTRICTS: (deptName: string, provName: string) => `/api/techo-propio/locations/districts/${deptName}/${provName}`,
+  PROVINCES: (deptCode: string) => `/api/techo-propio/locations/provinces?department_code=${deptCode}`,
+  DISTRICTS: (deptCode: string, provCode: string) => `/api/techo-propio/locations/districts?department_code=${deptCode}&province_code=${provCode}`,
 
   // Status
   CHANGE_STATUS: (id: string) => `/api/techo-propio/applications/${id}/status`,
@@ -179,8 +179,8 @@ export const EMPLOYMENT_SITUATION_OPTIONS = [
   { value: EmploymentSituation.STUDENT, label: 'Estudiante' }
 ];
 
-// ==================== EMPLOYMENT CONDITION ====================
-
+// ==================== LEGACY EMPLOYMENT CONDITION (DEPRECATED) ====================
+// ⚠️ Usar WORK_CONDITION_OPTIONS en su lugar
 export const EMPLOYMENT_CONDITION_OPTIONS = [
   { value: EmploymentCondition.FORMAL, label: 'Formal' },
   { value: EmploymentCondition.INFORMAL, label: 'Informal' }

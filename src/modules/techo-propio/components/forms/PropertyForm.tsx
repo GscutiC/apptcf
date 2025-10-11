@@ -19,30 +19,44 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
   onChange,
   errors = {}
 }) => {
+  // ✅ FIX: Mantener una referencia actualizada para evitar problemas de React batching
+  // Mismo patrón que en ApplicantForm
+  const propertyRef = React.useRef(data);
+  
+  // Sincronizar la referencia cuando cambian las props
+  React.useEffect(() => {
+    propertyRef.current = data;
+  }, [data]);
+  
   const handleFieldChange = (field: keyof PropertyInfo, value: string | number | undefined) => {
-    onChange({
-      ...data,
+    const updated = {
+      ...propertyRef.current,
       [field]: value
-    });
+    };
+    propertyRef.current = updated;
+    onChange(updated);
   };
 
   const handleUbigeoChange = (field: 'department' | 'province' | 'district', value: string) => {
+    // ✅ Usar la referencia actualizada en lugar de data
     const updates: Partial<PropertyInfo> = {
-      ...data,
+      ...propertyRef.current,
       [field]: value
     };
 
     // Si cambia el departamento, limpiar provincia y distrito
-    if (field === 'department') {
+    if (field === 'department' && value) {
       updates.province = '';
       updates.district = '';
     }
 
     // Si cambia la provincia, limpiar distrito
-    if (field === 'province') {
+    if (field === 'province' && value) {
       updates.district = '';
     }
 
+    // ✅ Actualizar la referencia inmediatamente
+    propertyRef.current = updates;
     onChange(updates);
   };
 

@@ -221,28 +221,31 @@ class TechoPropioApiService {
    * Get all departments
    */
   async getDepartments(): Promise<GetDepartmentsResponse> {
-    const response = await this.client.get<GetDepartmentsResponse>(
+    const response = await this.client.get<{success: boolean, data: GetDepartmentsResponse}>(
       ENDPOINTS.DEPARTMENTS
     );
-    return response.data;
+    // Extract the data array from the wrapper
+    return response.data.data;
   }
 
   /**
-   * Get provinces by department name
+   * Get provinces by department code
    */
-  async getProvinces(departmentName: string): Promise<GetProvincesResponse> {
-    const url = ENDPOINTS.PROVINCES(encodeURIComponent(departmentName));
-    const response = await this.client.get<GetProvincesResponse>(url);
-    return response.data;
+  async getProvinces(departmentCode: string): Promise<GetProvincesResponse> {
+    const url = ENDPOINTS.PROVINCES(departmentCode);
+    const response = await this.client.get<{success: boolean, data: GetProvincesResponse}>(url);
+    // Extract the data array from the wrapper
+    return response.data.data;
   }
 
   /**
-   * Get districts by department and province name
+   * Get districts by department and province codes
    */
-  async getDistricts(departmentName: string, provinceName: string): Promise<GetDistrictsResponse> {
-    const url = ENDPOINTS.DISTRICTS(encodeURIComponent(departmentName), encodeURIComponent(provinceName));
-    const response = await this.client.get<GetDistrictsResponse>(url);
-    return response.data;
+  async getDistricts(departmentCode: string, provinceCode: string): Promise<GetDistrictsResponse> {
+    const url = ENDPOINTS.DISTRICTS(departmentCode, provinceCode);
+    const response = await this.client.get<{success: boolean, data: GetDistrictsResponse}>(url);
+    // Extract the data array from the wrapper
+    return response.data.data;
   }
 
   // ==================== EXPORT ====================

@@ -14,6 +14,15 @@ interface ReviewStepProps {
 }
 
 export const ReviewStep: React.FC<ReviewStepProps> = ({ data, onEdit }) => {
+  // 🐛 DEBUG: Ver qué datos están llegando al componente
+  React.useEffect(() => {
+    console.log('📋 ReviewStep - data:', data);
+    console.log('👤 applicant:', data.applicant);
+    console.log('👥 household_members:', data.household_members);
+    console.log('🏠 property_info:', data.property_info);
+    console.log('💰 economic_info:', data.economic_info);
+  }, [data]);
+
   const { applicant, household_members, economic_info, property_info, comments } = data;
 
   const EditButton: React.FC<{ step: number }> = ({ step }) => (

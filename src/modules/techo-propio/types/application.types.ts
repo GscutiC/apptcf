@@ -162,7 +162,8 @@ export interface HouseholdMember {
   education_level?: EducationLevel; // opcional para familia adicional
   occupation?: string; // opcional para familia adicional
   employment_situation?: EmploymentSituation; // opcional para familia adicional
-  employment_condition?: EmploymentCondition; // opcional para familia adicional
+  work_condition?: WorkCondition; // ✅ Nuevo campo alineado con backend
+  employment_condition?: EmploymentCondition; // ⚠️ DEPRECATED: usar work_condition en su lugar
   monthly_income?: number; // opcional para familia adicional
   disability_type?: DisabilityType; // opcional para familia adicional
   relationship?: FamilyRelationship;
@@ -234,6 +235,14 @@ export interface TechoPropioApplication {
   id?: string;
   code: string;
   status: ApplicationStatus;
+  
+  // ✅ NUEVOS CAMPOS: Información de registro
+  registration_date?: string; // ISO date string
+  convocation_code?: string;
+  registration_year?: number;
+  sequential_number?: number;
+  application_number?: string | null;
+  
   applicant: Applicant;
   household_members: HouseholdMember[];
   household_size: number;
@@ -339,6 +348,15 @@ export interface ReniecValidationResponse {
 // ==================== FORM STATE ====================
 
 export interface ApplicationFormData {
+  // ✅ Step 0: Application Info (NEW)
+  application_info?: {
+    application_number?: string;
+    registration_date: string;
+    convocation_code: string;
+    registration_year: number;
+    sequential_number?: number;
+  };
+  
   // Step 1: Applicant
   applicant?: Partial<Applicant>;
   // Step 2: Household

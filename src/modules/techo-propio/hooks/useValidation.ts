@@ -72,16 +72,15 @@ export const useValidation = () => {
     }
   };
 
-  const loadProvinces = async (departmentName: string): Promise<UbigeoProvince[]> => {
+  const loadProvinces = async (departmentCode: string): Promise<UbigeoProvince[]> => {
     setIsLoadingUbigeo(true);
     setValidationError(null);
 
     try {
-      const data = await techoPropioApi.getProvinces(departmentName);
+      const data = await techoPropioApi.getProvinces(departmentCode);
       setProvinces(data);
       return data;
     } catch (err: any) {
-      console.error('Error al cargar provincias:', err);
       const errorMessage = err.error || err.message || 'Error al cargar provincias';
       setValidationError(errorMessage);
       return [];
@@ -90,16 +89,15 @@ export const useValidation = () => {
     }
   };
 
-  const loadDistricts = async (departmentName: string, provinceName: string): Promise<UbigeoDistrict[]> => {
+  const loadDistricts = async (departmentCode: string, provinceCode: string): Promise<UbigeoDistrict[]> => {
     setIsLoadingUbigeo(true);
     setValidationError(null);
 
     try {
-      const data = await techoPropioApi.getDistricts(departmentName, provinceName);
+      const data = await techoPropioApi.getDistricts(departmentCode, provinceCode);
       setDistricts(data);
       return data;
     } catch (err: any) {
-      console.error('Error al cargar distritos:', err);
       const errorMessage = err.error || err.message || 'Error al cargar distritos';
       setValidationError(errorMessage);
       return [];

@@ -3,7 +3,7 @@
  * Manages application state and provides data to all components
  */
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import {
   TechoPropioApplication,
@@ -82,7 +82,7 @@ export const TechoPropioProvider: React.FC<TechoPropioProviderProps> = ({ childr
 
   // ==================== ACTIONS - APPLICATIONS ====================
 
-  const fetchApplications = async (newFilters?: ApplicationFilters) => {
+  const fetchApplications = useCallback(async (newFilters?: ApplicationFilters) => {
     setIsLoading(true);
     setError(null);
 
@@ -112,9 +112,9 @@ export const TechoPropioProvider: React.FC<TechoPropioProviderProps> = ({ childr
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const fetchApplication = async (id: string): Promise<TechoPropioApplication | null> => {
+  const fetchApplication = useCallback(async (id: string): Promise<TechoPropioApplication | null> => {
     setIsLoading(true);
     setError(null);
 
@@ -133,7 +133,7 @@ export const TechoPropioProvider: React.FC<TechoPropioProviderProps> = ({ childr
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   const selectApplication = (application: TechoPropioApplication | null) => {
     setSelectedApplication(application);

@@ -8,31 +8,9 @@ import { DEFAULT_INTERFACE_CONFIG } from '../utils/defaultConfigs';
 import { createAuthenticatedHttpService } from './httpService';
 import { logger } from '../../../shared/utils/logger';
 
-// Tipos para el sistema contextual (actualizados para coincidir con backend)
-export interface ContextualConfigResponse {
-  config: InterfaceConfig;
-  resolved_from: {
-    context_type: 'user' | 'role' | 'org' | 'global';
-    context_id: string | null;
-  };
-  resolution_chain: Array<{
-    context_type: 'user' | 'role' | 'org' | 'global';
-    context_id: string | null;
-  }>;
-}
-
-export interface UserPreferences {
-  user_id: string;
-  preferences: Partial<InterfaceConfig>;
-  context?: {
-    role_id?: string;
-    organization_id?: string;
-  };
-}
-
 class InterfaceConfigService {
   private readonly STORAGE_KEY = 'interface-config';
-  private readonly API_BASE = '/api/interface-config';
+  private readonly API_BASE = '/api/interface-config';  // ✅ REVERTIDO: Usar sistema original correcto
   
   // Sistema de caché en memoria para evitar llamadas duplicadas
   private permissionsCache: { can_modify: boolean; timestamp: number } | null = null;
@@ -48,7 +26,7 @@ class InterfaceConfigService {
 
   /**
    * Obtener la configuración actual (con autenticación) - versión segura
-   * FASE 2.1: MongoDB como fuente única de verdad con fallback
+   * ✅ REVERTIDO: MongoDB como fuente única de verdad con fallback
    * @param getToken - Función para obtener token JWT de Clerk
    */
   async getCurrentConfig(getToken: () => Promise<string | null>): Promise<InterfaceConfig | null> {
@@ -61,7 +39,6 @@ class InterfaceConfigService {
       if (response.data) {
         // Guardar en localStorage SOLO como caché para offline
         this.saveToLocalStorage(response.data);
-        logger.debug('Configuración obtenida desde MongoDB (seguro) y cacheada localmente');
         return response.data;
       }
     } catch (error) {
@@ -353,75 +330,45 @@ class InterfaceConfigService {
   }
 
   // ========================================
-  // SISTEMA CONTEXTUAL - NUEVAS FUNCIONES
+  // SISTEMA CONTEXTUAL - DESHABILITADO
   // ========================================
 
   /**
    * Obtener configuración efectiva para un usuario específico
-   * Utiliza jerarquía: user -> role -> org -> global
-   * @param userId - ID del usuario
-   * @param getToken - Función para obtener token JWT
+   * DESHABILITADO: Sistema contextual removido
+   * @deprecated Usar getCurrentConfig() en su lugar
    */
-  async getEffectiveConfig(userId: string, getToken: () => Promise<string | null>): Promise<ContextualConfigResponse | null> {
+  async getEffectiveConfig(userId: string, getToken: () => Promise<string | null>): Promise<InterfaceConfig | null> {
     try {
-      const httpService = createAuthenticatedHttpService(getToken);
-      const response = await httpService.get<ContextualConfigResponse>(`/api/contextual-config/effective/${userId}`);
-      
-      return response.data;
+      // DESHABILITADO: Retornar null y usar configuración global
+      logger.warn('getEffectiveConfig está deshabilitado, usar getCurrentConfig() en su lugar');
+      return null;
     } catch (error: any) {
-      // Si es 404, significa que no hay configuración contextual, usar la global
-      if (error?.message?.includes('404') || error?.message?.includes('no encontrado')) {
-        logger.debug('No hay configuración contextual para el usuario, usando configuración global');
-        return null;
-      }
       logger.error('Error obteniendo configuración efectiva:', error);
-      throw error;
+      return null;
     }
   }
 
   /**
    * Obtener configuración específica de un usuario (solo sus preferencias)
-   * @param userId - ID del usuario
-   * @param getToken - Función para obtener token JWT
+   * DESHABILITADO: Sistema contextual removido
+   * @deprecated No usar, el sistema usa configuración global única
    */
   async getUserConfig(userId: string, getToken: () => Promise<string | null>): Promise<InterfaceConfig | null> {
-    try {
-      const httpService = createAuthenticatedHttpService(getToken);
-      const response = await httpService.get<InterfaceConfig>(`/api/contextual-config/user/${userId}`);
-      return response.data;
-    } catch (error) {
-      logger.error('Error obteniendo configuración de usuario:', error);
-      return null; // No fallar si el usuario no tiene configuración propia
-    }
+    logger.warn('getUserConfig está deshabilitado, usar getCurrentConfig() en su lugar');
+    return null;
   }
 
   /**
    * Guardar preferencias de usuario
-   * @param userId - ID del usuario
-   * @param preferences - Configuraciones parciales del usuario
-   * @param getToken - Función para obtener token JWT
+   * DESHABILITADO: Sistema contextual removido
+   * @deprecated Usar saveConfig() para guardar configuración global
    */
   async saveUserPreferences(userId: string, preferences: Partial<InterfaceConfig>, getToken: () => Promise<string | null>): Promise<InterfaceConfig> {
-    try {
-      const httpService = createAuthenticatedHttpService(getToken);
-      
-      // Convertir InterfaceConfig a UserPreferencesDTO que espera el backend
-      const userPreferences = {
-        user_id: userId,
-        theme_mode: preferences.theme?.mode as 'light' | 'dark' | undefined,
-        primary_color: preferences.theme?.colors?.primary?.['500'],
-        font_size: 'base' as 'sm' | 'base' | 'lg',
-        compact_mode: false
-      };
-      
-      await httpService.post<any>(`/api/contextual-config/preferences`, userPreferences);
-      logger.info('✅ Preferencias de usuario guardadas');
-      
-      return preferences as InterfaceConfig;
-    } catch (error) {
-      logger.error('❌ Error guardando preferencias:', error);
-      throw error;
-    }
+    logger.warn('saveUserPreferences está deshabilitado, usar saveConfig() en su lugar');
+    
+    // Fallback: guardar en configuración global
+    return this.saveConfig(getToken, preferences as InterfaceConfig);
   }
 
   /**
@@ -437,25 +384,26 @@ class InterfaceConfigService {
         const cacheAge = now - this.permissionsCache.timestamp;
         
         if (cacheAge < this.CACHE_DURATION) {
-          logger.debug(`🎯 Usando permisos desde caché (edad: ${Math.round(cacheAge / 1000)}s)`);
           return this.permissionsCache.can_modify;
-        } else {
-          logger.debug('⏰ Caché de permisos expirado, recargando...');
         }
       }
       
       // Si no hay caché o expiró, hacer la llamada
       const httpService = createAuthenticatedHttpService(getToken);
-      const response = await httpService.get<{ can_modify: boolean }>(`/api/contextual-config/permissions/global`);
+      
+      // CORREGIDO: Usar endpoint de auth en lugar de contextual-config
+      // Verificar si el usuario es Super Admin
+      const userResponse = await httpService.get<any>('/auth/me');
+      const isSuperAdmin = userResponse.data?.role?.name === 'Super Admin' || 
+                          userResponse.data?.role?.permissions?.includes('manage_global_config');
       
       // Guardar en caché
       this.permissionsCache = {
-        can_modify: response.data.can_modify,
+        can_modify: isSuperAdmin,
         timestamp: Date.now()
       };
       
-      logger.debug(`✅ Permisos globales obtenidos y cacheados: ${response.data.can_modify}`);
-      return response.data.can_modify;
+      return isSuperAdmin;
     } catch (error) {
       logger.error('Error verificando permisos globales:', error);
       
@@ -474,7 +422,6 @@ class InterfaceConfigService {
    */
   clearPermissionsCache(): void {
     this.permissionsCache = null;
-    logger.debug('🗑️ Caché de permisos limpiado');
   }
 
   /**
@@ -664,26 +611,10 @@ class InterfaceConfigService {
             };
           }
         } catch (mongoError) {
-          logger.warn('⚠️ Error accediendo a MongoDB con privilegios admin:', mongoError);
+          logger.warn('Error accediendo a MongoDB con privilegios admin:', mongoError);
         }
         
-        // Fallback: intentar sistema contextual como último recurso
-        try {
-          const effectiveConfigResponse = await this.getEffectiveConfig(userId, getToken);
-          if (effectiveConfigResponse) {
-            const sourceType = effectiveConfigResponse.resolved_from.context_type === 'org' ? 'organization' : effectiveConfigResponse.resolved_from.context_type;
-            logger.info(`✅ Admin - Config desde contextual: ${sourceType}`);
-            return {
-              config: effectiveConfigResponse.config,
-              isGlobalAdmin: true,
-              source: sourceType as 'user' | 'role' | 'organization' | 'global' | 'legacy' | 'localStorage'
-            };
-          }
-        } catch (effectiveError) {
-          logger.warn('⚠️ Sistema contextual tampoco disponible para admin');
-        }
-        
-        // Último fallback: localStorage → default
+        // Fallback: localStorage → default
         const localConfig = this.getFromLocalStorage();
         if (localConfig) {
           logger.info('✅ Admin usando config desde localStorage');
@@ -694,31 +625,10 @@ class InterfaceConfigService {
         return { config: DEFAULT_INTERFACE_CONFIG, isGlobalAdmin: true, source: 'global' };
         
       } else {
-        // Usuario normal: intentar sistema contextual → configuración segura → localStorage → default
-        logger.info('👤 Usuario normal detectado - usando jerarquía contextual');
-        
+        // Usuario normal: usar configuración global
         try {
-          const effectiveConfigResponse = await this.getEffectiveConfig(userId, getToken);
-          if (effectiveConfigResponse) {
-            const sourceType = effectiveConfigResponse.resolved_from.context_type === 'org' ? 'organization' : effectiveConfigResponse.resolved_from.context_type;
-            logger.info(`✅ Usuario - Config desde contextual: ${sourceType}`);
-            return {
-              config: effectiveConfigResponse.config,
-              isGlobalAdmin: false,
-              source: sourceType as 'user' | 'role' | 'organization' | 'global' | 'legacy' | 'localStorage'
-            };
-          }
-        } catch (effectiveError: any) {
-          if (!effectiveError?.message?.includes('404')) {
-            logger.warn('⚠️ Error obteniendo configuración efectiva:', effectiveError);
-          }
-        }
-        
-        // Fallback: usar configuración global segura (/current/safe)
-        try {
-          const safeConfig = await this.getCurrentConfig(getToken); // Ya usa /current/safe
+          const safeConfig = await this.getCurrentConfig(getToken);
           if (safeConfig) {
-            logger.info(`✅ Usuario normal - Config segura desde MongoDB: ${safeConfig.branding?.appName}`);
             return {
               config: safeConfig,
               isGlobalAdmin: false,
@@ -726,7 +636,7 @@ class InterfaceConfigService {
             };
           }
         } catch (globalError) {
-          logger.warn('⚠️ No se pudo obtener configuración global segura:', globalError);
+          logger.warn('No se pudo obtener configuración global segura:', globalError);
         }
       }
       

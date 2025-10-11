@@ -8,7 +8,7 @@ import {
   CivilStatus,
   EducationLevel,
   EmploymentSituation,
-  EmploymentCondition,
+  WorkCondition,
   DisabilityType,
   MemberType
 } from '../../types';
@@ -18,7 +18,7 @@ import {
   CIVIL_STATUS_OPTIONS,
   EDUCATION_LEVEL_OPTIONS,
   EMPLOYMENT_SITUATION_OPTIONS,
-  EMPLOYMENT_CONDITION_OPTIONS,
+  WORK_CONDITION_OPTIONS,
   DISABILITY_TYPE_OPTIONS,
   MEMBER_TYPE_OPTIONS,
   FAMILY_BOND_OPTIONS
@@ -112,7 +112,7 @@ export const HouseholdForm: React.FC<HouseholdFormProps> = ({
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-1 text-sm text-gray-600">
               <span>Situación: {EMPLOYMENT_SITUATION_OPTIONS.find(e => e.value === member.employment_situation)?.label || 'N/A'}</span>
-              <span>Condición: {EMPLOYMENT_CONDITION_OPTIONS.find(c => c.value === member.employment_condition)?.label || 'N/A'}</span>
+              <span>Condición: {WORK_CONDITION_OPTIONS.find(c => c.value === (member.work_condition || member.employment_condition?.toLowerCase()))?.label || 'N/A'}</span>
               <span>Discapacidad: {DISABILITY_TYPE_OPTIONS.find(d => d.value === member.disability_type)?.label || 'N/A'}</span>
               <span className="font-medium text-green-700">S/ {(member.monthly_income || 0).toFixed(2)}</span>
             </div>

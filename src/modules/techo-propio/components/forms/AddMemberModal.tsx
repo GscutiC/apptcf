@@ -9,7 +9,7 @@ import {
   CivilStatus,
   EducationLevel,
   EmploymentSituation,
-  EmploymentCondition,
+  WorkCondition,
   DisabilityType,
   MemberType
 } from '../../types';
@@ -20,7 +20,7 @@ import {
   CIVIL_STATUS_OPTIONS,
   EDUCATION_LEVEL_OPTIONS,
   EMPLOYMENT_SITUATION_OPTIONS,
-  EMPLOYMENT_CONDITION_OPTIONS,
+  WORK_CONDITION_OPTIONS,
   DISABILITY_TYPE_OPTIONS,
   MEMBER_TYPE_OPTIONS,
   FAMILY_BOND_OPTIONS
@@ -106,8 +106,8 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
       if (!currentMember.employment_situation) {
         newErrors.employment_situation = 'Situación laboral es requerida';
       }
-      if (!currentMember.employment_condition) {
-        newErrors.employment_condition = 'Condición laboral es requerida';
+      if (!currentMember.work_condition && !currentMember.employment_condition) {
+        newErrors.work_condition = 'Condición laboral es requerida';
       }
       if (!currentMember.disability_type) {
         newErrors.disability_type = 'Información de discapacidad es requerida';
@@ -248,7 +248,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
 
     const basicComplete = (
       currentMember.employment_situation &&
-      currentMember.employment_condition &&
+      (currentMember.work_condition || currentMember.employment_condition) &&
       currentMember.disability_type &&
       currentMember.monthly_income !== undefined &&
       currentMember.monthly_income >= 0
@@ -589,11 +589,11 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
               <FormSelect
                 label="Condición Laboral"
                 required
-                value={currentMember.employment_condition || ''}
-                onChange={(e) => setCurrentMember({ ...currentMember, employment_condition: e.target.value as EmploymentCondition })}
-                options={EMPLOYMENT_CONDITION_OPTIONS}
+                value={currentMember.work_condition || currentMember.employment_condition || ''}
+                onChange={(e) => setCurrentMember({ ...currentMember, work_condition: e.target.value as WorkCondition, employment_condition: undefined })}
+                options={WORK_CONDITION_OPTIONS}
                 hint="¿Tiene contrato formal o trabaja informalmente?"
-                error={errors.employment_condition}
+                error={errors.work_condition}
               />
             </div>
 

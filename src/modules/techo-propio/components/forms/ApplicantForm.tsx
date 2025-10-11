@@ -21,6 +21,23 @@ export const ApplicantForm: React.FC<ApplicantFormProps> = ({
 }) => {
   const [dniValidated, setDniValidated] = useState(false);
   
+  // ✅ FIX: Mantener una referencia actualizada de current_address
+  // para evitar problemas de estado desactualizado en React batching
+  const addressRef = React.useRef(data.current_address || {
+    department: '',
+    province: '',
+    district: '',
+    address: '',
+    reference: ''
+  });
+  
+  // Sincronizar la referencia cuando cambian las props
+  React.useEffect(() => {
+    if (data.current_address) {
+      addressRef.current = data.current_address;
+    }
+  }, [data.current_address]);
+  
   const handleDniValidated = (reniecData: {
     dni: string;
     first_name: string;
@@ -46,29 +63,38 @@ export const ApplicantForm: React.FC<ApplicantFormProps> = ({
   };
 
   const handleLocationChange = (field: string, value: string) => {
-    // Crear el nuevo objeto de dirección con los valores actualizados
-    const updatedAddress = {
-      department: data.current_address?.department || '',
-      province: data.current_address?.province || '',
-      district: data.current_address?.district || '',
-      address: data.current_address?.address || '',
-      reference: data.current_address?.reference || ''
-    };
-
-    // Actualizar el campo específico
-    updatedAddress[field as keyof typeof updatedAddress] = value;
-
-    // Si cambia el departamento, limpiar provincia y distrito
+    // 🐛 DEBUG: Log para verificar cambios de ubicación
+    console.log(`🔍 handleLocationChange - field: ${field}, value: "${value}"`);
+    console.log(`📥 addressRef.current ANTES:`, addressRef.current);
+    
+    // ✅ FIX: Usar la referencia actualizada en lugar de data
+    const updatedAddress = { ...addressRef.current };
+    
     if (field === 'department') {
-      updatedAddress.province = '';
-      updatedAddress.district = '';
+      updatedAddress.department = value;
+      // Si cambia el departamento, limpiar provincia y distrito
+      if (value) {
+        updatedAddress.province = '';
+        updatedAddress.district = '';
+      }
+    } else if (field === 'province') {
+      updatedAddress.province = value;
+      // Si cambia la provincia, limpiar distrito
+      if (value) {
+        updatedAddress.district = '';
+      }
+    } else if (field === 'district') {
+      updatedAddress.district = value;
+    } else {
+      // Para address y reference
+      updatedAddress[field as keyof typeof updatedAddress] = value;
     }
 
-    // Si cambia la provincia, limpiar distrito
-    if (field === 'province') {
-      updatedAddress.district = '';
-    }
-
+    // ✅ Actualizar la referencia inmediatamente
+    addressRef.current = updatedAddress;
+    
+    console.log('📋 updatedAddress DESPUÉS:', updatedAddress);
+    
     onChange({
       ...data,
       current_address: updatedAddress
