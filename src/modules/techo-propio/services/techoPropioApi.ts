@@ -144,6 +144,34 @@ class TechoPropioApiService {
   }
 
   /**
+   * Create a new application (alternative method using direct token passing)
+   */
+  async createApplicationDirect(
+    data: CreateApplicationRequest,
+    getToken: () => Promise<string | null>
+  ): Promise<CreateApplicationResponse> {
+    const token = await getToken();
+    
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` })
+    };
+
+    const response = await fetch(`${MODULE_CONFIG.api.baseURL}${ENDPOINTS.APPLICATIONS}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Error ${response.status}: ${errorText}`);
+    }
+
+    return await response.json();
+  }
+
+  /**
    * Get all applications with optional filters
    */
   async getApplications(params?: GetApplicationsRequest): Promise<GetApplicationsResponse> {
@@ -215,12 +243,32 @@ class TechoPropioApiService {
   // ==================== STATUS MANAGEMENT ====================
 
   /**
-   * Change application status
+   * Change application status (general)
    */
   async changeStatus(id: string, data: ChangeStatusRequest): Promise<ChangeStatusResponse> {
     const response = await this.client.patch<ChangeStatusResponse>(
       ENDPOINTS.CHANGE_STATUS(id),
       data
+    );
+    return response.data;
+  }
+
+  /**
+   * Submit application for review (DRAFT → SUBMITTED)
+   */
+  async submitApplication(id: string): Promise<ChangeStatusResponse> {
+    const response = await this.client.post<ChangeStatusResponse>(
+      ENDPOINTS.SUBMIT_APPLICATION(id)
+    );
+    return response.data;
+  }
+
+  /**
+   * Start review of application (SUBMITTED → UNDER_REVIEW)
+   */
+  async startReview(id: string): Promise<ChangeStatusResponse> {
+    const response = await this.client.post<ChangeStatusResponse>(
+      ENDPOINTS.START_REVIEW(id)
     );
     return response.data;
   }

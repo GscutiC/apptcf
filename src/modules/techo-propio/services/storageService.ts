@@ -24,7 +24,7 @@ class StorageService {
       };
       localStorage.setItem(STORAGE_KEYS.DRAFT_APPLICATION, JSON.stringify(draft));
     } catch (error) {
-      console.error('Error saving draft:', error);
+      // Error silencioso al guardar borrador
     }
   }
 
@@ -39,7 +39,6 @@ class StorageService {
       }
       return null;
     } catch (error) {
-      console.error('Error loading draft:', error);
       return null;
     }
   }
@@ -51,7 +50,7 @@ class StorageService {
     try {
       localStorage.removeItem(STORAGE_KEYS.DRAFT_APPLICATION);
     } catch (error) {
-      console.error('Error clearing draft:', error);
+      // Error silencioso al limpiar borrador
     }
   }
 
@@ -71,7 +70,7 @@ class StorageService {
     try {
       localStorage.setItem(STORAGE_KEYS.SAVED_FILTERS, JSON.stringify(filters));
     } catch (error) {
-      console.error('Error saving filters:', error);
+      // Error silencioso al guardar filtros
     }
   }
 
@@ -86,7 +85,6 @@ class StorageService {
       }
       return null;
     } catch (error) {
-      console.error('Error loading filters:', error);
       return null;
     }
   }
@@ -98,7 +96,7 @@ class StorageService {
     try {
       localStorage.removeItem(STORAGE_KEYS.SAVED_FILTERS);
     } catch (error) {
-      console.error('Error clearing filters:', error);
+      // Error silencioso al limpiar filtros
     }
   }
 
@@ -113,7 +111,7 @@ class StorageService {
       const updated = { ...current, ...preferences };
       localStorage.setItem(STORAGE_KEYS.USER_PREFERENCES, JSON.stringify(updated));
     } catch (error) {
-      console.error('Error saving preferences:', error);
+      // Error silencioso al guardar preferencias
     }
   }
 
@@ -128,7 +126,6 @@ class StorageService {
       }
       return null;
     } catch (error) {
-      console.error('Error loading preferences:', error);
       return null;
     }
   }
@@ -155,7 +152,7 @@ class StorageService {
     try {
       localStorage.removeItem(STORAGE_KEYS.USER_PREFERENCES);
     } catch (error) {
-      console.error('Error clearing preferences:', error);
+      // Error silencioso al limpiar preferencias
     }
   }
 
@@ -184,7 +181,6 @@ class StorageService {
       }
       return total;
     } catch (error) {
-      console.error('Error calculating storage size:', error);
       return 0;
     }
   }

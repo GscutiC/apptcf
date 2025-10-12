@@ -25,10 +25,14 @@ const INITIAL_FORM_DATA: ApplicationFormData = {
     convocation_code: '',
     registration_year: new Date().getFullYear()
   },
-  applicant: undefined,
-  household_members: [],
-  economic_info: undefined,
-  property_info: undefined,
+  // Separación de datos: usuario (control) vs jefe de familia (oficial)
+  user_data: undefined,          // Paso 1: Datos de usuario (control interno)
+  head_of_family: undefined,     // Paso 2: Jefe de familia real
+  spouse: undefined,             // Paso 2: Cónyuge 
+  household_members: [],         // Paso 2: Carga familiar
+  property_info: undefined,      // Paso 3: Información del predio
+  head_of_family_economic: undefined,  // Paso 4: Info económica jefe de familia
+  spouse_economic: undefined,    // Paso 4: Info económica cónyuge
   comments: ''
 };
 
@@ -37,7 +41,7 @@ export const NewApplication: React.FC = () => {
   const { createApplication, isLoading, error: apiError } = useTechoPropioApplications();
   const { validateDNI } = useValidation();
   const { selectApplication } = useTechoPropio();
-  const [currentStep, setCurrentStep] = useState(0);  // ✅ Empezar en paso 0
+  const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<ApplicationFormData>(INITIAL_FORM_DATA);
   const [errors, setErrors] = useState<string[]>([]);
   const [exitModal, setExitModal] = useState(false);
@@ -67,17 +71,11 @@ export const NewApplication: React.FC = () => {
     }
   }, [formData, currentStep]);
 
-  const totalSteps = 6;  // ✅ Incrementado para incluir paso 0
+  const totalSteps = 5;  // Total steps: 0, 1, 2, 3, 4 = 5 steps
+  const lastStepIndex = 4;  // Last step index (0-based)
 
   const updateFormData = (partialData: Partial<ApplicationFormData>) => {
-    // ✅ FIX: Usar función de actualización para garantizar que siempre usamos el estado más reciente
-    setFormData((prev) => {
-      const updated = { ...prev, ...partialData };
-      console.log('🔄 updateFormData - prev:', prev);
-      console.log('🔄 updateFormData - partialData:', partialData);
-      console.log('🔄 updateFormData - updated:', updated);
-      return updated;
-    });
+    setFormData((prev) => ({ ...prev, ...partialData }));
   };
 
   // Función para generar DNI único para testing
@@ -115,26 +113,31 @@ export const NewApplication: React.FC = () => {
     const newFormData = { ...formData };
     let generatedCount = 0;
     
-    // Generar DNI único para solicitante principal
-    if (newFormData.applicant) {
-      const oldDni = newFormData.applicant.dni;
-      newFormData.applicant.dni = generateUniqueDNI();
+    // Generar DNI único para datos de usuario
+    if (newFormData.user_data) {
+      newFormData.user_data.dni = generateUniqueDNI();
       generatedCount++;
-      console.log(`🔄 DNI Solicitante: ${oldDni} → ${newFormData.applicant.dni}`);
+    }
+    
+    // Generar DNI único para jefe de familia
+    if (newFormData.head_of_family) {
+      newFormData.head_of_family.dni = generateUniqueDNI();
+      generatedCount++;
+    }
+    
+    // Generar DNI único para cónyuge
+    if (newFormData.spouse) {
+      newFormData.spouse.dni = generateUniqueDNI();
+      generatedCount++;
     }
     
     // Generar DNIs únicos para miembros del hogar
     if (newFormData.household_members) {
-      newFormData.household_members = newFormData.household_members.map((member, index) => {
-        const oldDni = member.dni;
-        const newDni = generateUniqueDNI();
-        generatedCount++;
-        console.log(`🔄 DNI Miembro ${index + 1}: ${oldDni} → ${newDni}`);
-        return {
-          ...member,
-          dni: newDni
-        };
-      });
+      newFormData.household_members = newFormData.household_members.map((member) => ({
+        ...member,
+        dni: generateUniqueDNI()
+      }));
+      generatedCount += newFormData.household_members.length;
     }
     
     // Actualizar formulario y limpiar errores
@@ -154,7 +157,7 @@ export const NewApplication: React.FC = () => {
     alert(message);
     
     // Auto-scroll al botón de envío si estamos en el último paso
-    if (currentStep === totalSteps) {
+    if (currentStep === lastStepIndex) {
       setTimeout(() => {
         window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
       }, 100);
@@ -166,22 +169,39 @@ export const NewApplication: React.FC = () => {
 
     switch (currentStep) {
       case 1:
-        if (!formData.applicant) {
+        // Validación: Datos del Usuario (control interno)
+        if (!formData.head_of_family) {
           stepErrors.push('Debe completar los datos del solicitante');
         } else {
-          // 🐛 DEBUG: Log para diagnosticar problema de validación
-          console.log('🔍 DEBUG - Validando Paso 1 (Solicitante)');
-          console.log('📋 formData.applicant:', formData.applicant);
-          console.log('🏠 current_address:', formData.applicant.current_address);
-          
-          const applicantErrors = validateApplicantForm(formData.applicant);
-          
-          console.log('❌ Errores encontrados:', applicantErrors);
-          stepErrors.push(...applicantErrors);
+          if (!formData.head_of_family.dni || formData.head_of_family.dni.length !== 8) {
+            stepErrors.push('DNI debe tener 8 dígitos');
+          }
+          if (!formData.head_of_family.first_name || formData.head_of_family.first_name.trim().length < 2) {
+            stepErrors.push('Los nombres son obligatorios');
+          }
         }
         break;
       case 2:
-        // Grupo familiar es opcional, pero si hay miembros, validar que tengan datos completos
+        // Validación: Grupo Familiar
+        if (!formData.head_of_family) {
+          stepErrors.push('Debe completar los datos del jefe de familia');
+        } else {
+          if (!formData.head_of_family.dni || formData.head_of_family.dni.length !== 8) {
+            stepErrors.push('DNI del jefe de familia debe tener 8 dígitos');
+          }
+          if (!formData.head_of_family.first_name || formData.head_of_family.first_name.trim().length < 2) {
+            stepErrors.push('Nombres del jefe de familia son obligatorios');
+          }
+        }
+        
+        // Validar cónyuge si existe
+        if (formData.spouse) {
+          if (!formData.spouse.dni || formData.spouse.dni.length !== 8) {
+            stepErrors.push('DNI del cónyuge debe tener 8 dígitos');
+          }
+        }
+        
+        // Validar carga familiar si hay miembros
         if (formData.household_members && formData.household_members.length > 0) {
           formData.household_members.forEach((member, idx) => {
             if (!member.dni || !member.first_name || !member.apellido_paterno || !member.apellido_materno) {
@@ -191,6 +211,7 @@ export const NewApplication: React.FC = () => {
         }
         break;
       case 3:
+        // ✅ Paso 3 = Información del Predio
         if (!formData.property_info) {
           stepErrors.push('Debe completar los datos del predio');
         } else {
@@ -199,17 +220,17 @@ export const NewApplication: React.FC = () => {
         }
         break;
       case 4:
-        if (!formData.economic_info) {
-          stepErrors.push('Debe completar la información económica');
-        } else {
-          const economicErrors = validateEconomicForm(formData.economic_info);
-          stepErrors.push(...economicErrors);
-        }
-        break;
-      case 5:
-        // En el paso de revisión, validar todo nuevamente
-        if (!formData.applicant || !formData.economic_info || !formData.property_info) {
+        // ✅ Paso 4 = Revisión Final
+        if (!formData.head_of_family || !formData.property_info) {
           stepErrors.push('Faltan datos obligatorios en la solicitud');
+        }
+        // Validar que haya al menos el jefe de familia con info económica
+        const headOfFamily = formData.household_members?.find(member => 
+          member.member_type?.toString().includes('HEAD') || 
+          member.first_name === formData.head_of_family?.first_name
+        );
+        if (!headOfFamily || headOfFamily.monthly_income === undefined) {
+          stepErrors.push('Debe completar la información económica del jefe de familia');
         }
         break;
     }
@@ -220,7 +241,7 @@ export const NewApplication: React.FC = () => {
 
   const handleNext = () => {
     if (validateCurrentStep()) {
-      if (currentStep < totalSteps) {
+      if (currentStep < lastStepIndex) {
         setCurrentStep((prev) => prev + 1);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
@@ -240,74 +261,134 @@ export const NewApplication: React.FC = () => {
       return;
     }
 
-    // Validación final
-    if (!formData.applicant || !formData.economic_info || !formData.property_info) {
+    // ✅ NUEVA VALIDACIÓN: Buscar jefe de familia en household_members primero
+    const headOfFamilyMember = formData.household_members?.find(member => 
+      member.first_name === formData.head_of_family?.first_name && 
+      member.apellido_paterno === formData.head_of_family?.paternal_surname
+    );
+
+    // 🐛 DEBUG: Ver si se encuentra el jefe de familia
+    console.log('🔍 Buscando jefe de familia...');
+    console.log('head_of_family:', formData.head_of_family);
+    console.log('household_members:', formData.household_members);
+    console.log('headOfFamilyMember encontrado:', headOfFamilyMember);
+
+    // ✅ NUEVA VALIDACIÓN: Verificar datos obligatorios (user_data se crea desde head_of_family)
+    if (!formData.head_of_family || !formData.property_info) {
       setErrors(['Faltan datos obligatorios en la solicitud']);
       return;
     }
-
-    // Transformar datos del frontend al formato que espera el backend
-    const transformedApplicant = {
-      document_type: 'dni', // Asumiendo DNI por defecto
-      document_number: formData.applicant?.dni || '',
-      first_name: formData.applicant?.first_name || '',
-      paternal_surname: formData.applicant?.last_name?.split(' ')[0] || 'Sin Apellido',
-      maternal_surname: formData.applicant?.last_name?.split(' ').slice(1).join(' ') || 'Sin Apellido',
-      birth_date: formData.applicant?.birth_date || '1990-01-01',
-      civil_status: formData.applicant?.marital_status || 'soltero',
-      education_level: 'secundaria_completa', // Valor por defecto - necesita agregar campo al formulario
-      phone_number: formData.applicant?.phone || '',
-      email: formData.applicant?.email || '',
-      disability_type: 'ninguna', // Valor por defecto
-      is_main_applicant: true
-    };
-
-    const hasAdditionalIncome = (formData.economic_info?.income?.additional_income || 0) > 0;
     
-    const transformedEconomic = {
-      employment_situation: 'dependiente', // Valor por defecto - necesita agregar campo al formulario
-      monthly_income: formData.economic_info?.income?.total_income || 0,
-      work_condition: 'formal', // Valor por defecto - necesita agregar campo al formulario  
-      occupation_detail: formData.economic_info?.occupation || 'Trabajador',
-      has_additional_income: hasAdditionalIncome,
-      additional_income_amount: hasAdditionalIncome ? (formData.economic_info?.income?.additional_income || 0) : undefined,
-      additional_income_source: hasAdditionalIncome ? 'Ingreso extra no especificado' : undefined,
-      employer_name: formData.economic_info?.employer_name || 'No especificado',
+    // Validar que haya información económica en household_members
+    if (!headOfFamilyMember || headOfFamilyMember.monthly_income === undefined) {
+      setErrors(['Debe completar la información económica del jefe de familia en el Paso 2']);
+      return;
+    }
+
+    // ✅ NUEVA LÓGICA: Crear datos de usuario (control interno) desde head_of_family (duplicación permitida)
+    const transformedUserData = {
+      dni: formData.head_of_family.dni || formData.head_of_family.document_number,
+      names: formData.head_of_family.first_name,
+      surnames: `${formData.head_of_family.paternal_surname} ${formData.head_of_family.maternal_surname}`.trim(),
+      phone: formData.head_of_family.phone_number || '',
+      email: formData.head_of_family.email || '',
+      birth_date: formData.head_of_family.birth_date || '1990-01-01',
+      notes: 'Datos ingresados desde formulario web - Nueva solicitud Techo Propio'
+    };
+
+    // ✅ CAMBIO: Transformar jefe de familia (antes era main_applicant)
+    const transformedHeadOfFamily = {
+      document_type: 'dni',
+      document_number: formData.head_of_family?.document_number || '',
+      first_name: formData.head_of_family?.first_name || '',
+      paternal_surname: formData.head_of_family?.paternal_surname || 'Sin Apellido',
+      maternal_surname: formData.head_of_family?.maternal_surname || 'Sin Apellido',
+      birth_date: formData.head_of_family?.birth_date || '1990-01-01',
+      civil_status: formData.head_of_family?.civil_status || 'soltero',
+      education_level: formData.head_of_family?.education_level || 'secundaria_completa',
+      occupation: formData.head_of_family?.occupation,
+      phone_number: formData.head_of_family?.phone_number,
+      email: formData.head_of_family?.email,
+      disability_type: formData.head_of_family?.disability_type || 'ninguna',
       is_main_applicant: true
     };
 
-    // Transformar household_members: mapear campos del frontend al backend
-    const transformedHouseholdMembers = (formData.household_members || []).map(member => ({
-      first_name: member.first_name,
-      paternal_surname: member.apellido_paterno,  // ✅ apellido_paterno -> paternal_surname
-      maternal_surname: member.apellido_materno,  // ✅ apellido_materno -> maternal_surname
-      document_type: 'dni',  // Por defecto DNI
-      document_number: member.dni,
-      birth_date: member.birth_date || '1990-01-01',
-      civil_status: member.marital_status || 'soltero',  // ✅ marital_status -> civil_status
-      education_level: member.education_level || 'secundaria_completa',
-      occupation: member.occupation || 'No especificado',
-      employment_situation: member.employment_situation || 'dependiente',
-      work_condition: member.work_condition || (member.employment_condition || 'FORMAL').toLowerCase(),  // ✅ Usar work_condition o convertir employment_condition a minúsculas
-      monthly_income: member.monthly_income || 0,
-      disability_type: member.disability_type || 'ninguna',
-      relationship: member.relationship || (member.member_type?.toLowerCase() === 'conyuge' ? 'conyuge' : 'otro'),  // ✅ Mapear member_type a relationship
-      is_dependent: true
-    }));
+    // ✅ NUEVO: Mapear info económica desde HouseholdForm data
+    const transformedHeadOfFamilyEconomic = {
+      employment_situation: headOfFamilyMember?.employment_situation || 'dependiente',
+      monthly_income: headOfFamilyMember?.monthly_income || 0,
+      work_condition: headOfFamilyMember?.work_condition || (headOfFamilyMember?.employment_condition?.toLowerCase() as any) || 'formal',
+      occupation_detail: headOfFamilyMember?.occupation || 'Trabajador',
+      has_additional_income: false, // Por ahora no capturamos ingresos adicionales en household
+      additional_income_amount: undefined,
+      additional_income_source: undefined,
+      employer_name: undefined, // Por ahora no capturamos empleador en household
+      is_main_applicant: true
+    };
+    
+    // Buscar cónyuge en household_members (si existe)
+    const spouseMember = formData.household_members?.find(member => 
+      member.member_type?.toString().includes('SPOUSE') || member.family_bond === 'conyuge'
+    );
+    
+    const transformedSpouseEconomic = spouseMember ? {
+      employment_situation: spouseMember.employment_situation || 'dependiente',
+      monthly_income: spouseMember.monthly_income || 0,
+      work_condition: spouseMember.work_condition || (spouseMember.employment_condition?.toLowerCase() as any) || 'formal',
+      occupation_detail: spouseMember.occupation || 'Trabajador',
+      has_additional_income: false,
+      additional_income_amount: undefined,
+      additional_income_source: undefined,
+      employer_name: undefined,
+      is_main_applicant: false
+    } : null;
 
-    // Preparar datos para el backend (ajustar estructura para TechoPropioApplicationCreateDTO)
+    // Transformar household_members: EXCLUIR jefe de familia (va por separado) para evitar DNI duplicado
+    const transformedHouseholdMembers = (formData.household_members || [])
+      .filter(member => 
+        // Filtrar el jefe de familia basado en DNI para evitar duplicación
+        member.dni !== formData.head_of_family?.dni &&
+        member.dni !== formData.head_of_family?.document_number
+      )
+      .map(member => ({
+        first_name: member.first_name,
+        paternal_surname: member.apellido_paterno,  // ✅ apellido_paterno -> paternal_surname
+        maternal_surname: member.apellido_materno,  // ✅ apellido_materno -> maternal_surname
+        document_type: 'dni',  // Por defecto DNI
+        document_number: member.dni,
+        birth_date: member.birth_date || '1990-01-01',
+        civil_status: member.marital_status || 'soltero',  // ✅ marital_status -> civil_status
+        education_level: member.education_level || 'secundaria_completa',
+        occupation: member.occupation || 'No especificado',
+        employment_situation: member.employment_situation || 'dependiente',
+        work_condition: member.work_condition || (member.employment_condition || 'FORMAL').toLowerCase(),  // ✅ Usar work_condition o convertir employment_condition a minúsculas
+        monthly_income: member.monthly_income || 0,
+        disability_type: member.disability_type || 'ninguna',
+        relationship: member.relationship || (member.member_type?.toLowerCase() === 'conyuge' ? 'conyuge' : 'otro'),  // ✅ Mapear member_type a relationship
+        is_dependent: true
+      }));
+
+    // 🐛 DEBUG: Verificar que no hay duplicados
+    console.log('🔍 Household members filtrados (sin jefe de familia):', transformedHouseholdMembers);
+    console.log('📊 Total miembros después del filtro:', transformedHouseholdMembers.length);
+
+    // ✅ NUEVA ESTRUCTURA: Preparar datos para el backend usando estructura esperada (head_of_family)
     const requestData = {
       convocation_code: formData.application_info?.convocation_code || '',
-      main_applicant: transformedApplicant,
-      household_members: transformedHouseholdMembers,  // ✅ Usar datos transformados
-      main_applicant_economic: transformedEconomic,
-      property_info: formData.property_info as any, // Forzar tipo ya que validamos arriba
+      user_data: transformedUserData,  // ✅ NUEVO: Datos de usuario
+      head_of_family: transformedHeadOfFamily,  // ✅ BACKEND ESPERA: head_of_family
+      head_of_family_economic: transformedHeadOfFamilyEconomic,  // ✅ MAPEO: Info económica desde household
+      spouse: formData.spouse ? transformedHeadOfFamily : null,  // ✅ CAMBIO: Usar spouse si existe
+      spouse_economic: transformedSpouseEconomic,  // ✅ MAPEO: Info económica cónyuge desde household
+      household_members: transformedHouseholdMembers,
+      property_info: formData.property_info as any,
       comments: formData.comments
     };
 
-    // Debug: imprimir datos que se van a enviar
-    console.log('🔍 Datos originales del frontend:', JSON.stringify(formData, null, 2));
-    console.log('🔍 Datos transformados para el backend:', JSON.stringify(requestData, null, 2));
+    // 🐛 DEBUG: Ver datos que se envían al backend
+    console.log('🚀 Enviando datos al backend:', requestData);
+    console.log('👤 head_of_family_economic:', transformedHeadOfFamilyEconomic);
+    console.log('💑 spouse_economic:', transformedSpouseEconomic);
 
     const result = await createApplication(requestData as any);
 
@@ -370,18 +451,48 @@ export const NewApplication: React.FC = () => {
       case 1:
         return (
           <ApplicantForm
-            data={formData.applicant || {}}
-            onChange={(applicant) => updateFormData({ applicant })}
+            data={{
+              dni: formData.head_of_family?.dni || formData.head_of_family?.document_number || '',
+              first_name: formData.head_of_family?.first_name || '',
+              last_name: `${formData.head_of_family?.paternal_surname || ''} ${formData.head_of_family?.maternal_surname || ''}`.trim(),
+              birth_date: formData.head_of_family?.birth_date || '',
+              marital_status: formData.head_of_family?.civil_status,
+              phone: formData.head_of_family?.phone_number || '',
+              email: formData.head_of_family?.email || '',
+              current_address: formData.head_of_family?.current_address || {
+                department: '',
+                province: '',
+                district: '',
+                address: '',
+                reference: ''
+              }
+            }}
+            onChange={(applicant) => updateFormData({ 
+              head_of_family: {
+                document_number: applicant.dni,
+                dni: applicant.dni,
+                first_name: applicant.first_name,
+                paternal_surname: applicant.last_name?.split(' ')[0] || '',
+                maternal_surname: applicant.last_name?.split(' ')[1] || '',
+                birth_date: applicant.birth_date,
+                civil_status: applicant.marital_status,
+                phone_number: applicant.phone,
+                email: applicant.email,
+                current_address: applicant.current_address
+              }
+            })}
           />
         );
       case 2:
+        // ✅ Paso 2: Grupo Familiar con tarjetas y modales (datos oficiales)
         return (
           <HouseholdForm
             data={formData.household_members || []}
-            onChange={(household_members) => updateFormData({ household_members })}
+            onChange={(household_members: any) => updateFormData({ household_members })}
           />
         );
       case 3:
+        // ✅ Paso 3 = Información del Predio
         return (
           <PropertyForm
             data={formData.property_info || {}}
@@ -389,13 +500,7 @@ export const NewApplication: React.FC = () => {
           />
         );
       case 4:
-        return (
-          <EconomicForm
-            data={formData.economic_info || {}}
-            onChange={(economic_info) => updateFormData({ economic_info })}
-          />
-        );
-      case 5:
+        // ✅ Paso 4 = Revisión Final
         return (
           <ReviewStep
             data={formData}
@@ -423,7 +528,7 @@ export const NewApplication: React.FC = () => {
       {/* Stepper */}
       <Card padding="md">
         <div className="flex items-center justify-between">
-          {[0, 1, 2, 3, 4, 5].map((step) => (
+          {[0, 1, 2, 3, 4].map((step) => (
             <React.Fragment key={step}>
               <div className="flex flex-col items-center">
                 <div
@@ -460,11 +565,10 @@ export const NewApplication: React.FC = () => {
                   {step === 1 && 'Solicitante'}
                   {step === 2 && 'Grupo Familiar'}
                   {step === 3 && 'Predio'}
-                  {step === 4 && 'Económica'}
-                  {step === 5 && 'Revisión'}
+                  {step === 4 && 'Revisión'}
                 </span>
               </div>
-              {step < totalSteps && (
+              {step < lastStepIndex && (
                 <div
                   className={`flex-1 h-1 mx-2 rounded transition-colors ${
                     step < currentStep ? 'bg-green-500' : 'bg-gray-300'
@@ -550,10 +654,10 @@ export const NewApplication: React.FC = () => {
           </div>
 
           <div className="text-sm text-gray-600">
-            Paso {currentStep} de {totalSteps}
+            Paso {currentStep + 1} de {totalSteps}
           </div>
 
-          {currentStep < totalSteps ? (
+          {currentStep < lastStepIndex ? (
             <Button onClick={handleNext} disabled={isLoading}>
               Siguiente →
             </Button>

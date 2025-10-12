@@ -17,13 +17,14 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ data, onEdit }) => {
   // 🐛 DEBUG: Ver qué datos están llegando al componente
   React.useEffect(() => {
     console.log('📋 ReviewStep - data:', data);
-    console.log('👤 applicant:', data.applicant);
+    console.log('👤 user_data:', data.user_data);
+    console.log('👨‍👩‍👧‍👦 head_of_family:', data.head_of_family);
+    console.log('💑 spouse:', data.spouse);
     console.log('👥 household_members:', data.household_members);
     console.log('🏠 property_info:', data.property_info);
-    console.log('💰 economic_info:', data.economic_info);
   }, [data]);
 
-  const { applicant, household_members, economic_info, property_info, comments } = data;
+  const { user_data, head_of_family, spouse, household_members, property_info, comments } = data;
 
   const EditButton: React.FC<{ step: number }> = ({ step }) => (
     <button
@@ -45,22 +46,53 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ data, onEdit }) => {
         </p>
       </div>
 
-      {/* Datos del Solicitante */}
-      <Card title="Datos del Solicitante" actions={<EditButton step={1} />}>
-        {applicant && (
+      {/* Datos del Usuario (Control Interno) */}
+      <Card title="Datos del Usuario (Control Interno)" actions={<EditButton step={1} />}>
+        {user_data && (
           <div className="grid grid-cols-2 gap-4 text-sm">
-            <div><span className="text-gray-600">DNI:</span> <span className="font-medium">{formatDNI(applicant.dni || '')}</span></div>
-            <div><span className="text-gray-600">Nombre:</span> <span className="font-medium">{applicant.first_name} {applicant.last_name}</span></div>
-            <div><span className="text-gray-600">Fecha Nacimiento:</span> <span className="font-medium">{applicant.birth_date ? formatDate(applicant.birth_date) : '-'}</span></div>
-            <div><span className="text-gray-600">Género:</span> <span className="font-medium">{GENDER_OPTIONS.find(g => g.value === applicant.gender)?.label || '-'}</span></div>
-            <div><span className="text-gray-600">Estado Civil:</span> <span className="font-medium">{CIVIL_STATUS_OPTIONS.find(m => m.value === applicant.marital_status)?.label || '-'}</span></div>
-            <div><span className="text-gray-600">Teléfono:</span> <span className="font-medium">{formatPhone(applicant.phone || '')}</span></div>
-            <div className="col-span-2"><span className="text-gray-600">Email:</span> <span className="font-medium">{applicant.email}</span></div>
-            <div className="col-span-2"><span className="text-gray-600">Dirección:</span> <span className="font-medium">{applicant.current_address?.address}</span></div>
-            <div className="col-span-2"><span className="text-gray-600">Ubicación:</span> <span className="font-medium">{applicant.current_address && formatShortAddress(applicant.current_address.district, applicant.current_address.province, applicant.current_address.department)}</span></div>
+            <div><span className="text-gray-600">DNI:</span> <span className="font-medium">{formatDNI(user_data.dni || '')}</span></div>
+            <div><span className="text-gray-600">Nombres:</span> <span className="font-medium">{user_data.names}</span></div>
+            <div><span className="text-gray-600">Apellidos:</span> <span className="font-medium">{user_data.surnames}</span></div>
+            <div><span className="text-gray-600">Teléfono:</span> <span className="font-medium">{formatPhone(user_data.phone || '')}</span></div>
+            <div className="col-span-2"><span className="text-gray-600">Email:</span> <span className="font-medium">{user_data.email}</span></div>
+            {user_data.notes && (
+              <div className="col-span-2"><span className="text-gray-600">Notas:</span> <span className="font-medium">{user_data.notes}</span></div>
+            )}
           </div>
         )}
       </Card>
+
+      {/* Jefe de Familia */}
+      <Card title="Jefe de Familia" actions={<EditButton step={2} />}>
+        {head_of_family && (
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div><span className="text-gray-600">DNI:</span> <span className="font-medium">{formatDNI(head_of_family.dni || head_of_family.document_number || '')}</span></div>
+            <div><span className="text-gray-600">Nombres:</span> <span className="font-medium">{head_of_family.first_name}</span></div>
+            <div><span className="text-gray-600">Apellidos:</span> <span className="font-medium">{head_of_family.paternal_surname} {head_of_family.maternal_surname}</span></div>
+            <div><span className="text-gray-600">Fecha Nacimiento:</span> <span className="font-medium">{head_of_family.birth_date ? formatDate(head_of_family.birth_date) : '-'}</span></div>
+            <div><span className="text-gray-600">Estado Civil:</span> <span className="font-medium">{CIVIL_STATUS_OPTIONS.find(m => m.value === head_of_family.civil_status)?.label || '-'}</span></div>
+            <div><span className="text-gray-600">Teléfono:</span> <span className="font-medium">{formatPhone(head_of_family.phone_number || '')}</span></div>
+            <div className="col-span-2"><span className="text-gray-600">Email:</span> <span className="font-medium">{head_of_family.email}</span></div>
+            <div className="col-span-2"><span className="text-gray-600">Ocupación:</span> <span className="font-medium">{head_of_family.occupation}</span></div>
+          </div>
+        )}
+      </Card>
+
+      {/* Cónyuge */}
+      {spouse && (
+        <Card title="Cónyuge/Conviviente" actions={<EditButton step={2} />}>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div><span className="text-gray-600">DNI:</span> <span className="font-medium">{formatDNI(spouse.dni || spouse.document_number || '')}</span></div>
+            <div><span className="text-gray-600">Nombres:</span> <span className="font-medium">{spouse.first_name}</span></div>
+            <div><span className="text-gray-600">Apellidos:</span> <span className="font-medium">{spouse.paternal_surname} {spouse.maternal_surname}</span></div>
+            <div><span className="text-gray-600">Fecha Nacimiento:</span> <span className="font-medium">{spouse.birth_date ? formatDate(spouse.birth_date) : '-'}</span></div>
+            <div><span className="text-gray-600">Estado Civil:</span> <span className="font-medium">{CIVIL_STATUS_OPTIONS.find(m => m.value === spouse.civil_status)?.label || '-'}</span></div>
+            <div><span className="text-gray-600">Teléfono:</span> <span className="font-medium">{formatPhone(spouse.phone_number || '')}</span></div>
+            <div className="col-span-2"><span className="text-gray-600">Email:</span> <span className="font-medium">{spouse.email}</span></div>
+            <div className="col-span-2"><span className="text-gray-600">Ocupación:</span> <span className="font-medium">{spouse.occupation}</span></div>
+          </div>
+        </Card>
+      )}
 
       {/* Grupo Familiar */}
       <Card title="Grupo Familiar" actions={<EditButton step={2} />}>
@@ -85,7 +117,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ data, onEdit }) => {
       </Card>
 
       {/* Datos del Predio */}
-      <Card title="Datos del Predio" actions={<EditButton step={3} />}>
+      <Card title="Datos del Predio" actions={<EditButton step={4} />}>
         {property_info && (
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div><span className="text-gray-600">Departamento:</span> <span className="font-medium">{property_info.department || '-'}</span></div>
@@ -104,39 +136,6 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ data, onEdit }) => {
               <div className="col-span-2"><span className="text-gray-600">Referencia:</span> <span className="font-medium">{property_info.reference}</span></div>
             )}
             <div className="col-span-2"><span className="text-gray-600">Ubicación:</span> <span className="font-medium">{formatShortAddress(property_info.district || '', property_info.province || '', property_info.department || '')}</span></div>
-          </div>
-        )}
-      </Card>
-
-      {/* Información Económica */}
-      <Card title="Información Económica" actions={<EditButton step={4} />}>
-        {economic_info && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><span className="text-gray-600">Ocupación:</span> <span className="font-medium">{economic_info.occupation}</span></div>
-              <div><span className="text-gray-600">Años Experiencia:</span> <span className="font-medium">{economic_info.employment_years} años</span></div>
-            </div>
-            <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-              <div>
-                <p className="text-sm font-semibold text-gray-700 mb-2">Ingresos</p>
-                <p className="text-sm">Principal: {formatCurrency(economic_info.income?.main_income || 0)}</p>
-                <p className="text-sm">Adicional: {formatCurrency(economic_info.income?.additional_income || 0)}</p>
-                <p className="text-sm font-bold text-green-700 mt-1">Total: {formatCurrency(economic_info.income?.total_income || 0)}</p>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-700 mb-2">Gastos</p>
-                <p className="text-sm">Vivienda: {formatCurrency(economic_info.expenses?.housing || 0)}</p>
-                <p className="text-sm">Alimentación: {formatCurrency(economic_info.expenses?.food || 0)}</p>
-                <p className="text-sm font-bold text-red-700 mt-1">Total: {formatCurrency(economic_info.expenses?.total_expenses || 0)}</p>
-              </div>
-            </div>
-            <div className="pt-4 border-t">
-              <p className="text-center font-bold">
-                Balance: <span className={`text-lg ${((economic_info.income?.total_income || 0) - (economic_info.expenses?.total_expenses || 0)) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                  {formatCurrency((economic_info.income?.total_income || 0) - (economic_info.expenses?.total_expenses || 0))}
-                </span>
-              </p>
-            </div>
           </div>
         )}
       </Card>

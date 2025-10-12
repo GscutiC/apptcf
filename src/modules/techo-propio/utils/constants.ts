@@ -38,8 +38,10 @@ export const ENDPOINTS = {
   PROVINCES: (deptCode: string) => `/api/techo-propio/locations/provinces?department_code=${deptCode}`,
   DISTRICTS: (deptCode: string, provCode: string) => `/api/techo-propio/locations/districts?department_code=${deptCode}&province_code=${provCode}`,
 
-  // Status
+  // Status Management
   CHANGE_STATUS: (id: string) => `/api/techo-propio/applications/${id}/status`,
+  SUBMIT_APPLICATION: (id: string) => `/api/techo-propio/applications/${id}/submit`,
+  START_REVIEW: (id: string) => `/api/techo-propio/applications/${id}/start-review`,
 };
 
 // ==================== STATUS CONFIG ====================

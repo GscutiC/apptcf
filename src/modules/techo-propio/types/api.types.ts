@@ -127,6 +127,8 @@ export interface GetStatisticsResponse {
 export interface ChangeStatusRequest {
   new_status: ApplicationStatus;
   comment?: string;
+  reason?: string; // Para rechazos (ApplicationStatus.REJECTED)
+  reviewer_id?: string; // ID del usuario que realiza la acción (requerido para ciertos estados)
 }
 
 export interface ChangeStatusResponse {

@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { TechoPropioApplication } from '../../types';
+import { TechoPropioApplication, ApplicationStatus } from '../../types';
 import { formatDate, formatCurrency, formatShortAddress } from '../../utils';
 import { StatusBadge } from './StatusBadge';
 import { PriorityIndicator } from './PriorityIndicator';
@@ -14,6 +14,7 @@ interface ApplicationCardProps {
   onClick?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onSubmit?: () => void;
   showActions?: boolean;
 }
 
@@ -22,13 +23,40 @@ export const ApplicationCard: React.FC<ApplicationCardProps> = ({
   onClick,
   onEdit,
   onDelete,
+  onSubmit,
   showActions = true
 }) => {
   const { applicant, property_info, economic_info } = application;
 
+  // Determinar si se puede enviar (debe estar en DRAFT)
+  const canSubmit = application.status === ApplicationStatus.DRAFT && onSubmit;
+
+  // Determinar si se puede editar (solo DRAFT y ADDITIONAL_INFO_REQUIRED)
+  const canEdit = onEdit && (
+    application.status === ApplicationStatus.DRAFT ||
+    application.status === ApplicationStatus.ADDITIONAL_INFO_REQUIRED
+  );
+
+  // Determinar si se puede eliminar (solo DRAFT)
+  const canDelete = onDelete && application.status === ApplicationStatus.DRAFT;
+
   const actions = showActions ? (
     <div className="flex gap-2">
-      {onEdit && (
+      {canSubmit && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onSubmit();
+          }}
+          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+          title="Enviar Solicitud"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+          </svg>
+        </button>
+      )}
+      {canEdit && (
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -42,7 +70,7 @@ export const ApplicationCard: React.FC<ApplicationCardProps> = ({
           </svg>
         </button>
       )}
-      {onDelete && (
+      {canDelete && (
         <button
           onClick={(e) => {
             e.stopPropagation();

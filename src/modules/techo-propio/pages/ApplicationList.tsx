@@ -14,8 +14,9 @@ import { STATUS_CONFIG } from '../utils';
 export const ApplicationList: React.FC = () => {
   const navigate = useNavigate();
   const { applications, isLoading, filters, setFilters, refreshApplications } = useTechoPropio();
-  const { deleteApplication } = useTechoPropioApplications();
+  const { deleteApplication, submitApplication } = useTechoPropioApplications();
   const [deleteModal, setDeleteModal] = useState<{ show: boolean; id?: string }>({ show: false });
+  const [submitModal, setSubmitModal] = useState<{ show: boolean; id?: string }>({ show: false });
 
   useEffect(() => {
     refreshApplications();
@@ -27,6 +28,16 @@ export const ApplicationList: React.FC = () => {
       if (success) {
         refreshApplications();
         setDeleteModal({ show: false });
+      }
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (submitModal.id) {
+      const result = await submitApplication(submitModal.id);
+      if (result) {
+        refreshApplications();
+        setSubmitModal({ show: false });
       }
     }
   };
@@ -76,6 +87,7 @@ export const ApplicationList: React.FC = () => {
                 onClick={() => navigate(`/techo-propio/ver/${app.id}`)}
                 onEdit={() => navigate(`/techo-propio/editar/${app.id}`)}
                 onDelete={() => setDeleteModal({ show: true, id: app.id })}
+                onSubmit={() => setSubmitModal({ show: true, id: app.id })}
               />
             ))}
           </div>
@@ -101,6 +113,24 @@ export const ApplicationList: React.FC = () => {
         }
       >
         <p>¿Está seguro de eliminar esta solicitud? Esta acción no se puede deshacer.</p>
+      </Modal>
+
+      {/* Modal Submit */}
+      <Modal
+        isOpen={submitModal.show}
+        onClose={() => setSubmitModal({ show: false })}
+        title="Enviar Solicitud"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setSubmitModal({ show: false })}>Cancelar</Button>
+            <Button variant="primary" onClick={handleSubmit}>Enviar</Button>
+          </>
+        }
+      >
+        <p>¿Está seguro de enviar esta solicitud para revisión?</p>
+        <p className="text-sm text-gray-600 mt-2">
+          Una vez enviada, no podrá editarla hasta que se solicite información adicional.
+        </p>
       </Modal>
     </div>
   );

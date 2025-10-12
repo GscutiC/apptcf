@@ -63,23 +63,16 @@ export const ApplicantForm: React.FC<ApplicantFormProps> = ({
   };
 
   const handleLocationChange = (field: string, value: string) => {
-    // 🐛 DEBUG: Log para verificar cambios de ubicación
-    console.log(`🔍 handleLocationChange - field: ${field}, value: "${value}"`);
-    console.log(`📥 addressRef.current ANTES:`, addressRef.current);
-    
-    // ✅ FIX: Usar la referencia actualizada en lugar de data
     const updatedAddress = { ...addressRef.current };
     
     if (field === 'department') {
       updatedAddress.department = value;
-      // Si cambia el departamento, limpiar provincia y distrito
       if (value) {
         updatedAddress.province = '';
         updatedAddress.district = '';
       }
     } else if (field === 'province') {
       updatedAddress.province = value;
-      // Si cambia la provincia, limpiar distrito
       if (value) {
         updatedAddress.district = '';
       }
@@ -90,10 +83,7 @@ export const ApplicantForm: React.FC<ApplicantFormProps> = ({
       updatedAddress[field as keyof typeof updatedAddress] = value;
     }
 
-    // ✅ Actualizar la referencia inmediatamente
     addressRef.current = updatedAddress;
-    
-    console.log('📋 updatedAddress DESPUÉS:', updatedAddress);
     
     onChange({
       ...data,

@@ -9,9 +9,70 @@ import {
   TechoPropioApplication,
   ApplicationFilters,
   ApplicationStatistics,
-  SearchQuery
+  SearchQuery,
+  Gender
 } from '../types';
 import { techoPropioApi } from '../services';
+
+// ==================== HELPER: MAPPER BACKEND → FRONTEND ====================
+
+/**
+ * Transforma los datos del backend al formato esperado por el frontend
+ * Backend: head_of_family {document_number, paternal_surname, maternal_surname}
+ * Frontend: applicant {dni, first_name, last_name}
+ */
+const mapBackendApplicationToFrontend = (backendApp: any): TechoPropioApplication => {
+  const headOfFamily = backendApp.head_of_family || backendApp.main_applicant;
+  
+  return {
+    ...backendApp,
+    code: backendApp.id || backendApp.code || 'N/A',
+    applicant: {
+      dni: headOfFamily.document_number,
+      first_name: headOfFamily.first_name,
+      last_name: `${headOfFamily.paternal_surname} ${headOfFamily.maternal_surname}`.trim(),
+      birth_date: headOfFamily.birth_date,
+      gender: Gender.OTHER, // Default, no viene en backend
+      marital_status: headOfFamily.civil_status,
+      phone: headOfFamily.phone_number || '',
+      email: headOfFamily.email || '',
+      current_address: {
+        department: backendApp.property_info?.department || '',
+        province: backendApp.property_info?.province || '',
+        district: backendApp.property_info?.district || '',
+        address: backendApp.property_info?.address || '',
+        reference: backendApp.property_info?.reference,
+        ubigeo_code: backendApp.property_info?.ubigeo_code
+      }
+    },
+    household_members: backendApp.household_members || [],
+    household_size: backendApp.total_household_size || 1,
+    economic_info: {
+      occupation: backendApp.head_of_family_economic?.occupation_detail || backendApp.main_applicant_economic?.occupation_detail || '',
+      employer_name: backendApp.head_of_family_economic?.employer_name || backendApp.main_applicant_economic?.employer_name,
+      employment_years: 0, // No disponible en backend
+      income: {
+        main_income: backendApp.head_of_family_economic?.monthly_income || backendApp.main_applicant_economic?.monthly_income || 0,
+        additional_income: backendApp.head_of_family_economic?.additional_income_amount || backendApp.main_applicant_economic?.additional_income_amount || 0,
+        total_income: backendApp.total_family_income || 0
+      },
+      expenses: {
+        housing: 0,
+        food: 0,
+        education: 0,
+        health: 0,
+        transport: 0,
+        other: 0,
+        total_expenses: 0
+      },
+      has_debts: false,
+      debt_amount: 0
+    },
+    property_info: backendApp.property_info || {},
+    documents: [],
+    state_history: []
+  };
+};
 
 // ==================== CONTEXT TYPE ====================
 
@@ -30,6 +91,7 @@ interface TechoPropioContextType {
   fetchApplication: (id: string) => Promise<TechoPropioApplication | null>;
   selectApplication: (application: TechoPropioApplication | null) => void;
   refreshApplications: () => Promise<void>;
+  deleteApplication: (id: string) => Promise<boolean>;
 
   // Actions - Filters
   setFilters: (filters: ApplicationFilters) => void;
@@ -101,11 +163,22 @@ export const TechoPropioProvider: React.FC<TechoPropioProviderProps> = ({ childr
         limit: searchQuery.page_size || 10
       });
 
-      if (response.success) {
-        setApplications(response.data.items);
+      // ✅ Manejar ambas posibles estructuras de respuesta
+      let items: any[] = [];
+      
+      if ((response as any)?.items) {
+        // Caso 1: Backend retorna directamente {items, total, ...}
+        items = (response as any).items;
+      } else if ((response as any)?.success && (response as any)?.data?.items) {
+        // Caso 2: Backend retorna {success, data: {items, ...}}
+        items = (response as any).data.items;
       } else {
-        throw new Error('Error al cargar solicitudes');
+        throw new Error('Error al cargar solicitudes: estructura de respuesta inválida');
       }
+
+      // 🔄 MAPPER: Transformar datos del backend al formato del frontend
+      const mappedApplications = items.map(mapBackendApplicationToFrontend);
+      setApplications(mappedApplications);
     } catch (err: any) {
       setError(err.message || 'Error al cargar solicitudes');
       setApplications([]);
@@ -121,9 +194,14 @@ export const TechoPropioProvider: React.FC<TechoPropioProviderProps> = ({ childr
     try {
       const response = await techoPropioApi.getApplication(id);
 
-      if (response.success) {
-        setSelectedApplication(response.data);
-        return response.data;
+      // ✅ FIX: Verificar si response es directo o envuelto
+      const applicationData = response.success ? response.data : response;
+      
+      if (applicationData) {
+        // 🔄 MAPPER: Transformar datos del backend al formato del frontend
+        const mappedApplication = mapBackendApplicationToFrontend(applicationData);
+        setSelectedApplication(mappedApplication);
+        return mappedApplication;
       } else {
         throw new Error('Error al cargar solicitud');
       }
@@ -174,11 +252,38 @@ export const TechoPropioProvider: React.FC<TechoPropioProviderProps> = ({ childr
         setStatistics(response.data);
       }
     } catch (err: any) {
-      // Silenciar error de estadísticas - no es crítico
-      // Solo logear si hay error de servidor (500+)
-      if (err.status_code && err.status_code >= 500) {
-        console.error('Error del servidor al cargar estadísticas:', err);
+      // Silenciar error de estadísticas - no es crítico para la funcionalidad
+    }
+  };
+
+  // ==================== ACTIONS - DELETE ====================
+
+  const deleteApplication = async (id: string): Promise<boolean> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const response = await techoPropioApi.deleteApplication(id);
+      
+      if (response.success) {
+        // Remover de la lista local
+        setApplications(prev => prev.filter(app => app.id !== id));
+        
+        // Si es la aplicación seleccionada, limpiarla
+        if (selectedApplication?.id === id) {
+          setSelectedApplication(null);
+        }
+        
+        return true;
       }
+      
+      return false;
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.message || 'Error al eliminar solicitud';
+      setError(errorMessage);
+      return false;
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -222,6 +327,7 @@ export const TechoPropioProvider: React.FC<TechoPropioProviderProps> = ({ childr
     fetchApplication,
     selectApplication,
     refreshApplications,
+    deleteApplication,
     setFilters,
     clearFilters,
     setSearchQuery,

@@ -2,17 +2,26 @@
  * Dashboard Page - Vista principal del módulo Techo Propio
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTechoPropio } from '../context';
-import { Card, Button } from '../components/common';
-import { ApplicationCard, StatusBadge, PriorityIndicator } from '../components/application';
+import { useTechoPropioApplications } from '../hooks';
+import { Card, Button, Modal } from '../components/common';
+import { ApplicationCard, StatusBadge, PriorityIndicator, ApplicationManagementTable } from '../components/application';
 import { formatCurrency } from '../utils';
 import { ApplicationStatus } from '../types';
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { applications, statistics, isLoading, fetchApplications, fetchStatistics } = useTechoPropio();
+  const { applications, statistics, isLoading, fetchApplications, fetchStatistics, refreshApplications } = useTechoPropio();
+  const { submitApplication, changeStatus } = useTechoPropioApplications();
+
+  // Estados para modals
+  const [submitModal, setSubmitModal] = useState<{ show: boolean; id?: string }>({ show: false });
+  const [startReviewModal, setStartReviewModal] = useState<{ show: boolean; id?: string }>({ show: false });
+  const [approveModal, setApproveModal] = useState<{ show: boolean; id?: string }>({ show: false });
+  const [rejectModal, setRejectModal] = useState<{ show: boolean; id?: string; reason?: string }>({ show: false });
+  const [requestInfoModal, setRequestInfoModal] = useState<{ show: boolean; id?: string; comments?: string }>({ show: false });
 
   useEffect(() => {
     fetchApplications();
@@ -26,6 +35,57 @@ export const Dashboard: React.FC = () => {
   const priorityApplications = [...applications]
     .sort((a, b) => b.priority_score - a.priority_score)
     .slice(0, 5);
+
+  // Handlers para acciones
+  const handleSubmit = async () => {
+    if (submitModal.id) {
+      const result = await submitApplication(submitModal.id);
+      if (result) {
+        refreshApplications();
+        setSubmitModal({ show: false });
+      }
+    }
+  };
+
+  const handleStartReview = async () => {
+    if (startReviewModal.id) {
+      const result = await changeStatus(startReviewModal.id, ApplicationStatus.UNDER_REVIEW);
+      if (result) {
+        refreshApplications();
+        setStartReviewModal({ show: false });
+      }
+    }
+  };
+
+  const handleApprove = async () => {
+    if (approveModal.id) {
+      const result = await changeStatus(approveModal.id, ApplicationStatus.APPROVED);
+      if (result) {
+        refreshApplications();
+        setApproveModal({ show: false });
+      }
+    }
+  };
+
+  const handleReject = async () => {
+    if (rejectModal.id && rejectModal.reason) {
+      const result = await changeStatus(rejectModal.id, ApplicationStatus.REJECTED, rejectModal.reason);
+      if (result) {
+        refreshApplications();
+        setRejectModal({ show: false, reason: '' });
+      }
+    }
+  };
+
+  const handleRequestInfo = async () => {
+    if (requestInfoModal.id && requestInfoModal.comments) {
+      const result = await changeStatus(requestInfoModal.id, ApplicationStatus.ADDITIONAL_INFO_REQUIRED, requestInfoModal.comments);
+      if (result) {
+        refreshApplications();
+        setRequestInfoModal({ show: false, comments: '' });
+      }
+    }
+  };
 
   if (isLoading) {
     return (
@@ -223,6 +283,125 @@ export const Dashboard: React.FC = () => {
           </button>
         </div>
       </Card>
+
+      {/* 🆕 NUEVA TARJETA: Gestión de Solicitudes */}
+      <Card className="hover:shadow-md transition-shadow">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">🛠️ Gestión de Solicitudes</h3>
+            <p className="text-sm text-gray-500">Administra y cambia estados de todas las solicitudes</p>
+          </div>
+          <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+            {applications.length} solicitudes
+          </span>
+        </div>
+
+        <ApplicationManagementTable
+          applications={applications}
+          isLoading={isLoading}
+          onView={(id) => navigate(`/techo-propio/ver/${id}`)}
+          onEdit={(id) => navigate(`/techo-propio/editar/${id}`)}
+          onSubmit={(id) => setSubmitModal({ show: true, id })}
+          onStartReview={(id) => setStartReviewModal({ show: true, id })}
+          onApprove={(id) => setApproveModal({ show: true, id })}
+          onReject={(id) => setRejectModal({ show: true, id, reason: '' })}
+          onRequestInfo={(id) => setRequestInfoModal({ show: true, id, comments: '' })}
+        />
+      </Card>
+
+      {/* Modals de confirmación */}
+
+      {/* Modal: Enviar */}
+      <Modal
+        isOpen={submitModal.show}
+        onClose={() => setSubmitModal({ show: false })}
+        title="Enviar Solicitud"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setSubmitModal({ show: false })}>Cancelar</Button>
+            <Button variant="primary" onClick={handleSubmit}>Enviar</Button>
+          </>
+        }
+      >
+        <p>¿Está seguro de enviar esta solicitud para revisión?</p>
+      </Modal>
+
+      {/* Modal: Iniciar Revisión */}
+      <Modal
+        isOpen={startReviewModal.show}
+        onClose={() => setStartReviewModal({ show: false })}
+        title="Iniciar Revisión"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setStartReviewModal({ show: false })}>Cancelar</Button>
+            <Button variant="primary" onClick={handleStartReview}>Iniciar Revisión</Button>
+          </>
+        }
+      >
+        <p>¿Desea iniciar la revisión de esta solicitud?</p>
+        <p className="text-sm text-gray-600 mt-2">La solicitud pasará a estado "En Revisión".</p>
+      </Modal>
+
+      {/* Modal: Aprobar */}
+      <Modal
+        isOpen={approveModal.show}
+        onClose={() => setApproveModal({ show: false })}
+        title="Aprobar Solicitud"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setApproveModal({ show: false })}>Cancelar</Button>
+            <Button variant="primary" onClick={handleApprove}>Aprobar</Button>
+          </>
+        }
+      >
+        <p className="text-green-700 font-semibold">✅ ¿Aprobar esta solicitud?</p>
+        <p className="text-sm text-gray-600 mt-2">Esta es una acción final. La solicitud será marcada como APROBADA.</p>
+      </Modal>
+
+      {/* Modal: Rechazar */}
+      <Modal
+        isOpen={rejectModal.show}
+        onClose={() => setRejectModal({ show: false, reason: '' })}
+        title="Rechazar Solicitud"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setRejectModal({ show: false, reason: '' })}>Cancelar</Button>
+            <Button variant="danger" onClick={handleReject} disabled={!rejectModal.reason}>Rechazar</Button>
+          </>
+        }
+      >
+        <p className="text-red-700 font-semibold">❌ ¿Rechazar esta solicitud?</p>
+        <p className="text-sm text-gray-600 mt-2 mb-4">Debe proporcionar una razón para el rechazo:</p>
+        <textarea
+          value={rejectModal.reason || ''}
+          onChange={(e) => setRejectModal({ ...rejectModal, reason: e.target.value })}
+          placeholder="Razón del rechazo..."
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+          rows={4}
+        />
+      </Modal>
+
+      {/* Modal: Solicitar Información Adicional */}
+      <Modal
+        isOpen={requestInfoModal.show}
+        onClose={() => setRequestInfoModal({ show: false, comments: '' })}
+        title="Solicitar Información Adicional"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setRequestInfoModal({ show: false, comments: '' })}>Cancelar</Button>
+            <Button variant="primary" onClick={handleRequestInfo} disabled={!requestInfoModal.comments}>Solicitar</Button>
+          </>
+        }
+      >
+        <p>Indique qué información adicional necesita:</p>
+        <textarea
+          value={requestInfoModal.comments || ''}
+          onChange={(e) => setRequestInfoModal({ ...requestInfoModal, comments: e.target.value })}
+          placeholder="Descripción de la información requerida..."
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mt-3"
+          rows={4}
+        />
+      </Modal>
     </div>
   );
 };

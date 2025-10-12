@@ -281,20 +281,41 @@ export const validatePropertyInfo = (propertyInfo: Partial<PropertyInfo>): { isV
 export const validateApplicationForm = (formData: ApplicationFormData): { isValid: boolean; errors: Record<string, any> } => {
   const errors: Record<string, any> = {};
 
-  // Step 1: Applicant
-  if (formData.applicant) {
-    const applicantValidation = validateApplicant(formData.applicant);
-    if (!applicantValidation.isValid) {
-      errors.applicant = applicantValidation.errors;
+  // Step 1: User Data (Control interno)
+  if (formData.user_data) {
+    if (!formData.user_data.dni || formData.user_data.dni.length !== 8) {
+      errors.user_data = { dni: 'DNI debe tener 8 dígitos' };
+    }
+    if (!formData.user_data.names || formData.user_data.names.trim().length < 2) {
+      if (!errors.user_data) errors.user_data = {};
+      errors.user_data.names = 'Nombres son obligatorios';
     }
   } else {
-    errors.applicant = { _form: 'Los datos del solicitante son requeridos' };
+    errors.user_data = { _form: 'Los datos del usuario son requeridos' };
   }
 
-  // Step 2: Household members (at least one member is required)
-  if (!formData.household_members || formData.household_members.length === 0) {
-    errors.household_members = { _form: 'Debe agregar al menos un miembro del hogar' };
+  // Step 2: Head of Family
+  if (formData.head_of_family) {
+    if (!formData.head_of_family.dni && !formData.head_of_family.document_number) {
+      errors.head_of_family = { dni: 'DNI del jefe de familia es obligatorio' };
+    }
+    if (!formData.head_of_family.first_name || formData.head_of_family.first_name.trim().length < 2) {
+      if (!errors.head_of_family) errors.head_of_family = {};
+      errors.head_of_family.first_name = 'Nombres del jefe de familia son obligatorios';
+    }
   } else {
+    errors.head_of_family = { _form: 'Los datos del jefe de familia son requeridos' };
+  }
+
+  // Step 2: Spouse (opcional pero si existe debe ser válido)
+  if (formData.spouse) {
+    if (!formData.spouse.dni && !formData.spouse.document_number) {
+      errors.spouse = { dni: 'DNI del cónyuge es obligatorio' };
+    }
+  }
+
+  // Step 2: Household members
+  if (formData.household_members && formData.household_members.length > 0) {
     const membersErrors: Record<number, any> = {};
     formData.household_members.forEach((member, index) => {
       const memberValidation = validateHouseholdMember(member);
@@ -307,14 +328,18 @@ export const validateApplicationForm = (formData: ApplicationFormData): { isVali
     }
   }
 
-  // Step 3: Economic info
-  if (formData.economic_info) {
-    const economicValidation = validateEconomicInfo(formData.economic_info);
-    if (!economicValidation.isValid) {
-      errors.economic_info = economicValidation.errors;
+  // Step 3: Economic info - Validar que el jefe de familia tenga info económica en household_members
+  if (formData.household_members && formData.head_of_family) {
+    const headOfFamilyMember = formData.household_members.find(member => 
+      member.first_name === formData.head_of_family?.first_name && 
+      member.apellido_paterno === formData.head_of_family?.paternal_surname
+    );
+    
+    if (!headOfFamilyMember || !headOfFamilyMember.monthly_income || headOfFamilyMember.monthly_income <= 0) {
+      errors.head_of_family_economic = { _form: 'Debe completar la información económica del jefe de familia en el Paso 2 (Grupo Familiar)' };
     }
   } else {
-    errors.economic_info = { _form: 'La información económica es requerida' };
+    errors.head_of_family_economic = { _form: 'Faltan datos del jefe de familia o miembros del hogar' };
   }
 
   // Step 4: Property info

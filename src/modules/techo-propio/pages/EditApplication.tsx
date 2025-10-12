@@ -8,9 +8,9 @@ import { useTechoPropio } from '../context';
 import { useTechoPropioApplications } from '../hooks';
 import { Card, Button, Modal } from '../components/common';
 import {
+  ApplicationInfoStep,
   ApplicantForm,
   HouseholdForm,
-  EconomicForm,
   PropertyForm,
   ReviewStep
 } from '../components/forms';
@@ -22,7 +22,7 @@ export const EditApplication: React.FC = () => {
   const navigate = useNavigate();
   const { selectedApplication, fetchApplication, isLoading: contextLoading } = useTechoPropio();
   const { updateApplication, isLoading: updateLoading } = useTechoPropioApplications();
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(0);  // Iniciar en paso 0
   const [formData, setFormData] = useState<ApplicationFormData | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [exitModal, setExitModal] = useState(false);
@@ -32,19 +32,84 @@ export const EditApplication: React.FC = () => {
   // Cargar solicitud al montar
   useEffect(() => {
     if (id) {
+      console.log('🔍 Cargando solicitud con ID:', id);
       fetchApplication(id);
     }
   }, [id]);
 
   // Poblar formulario cuando se cargue la solicitud
   useEffect(() => {
+    console.log('📋 [EditApplication] selectedApplication cambió:', selectedApplication ? 'SÍ' : 'NO');
+    
     if (selectedApplication) {
-      setFormData({
-        applicant: selectedApplication.applicant,
+      console.log('📦 [EditApplication] Datos recibidos del backend:', {
+        code: selectedApplication.code,
+        convocation_code: selectedApplication.convocation_code,
+        registration_date: selectedApplication.registration_date,
+        created_at: selectedApplication.created_at,
+        applicant: {
+          dni: selectedApplication.applicant?.dni,
+          first_name: selectedApplication.applicant?.first_name,
+          current_address: selectedApplication.applicant?.current_address
+        },
+        household_members_count: selectedApplication.household_members?.length || 0,
         household_members: selectedApplication.household_members,
-        economic_info: selectedApplication.economic_info,
+        property_info: selectedApplication.property_info
+      });
+      
+      // Mapear datos de la solicitud existente al formato del formulario
+      const mappedData: ApplicationFormData = {
+        // ✅ Paso 0: Información de la solicitud
+        application_info: {
+          registration_date: selectedApplication.registration_date || selectedApplication.created_at || new Date().toLocaleDateString('es-PE'),
+          convocation_code: selectedApplication.convocation_code || '',
+          registration_year: selectedApplication.registration_year || new Date(selectedApplication.created_at || new Date()).getFullYear(),
+          application_number: selectedApplication.code,
+          sequential_number: selectedApplication.sequential_number || parseInt(selectedApplication.code?.split('-').pop() || '0')
+        },
+        
+        // ✅ Paso 1: Solicitante (Jefe de Familia)
+        head_of_family: {
+          document_number: selectedApplication.applicant?.dni || '',
+          dni: selectedApplication.applicant?.dni || '',
+          first_name: selectedApplication.applicant?.first_name || '',
+          paternal_surname: selectedApplication.applicant?.last_name?.split(' ')[0] || '',
+          maternal_surname: selectedApplication.applicant?.last_name?.split(' ')[1] || '',
+          birth_date: selectedApplication.applicant?.birth_date,
+          civil_status: selectedApplication.applicant?.marital_status,
+          phone_number: selectedApplication.applicant?.phone || '',
+          email: selectedApplication.applicant?.email || '',
+          // 🔧 CORREGIDO: Dirección actual desde applicant.current_address (no property_info)
+          current_address: selectedApplication.applicant?.current_address || {
+            department: '',
+            province: '',
+            district: '',
+            address: '',
+            reference: ''
+          }
+        },
+        
+        // ✅ Paso 2: Grupo Familiar (Miembros del hogar)
+        household_members: selectedApplication.household_members || [],
+        
+        // ✅ Paso 3: Información del Predio
         property_info: selectedApplication.property_info,
+        
+        // Otros datos
         comments: selectedApplication.comments || ''
+      };
+      
+      setFormData(mappedData);
+      
+      console.log('✅ [EditApplication] FormData mapeado:', {
+        'Paso 0 - Convocatoria': mappedData.application_info?.convocation_code,
+        'Paso 0 - Fecha': mappedData.application_info?.registration_date,
+        'Paso 1 - DNI': mappedData.head_of_family?.dni,
+        'Paso 1 - Nombre': mappedData.head_of_family?.first_name,
+        'Paso 1 - Dirección Completa': mappedData.head_of_family?.current_address,
+        'Paso 2 - Total Miembros': mappedData.household_members?.length || 0,
+        'Paso 2 - Miembros Array': mappedData.household_members,
+        'Paso 3 - Departamento': mappedData.property_info?.department
       });
     }
   }, [selectedApplication]);
@@ -61,24 +126,38 @@ export const EditApplication: React.FC = () => {
     const stepErrors: string[] = [];
 
     switch (currentStep) {
+      case 0:
+        // Paso 0: Información - validaciones básicas
+        if (!formData.application_info || !formData.application_info.convocation_code) {
+          stepErrors.push('Debe seleccionar una convocatoria');
+        }
+        break;
       case 1:
-        if (!formData.applicant) {
+        // Paso 1: Solicitante (Jefe de Familia)
+        if (!formData.head_of_family) {
           stepErrors.push('Debe completar los datos del solicitante');
         } else {
-          const applicantErrors = validateApplicantForm(formData.applicant);
-          stepErrors.push(...applicantErrors);
+          if (!formData.head_of_family.dni && !formData.head_of_family.document_number) {
+            stepErrors.push('DNI del solicitante es obligatorio');
+          }
+          if (!formData.head_of_family.first_name || formData.head_of_family.first_name.trim().length < 2) {
+            stepErrors.push('Nombres del solicitante son obligatorios');
+          }
         }
         break;
       case 2:
+        // Paso 2: Grupo Familiar
+        // Validaciones opcionales del grupo familiar
         if (formData.household_members && formData.household_members.length > 0) {
           formData.household_members.forEach((member, idx) => {
-            if (!member.dni || !member.first_name || !member.apellido_paterno || !member.apellido_materno) {
+            if (!member.dni || !member.first_name) {
               stepErrors.push(`Miembro ${idx + 1}: Faltan datos obligatorios`);
             }
           });
         }
         break;
       case 3:
+        // Paso 3: Predio
         if (!formData.property_info) {
           stepErrors.push('Debe completar los datos del predio');
         } else {
@@ -87,15 +166,8 @@ export const EditApplication: React.FC = () => {
         }
         break;
       case 4:
-        if (!formData.economic_info) {
-          stepErrors.push('Debe completar la información económica');
-        } else {
-          const economicErrors = validateEconomicForm(formData.economic_info);
-          stepErrors.push(...economicErrors);
-        }
-        break;
-      case 5:
-        if (!formData.applicant || !formData.economic_info || !formData.property_info) {
+        // Paso 4: Revisión Final
+        if (!formData.head_of_family || !formData.property_info) {
           stepErrors.push('Faltan datos obligatorios en la solicitud');
         }
         break;
@@ -107,7 +179,7 @@ export const EditApplication: React.FC = () => {
 
   const handleNext = () => {
     if (validateCurrentStep()) {
-      if (currentStep < totalSteps) {
+      if (currentStep < 4) {  // Último paso es 4
         setCurrentStep((prev) => prev + 1);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
@@ -115,7 +187,7 @@ export const EditApplication: React.FC = () => {
   };
 
   const handlePrevious = () => {
-    if (currentStep > 1) {
+    if (currentStep > 0) {  // Permitir retroceder hasta paso 0
       setCurrentStep((prev) => prev - 1);
       setErrors([]);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -128,16 +200,19 @@ export const EditApplication: React.FC = () => {
     }
 
     // Validación final
-    if (!formData.applicant || !formData.economic_info || !formData.property_info) {
+    if (!formData.head_of_family || !formData.head_of_family_economic || !formData.property_info) {
       setErrors(['Faltan datos obligatorios en la solicitud']);
       return;
     }
 
-    // Preparar datos para el backend
+    // Preparar datos para el backend con nueva estructura
     const requestData = {
-      applicant: formData.applicant,
+      user_data: formData.user_data,
+      head_of_family: formData.head_of_family,
+      spouse: formData.spouse,
       household_members: formData.household_members || [],
-      economic_info: formData.economic_info,
+      head_of_family_economic: formData.head_of_family_economic,
+      spouse_economic: formData.spouse_economic,
       property_info: formData.property_info,
       comments: formData.comments
     };
@@ -161,24 +236,97 @@ export const EditApplication: React.FC = () => {
   };
 
   const renderStep = () => {
-    if (!formData) return null;
+    if (!formData) {
+      console.log('⚠️ [EditApplication] formData es null, no se puede renderizar');
+      return null;
+    }
+
+    console.log('🎨 [EditApplication] Renderizando paso', currentStep, 'con datos:', {
+      paso_actual: currentStep,
+      application_info: formData.application_info,
+      head_of_family: formData.head_of_family,
+      household_members_count: formData.household_members?.length || 0,
+      property_info: formData.property_info ? 'SÍ' : 'NO'
+    });
 
     switch (currentStep) {
+      case 0:
+        // Paso 0: Información de la Solicitud
+        console.log('📝 [Paso 0] Enviando a ApplicationInfoStep:', {
+          convocation_code: formData.application_info?.convocation_code,
+          registration_date: formData.application_info?.registration_date,
+          application_number: formData.application_info?.application_number
+        });
+        return (
+          <ApplicationInfoStep
+            data={formData.application_info || {
+              registration_date: new Date().toLocaleDateString('es-PE'),
+              convocation_code: '',
+              registration_year: new Date().getFullYear()
+            }}
+            onChange={(application_info) => updateFormData({ application_info })}
+            onNext={handleNext}
+            errors={errors}
+          />
+        );
       case 1:
+        // Paso 1: Solicitante (Jefe de Familia)
+        console.log('📝 [Paso 1] Enviando a ApplicantForm:', {
+          dni: formData.head_of_family?.dni,
+          first_name: formData.head_of_family?.first_name,
+          current_address: formData.head_of_family?.current_address
+        });
         return (
           <ApplicantForm
-            data={formData.applicant || {}}
-            onChange={(applicant) => updateFormData({ applicant })}
+            data={{
+              dni: formData.head_of_family?.dni || formData.head_of_family?.document_number || '',
+              first_name: formData.head_of_family?.first_name || '',
+              last_name: `${formData.head_of_family?.paternal_surname || ''} ${formData.head_of_family?.maternal_surname || ''}`.trim(),
+              birth_date: formData.head_of_family?.birth_date || '',
+              marital_status: formData.head_of_family?.civil_status,
+              phone: formData.head_of_family?.phone_number || '',
+              email: formData.head_of_family?.email || '',
+              current_address: formData.head_of_family?.current_address || {
+                department: '',
+                province: '',
+                district: '',
+                address: '',
+                reference: ''
+              }
+            }}
+            onChange={(applicant) => updateFormData({ 
+              head_of_family: {
+                document_number: applicant.dni,
+                dni: applicant.dni,
+                first_name: applicant.first_name,
+                paternal_surname: applicant.last_name?.split(' ')[0] || '',
+                maternal_surname: applicant.last_name?.split(' ')[1] || '',
+                birth_date: applicant.birth_date,
+                civil_status: applicant.marital_status,
+                phone_number: applicant.phone,
+                email: applicant.email,
+                current_address: applicant.current_address
+              }
+            })}
           />
         );
       case 2:
+        // Paso 2: Grupo Familiar
+        console.log('📝 [Paso 2] Enviando a HouseholdForm:', {
+          total_miembros: formData.household_members?.length || 0,
+          household_members: formData.household_members,
+          es_array: Array.isArray(formData.household_members),
+          primer_miembro: formData.household_members?.[0]
+        });
         return (
           <HouseholdForm
             data={formData.household_members || []}
-            onChange={(household_members) => updateFormData({ household_members })}
+            onChange={(household_members: any) => updateFormData({ household_members })}
           />
         );
       case 3:
+        // Paso 3: Información del Predio
+        console.log('📝 [Paso 3] Enviando a PropertyForm:', formData.property_info);
         return (
           <PropertyForm
             data={formData.property_info || {}}
@@ -186,13 +334,8 @@ export const EditApplication: React.FC = () => {
           />
         );
       case 4:
-        return (
-          <EconomicForm
-            data={formData.economic_info || {}}
-            onChange={(economic_info) => updateFormData({ economic_info })}
-          />
-        );
-      case 5:
+        // Paso 4: Revisión Final
+        console.log('📝 [Paso 4] Enviando a ReviewStep:', formData);
         return (
           <ReviewStep
             data={formData}
@@ -244,7 +387,7 @@ export const EditApplication: React.FC = () => {
       {/* Stepper */}
       <Card padding="md">
         <div className="flex items-center justify-between">
-          {[1, 2, 3, 4, 5].map((step) => (
+          {[0, 1, 2, 3, 4].map((step) => (
             <React.Fragment key={step}>
               <div className="flex flex-col items-center">
                 <div
@@ -265,7 +408,7 @@ export const EditApplication: React.FC = () => {
                       />
                     </svg>
                   ) : (
-                    step
+                    step === 0 ? 'ℹ️' : step
                   )}
                 </div>
                 <span
@@ -277,14 +420,14 @@ export const EditApplication: React.FC = () => {
                       : 'text-gray-500'
                   }`}
                 >
+                  {step === 0 && 'Información'}
                   {step === 1 && 'Solicitante'}
                   {step === 2 && 'Grupo Familiar'}
-                  {step === 3 && 'Económica'}
-                  {step === 4 && 'Predio'}
-                  {step === 5 && 'Revisión'}
+                  {step === 3 && 'Predio'}
+                  {step === 4 && 'Revisión'}
                 </span>
               </div>
-              {step < totalSteps && (
+              {step < 4 && (
                 <div
                   className={`flex-1 h-1 mx-2 rounded transition-colors ${
                     step < currentStep ? 'bg-green-500' : 'bg-gray-300'
@@ -334,16 +477,16 @@ export const EditApplication: React.FC = () => {
           <Button
             variant="secondary"
             onClick={handlePrevious}
-            disabled={currentStep === 1 || isLoading}
+            disabled={currentStep === 0 || isLoading}
           >
             ← Anterior
           </Button>
 
           <div className="text-sm text-gray-600">
-            Paso {currentStep} de {totalSteps}
+            Paso {currentStep + 1} de 5
           </div>
 
-          {currentStep < totalSteps ? (
+          {currentStep < 4 ? (
             <Button onClick={handleNext} disabled={isLoading}>
               Siguiente →
             </Button>

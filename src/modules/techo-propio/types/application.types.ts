@@ -139,6 +139,39 @@ export interface MonthlyExpenses {
 
 // ==================== ENTITIES ====================
 
+// ✅ NUEVA INTERFAZ: Alineada con backend DTOs
+export interface ApplicantFormData {
+  document_type?: DocumentType;
+  document_number?: string; // DNI principal
+  dni?: string; // Alias para compatibilidad
+  first_name?: string;
+  paternal_surname?: string;
+  maternal_surname?: string;
+  birth_date?: string; // ISO date string
+  civil_status?: CivilStatus;
+  education_level?: EducationLevel;
+  occupation?: string;
+  disability_type?: DisabilityType;
+  phone_number?: string;
+  email?: string;
+  is_main_applicant?: boolean;
+  current_address?: Location; // Dirección actual
+}
+
+// ✅ NUEVA INTERFAZ: Información económica alineada con backend
+export interface EconomicInfoFormData {
+  employment_situation?: EmploymentSituation;
+  monthly_income?: number;
+  work_condition?: WorkCondition;
+  occupation_detail?: string;
+  employer_name?: string;
+  has_additional_income?: boolean;
+  additional_income_amount?: number;
+  additional_income_source?: string;
+  is_main_applicant?: boolean;
+}
+
+// ⚠️ LEGACY: Mantenido para retrocompatibilidad
 export interface Applicant {
   dni: string;
   first_name: string;
@@ -173,6 +206,7 @@ export interface HouseholdMember {
   family_bond?: string; // vínculo familiar (para ADDITIONAL_FAMILY)
 }
 
+// ⚠️ LEGACY: Mantenido para retrocompatibilidad
 export interface EconomicInfo {
   occupation: string;
   employer_name?: string;
@@ -357,14 +391,31 @@ export interface ApplicationFormData {
     sequential_number?: number;
   };
   
-  // Step 1: Applicant
-  applicant?: Partial<Applicant>;
-  // Step 2: Household
-  household_members?: HouseholdMember[];
+  // ✅ Step 1: User Data (CONTROL INTERNO - NO VA EN LA SOLICITUD)
+  user_data?: {
+    dni?: string;
+    names?: string;
+    surnames?: string;
+    phone?: string;
+    email?: string;
+    birth_date?: string;
+    notes?: string; // Notas internas
+  };
+  
+  // ✅ Step 2: Head of Family (JEFE DE FAMILIA - SÍ VA EN LA SOLICITUD)
+  head_of_family?: ApplicantFormData;
+  
+  // ✅ Step 2: Household (GRUPO FAMILIAR)
+  spouse?: ApplicantFormData; // Cónyuge/Conviviente
+  household_members?: HouseholdMember[]; // Carga familiar
+  
   // Step 3: Economic
-  economic_info?: Partial<EconomicInfo>;
+  head_of_family_economic?: EconomicInfoFormData; // Info económica jefe de familia
+  spouse_economic?: EconomicInfoFormData; // Info económica cónyuge
+  
   // Step 4: Property
   property_info?: Partial<PropertyInfo>;
+  
   // Step 5: Documents & Comments
   documents?: Document[];
   comments?: string;
@@ -398,3 +449,10 @@ export interface ApplicationFormState {
   isSubmitting: boolean;
   isDraft: boolean;
 }
+
+// ==================== TYPE ALIASES FOR FORM COMPONENTS ====================
+
+// Alias para facilitar el uso en componentes de formulario
+export type HeadOfFamily = ApplicantFormData;
+export type Spouse = ApplicantFormData;
+export type UserData = NonNullable<ApplicationFormData['user_data']>;

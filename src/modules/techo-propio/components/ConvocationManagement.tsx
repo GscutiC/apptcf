@@ -75,7 +75,6 @@ const ConvocationManagement: React.FC = () => {
       setError(null);
     } catch (err) {
       setError('Error al cargar las convocatorias');
-      console.error(err);
     } finally {
       setLoading(false);
     }

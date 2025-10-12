@@ -62,14 +62,19 @@ export const ApplicationInfoStep: React.FC<ApplicationInfoStepProps> = ({
         // Usar el servicio para cargar convocatorias
         const convocations = await convocationService.getConvocationOptions();
         
+        console.log('🎯 [ApplicationInfoStep] Convocatorias cargadas:', convocations);
+        
         // Filtrar solo convocatorias activas
         const activeConvocations = convocations.filter(conv => conv.is_active);
         setAvailableConvocations(activeConvocations);
 
+        console.log('✅ [ApplicationInfoStep] Convocatorias activas:', activeConvocations);
+
       } catch (error) {
-        console.error('Error cargando convocatorias:', error);
         const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
         setConvocationError(`Error al cargar las convocatorias: ${errorMessage}`);
+        
+        console.error('❌ [ApplicationInfoStep] Error al cargar convocatorias:', error);
         
         // Fallback a lista mínima
         setAvailableConvocations([
@@ -90,13 +95,22 @@ export const ApplicationInfoStep: React.FC<ApplicationInfoStepProps> = ({
 
 
   useEffect(() => {
-    setFormData(prev => ({
-      ...prev,
-      ...data
-    }));
+    console.log('🔄 [ApplicationInfoStep] Props data cambió:', data);
+    setFormData(prev => {
+      const updated = {
+        ...prev,
+        ...data
+      };
+      console.log('🔄 [ApplicationInfoStep] FormData actualizado:', {
+        anterior: prev,
+        nuevo: updated
+      });
+      return updated;
+    });
   }, [data]);
 
   const handleChange = (field: keyof ApplicationInfo, value: any) => {
+    console.log('✏️ [ApplicationInfoStep] Campo cambiado:', field, '=', value);
     const updated = { ...formData, [field]: value };
     setFormData(updated);
     onChange(updated);

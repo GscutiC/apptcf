@@ -1,44 +1,77 @@
 /**
- * ApplicationDetail Page - Vista detallada de solicitud
+ * ApplicationDetail Page - Vista detallada de solicitud con gestión de estados
  */
 
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTechoPropio } from '../context';
+import { useApplicationActions } from '../hooks';
 import { Card, Button } from '../components/common';
-import { StatusBadge, PriorityIndicator } from '../components/application';
+import { StatusBadge, PriorityIndicator, StatusActionBar, ConfirmationModals } from '../components/application';
 import { formatDate, formatCurrency, formatShortAddress, formatDNI, formatPhone } from '../utils';
 
 export const ApplicationDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { selectedApplication, fetchApplication, isLoading } = useTechoPropio();
+  
+  // Hook para gestión de acciones
+  const { actions, showModal, closeModal, handleConfirm, isLoading: isActionLoading } = useApplicationActions(id);
 
   useEffect(() => {
     if (id) fetchApplication(id);
   }, [id, fetchApplication]);
 
   if (isLoading || !selectedApplication) {
-    return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" /></div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Cargando solicitud...</p>
+        </div>
+      </div>
+    );
   }
 
   const app = selectedApplication;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <Button variant="ghost" onClick={() => navigate('/techo-propio/solicitudes')} size="sm">← Volver</Button>
-          <h1 className="text-3xl font-bold text-gray-900 mt-2">{app.code}</h1>
-          <div className="flex items-center gap-3 mt-2">
-            <StatusBadge status={app.status} />
-            <PriorityIndicator score={app.priority_score} />
+      {/* Header con barra de acciones */}
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <Button 
+          variant="ghost" 
+          onClick={() => navigate('/techo-propio/solicitudes')} 
+          size="sm"
+        >
+          ← Volver
+        </Button>
+        
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mt-4">
+          {/* Información de la solicitud */}
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">{app.code}</h1>
+            <div className="flex items-center gap-3 mt-2">
+              <StatusBadge status={app.status} />
+              <PriorityIndicator score={app.priority_score} />
+            </div>
           </div>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={() => navigate(`/techo-propio/editar/${app.id}`)} variant="secondary">Editar</Button>
-          <Button onClick={() => window.print()} variant="ghost">Imprimir</Button>
+          
+          {/* 🆕 Barra de acciones contextual */}
+          <StatusActionBar
+            application={app}
+            onEdit={actions.edit}
+            onSubmit={actions.submit}
+            onStartReview={actions.startReview}
+            onApprove={actions.approve}
+            onReject={actions.reject}
+            onRequestInfo={actions.requestInfo}
+            onCancel={actions.cancel}
+            onReactivate={actions.reactivate}
+            onDelete={actions.delete}
+            onPrint={actions.print}
+            disabled={isActionLoading}
+          />
         </div>
       </div>
 
@@ -115,6 +148,14 @@ export const ApplicationDetail: React.FC = () => {
           <p>Última actualización: {formatDate(app.updated_at)}</p>
         </div>
       </Card>
+
+      {/* 🆕 Modales de confirmación */}
+      <ConfirmationModals
+        showModal={showModal}
+        onClose={closeModal}
+        onConfirm={handleConfirm}
+        isLoading={isActionLoading}
+      />
     </div>
   );
 };
