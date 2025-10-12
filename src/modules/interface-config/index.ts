@@ -32,6 +32,7 @@ export { PresetEditModal } from './components/PresetEditModal';
 export { PreviewPanel } from './components/PreviewPanel';
 export { ConfigSyncMonitor } from './components/ConfigSyncMonitor';
 export { ConfigLoader } from './components/ConfigLoader';
+export { OptimizedConfigLoader } from './components/OptimizedConfigLoader';
 export { SaveStatusIndicator } from './components/SaveStatusIndicator';
 export { ConfigUsageGuide } from './components/ConfigUsageGuide';
 export { 

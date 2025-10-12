@@ -2,6 +2,12 @@
   "name": "mi_app_completa_frontend",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
+  "sideEffects": [
+    "*.css",
+    "*.scss",
+    "*.sass"
+  ],
   "dependencies": {
     "@clerk/clerk-react": "^5.48.1",
     "@tanstack/react-query": "^5.90.2",
@@ -20,14 +26,16 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
+    "build:analyze": "npm run build && npx source-map-explorer 'build/static/js/*.js'",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
   "browserslist": {
     "production": [
-      ">0.2%",
+      ">0.5%",
       "not dead",
-      "not op_mini all"
+      "not op_mini all",
+      "not ie 11"
     ],
     "development": [
       "last 1 chrome version",

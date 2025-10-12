@@ -27,7 +27,8 @@ import {
   GetDistrictsResponse,
   ApiErrorResponse
 } from '../types';
-import { API_BASE_URL, ENDPOINTS, ERROR_MESSAGES } from '../utils';
+import { ENDPOINTS, ERROR_MESSAGES, logger, logApi } from '../utils';
+import { MODULE_CONFIG } from '../config/moduleConfig';
 
 /**
  * API Client Class
@@ -38,16 +39,19 @@ class TechoPropioApiService {
 
   constructor() {
     this.client = axios.create({
-      baseURL: API_BASE_URL,
+      baseURL: MODULE_CONFIG.api.baseURL,
       headers: {
         'Content-Type': 'application/json'
       },
-      timeout: 30000 // 30 seconds
+      timeout: MODULE_CONFIG.api.timeout
     });
 
-    // Request interceptor to add auth token
+    // Request interceptor to add auth token and logging
     this.client.interceptors.request.use(
       async (config) => {
+        // Log API request
+        logApi.request(config.method?.toUpperCase() || 'GET', config.url || '', config.data);
+        
         // Get token from Clerk using proper method
         if (this.getToken) {
           const token = await this.getToken();
@@ -58,14 +62,33 @@ class TechoPropioApiService {
         return config;
       },
       (error) => {
+        logger.error('Request interceptor error', error);
         return Promise.reject(error);
       }
     );
 
-    // Response interceptor for error handling
+    // Response interceptor for error handling and logging
     this.client.interceptors.response.use(
-      (response) => response,
+      (response) => {
+        // Log successful response
+        logApi.response(
+          response.config.method?.toUpperCase() || 'GET',
+          response.config.url || '',
+          response.status,
+          response.data
+        );
+        return response;
+      },
       (error: AxiosError) => {
+        // Log error response
+        if (error.response) {
+          logApi.response(
+            error.config?.method?.toUpperCase() || 'GET',
+            error.config?.url || '',
+            error.response.status,
+            error.response.data
+          );
+        }
         return Promise.reject(this.handleError(error));
       }
     );

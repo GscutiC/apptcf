@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import { Applicant, Gender, CivilStatus } from '../../types';
 import { FormInput, FormSelect } from '../common';
 import { DniValidator, UbigeoSelector } from '../application';
-import { CIVIL_STATUS_OPTIONS, GENDER_OPTIONS } from '../../utils';
+import { CIVIL_STATUS_OPTIONS, GENDER_OPTIONS, FORM_CONSTANTS } from '../../utils';
 
 interface ApplicantFormProps {
   data: Partial<Applicant>;
@@ -128,7 +128,7 @@ export const ApplicantForm: React.FC<ApplicantFormProps> = ({
           required
           value={data.first_name || ''}
           onChange={(e) => handleFieldChange('first_name', e.target.value)}
-          placeholder="Juan Carlos"
+          placeholder={FORM_CONSTANTS.placeholders.applicant.firstName}
           error={errors.first_name}
           disabled={dniValidated}
           hint={dniValidated ? 'Autocompletado desde RENIEC' : undefined}
@@ -139,7 +139,7 @@ export const ApplicantForm: React.FC<ApplicantFormProps> = ({
           required
           value={data.last_name || ''}
           onChange={(e) => handleFieldChange('last_name', e.target.value)}
-          placeholder="Pérez López"
+          placeholder={FORM_CONSTANTS.placeholders.applicant.lastName}
           error={errors.last_name}
           disabled={dniValidated}
           hint={dniValidated ? 'Autocompletado desde RENIEC' : undefined}

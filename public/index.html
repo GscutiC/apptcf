@@ -8,6 +8,20 @@
     <meta name="description" content="ScutiTec - Soluciones empresariales sostenibles" />
     <title>ScutiTec</title>
     
+    <!-- ============================================
+         RESOURCE HINTS - Performance Optimization
+         ============================================ -->
+    
+    <!-- DNS Prefetch - Resolver DNS antes de las requests -->
+    <link rel="dns-prefetch" href="http://localhost:8000" />
+    
+    <!-- Preconnect - Establecer conexión temprana con el backend -->
+    <link rel="preconnect" href="http://localhost:8000" crossorigin />
+    
+    <!-- Preload - Cargar recursos críticos primero -->
+    <link rel="preload" href="/src/index.tsx" as="script" />
+    <link rel="preload" href="/src/index.css" as="style" />
+    
     <!-- Pre-carga de configuración ANTES de React -->
     <script>
       (function() {

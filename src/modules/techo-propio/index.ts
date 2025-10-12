@@ -5,6 +5,9 @@
 // Main Router Component
 export { TechoPropio } from './TechoPropio';
 
+// Configuration
+export * from './config';
+
 // Types
 export * from './types';
 

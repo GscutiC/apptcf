@@ -40,13 +40,9 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard Techo Propio</h1>
-          <p className="text-gray-600 mt-1">Gestión de solicitudes del programa de vivienda</p>
-        </div>
-        <Button onClick={() => navigate('/techo-propio/nueva')} size="lg">
+      {/* Botón de acción rápida - Móvil */}
+      <div className="lg:hidden">
+        <Button onClick={() => navigate('/techo-propio/nueva')} size="lg" className="w-full">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
@@ -54,76 +50,18 @@ export const Dashboard: React.FC = () => {
         </Button>
       </div>
 
-      {/* Estadísticas Generales */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card padding="md" className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-blue-600 mb-1">Total Solicitudes</p>
-              <p className="text-3xl font-bold text-blue-900">{statistics?.total_applications || 0}</p>
-            </div>
-            <div className="p-3 bg-blue-500 rounded-full">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-          </div>
-        </Card>
-
-        <Card padding="md" className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-green-600 mb-1">Aprobadas</p>
-              <p className="text-3xl font-bold text-green-900">{statistics?.by_status?.[ApplicationStatus.APPROVED] || 0}</p>
-            </div>
-            <div className="p-3 bg-green-500 rounded-full">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-          </div>
-        </Card>
-
-        <Card padding="md" className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-yellow-600 mb-1">En Proceso</p>
-              <p className="text-3xl font-bold text-yellow-900">
-                {(statistics?.by_status?.[ApplicationStatus.SUBMITTED] || 0) +
-                 (statistics?.by_status?.[ApplicationStatus.UNDER_REVIEW] || 0)}
-              </p>
-            </div>
-            <div className="p-3 bg-yellow-500 rounded-full">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          </div>
-        </Card>
-
-        <Card padding="md" className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-purple-600 mb-1">Promedio Prioridad</p>
-              <p className="text-3xl font-bold text-purple-900">{statistics?.average_priority?.toFixed(0) || 0}</p>
-            </div>
-            <div className="p-3 bg-purple-500 rounded-full">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Distribución por Estado */}
+      {/* Distribución por Estado - Compacta */}
       {statistics && (
-        <Card title="Distribución por Estado">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <Card className="hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Distribución por Estado</h3>
+            <span className="text-sm text-gray-500">{statistics.total_applications || 0} solicitudes totales</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {Object.entries(statistics.by_status || {}).map(([status, count]) => (
-              <div key={status} className="text-center">
-                <StatusBadge status={status as ApplicationStatus} size="md" />
-                <p className="mt-2 text-2xl font-bold text-gray-900">{count}</p>
+              <div key={status} className="text-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200">
+                <StatusBadge status={status as ApplicationStatus} size="sm" />
+                <p className="mt-2 text-xl font-bold text-gray-900">{count}</p>
               </div>
             ))}
           </div>
@@ -131,25 +69,43 @@ export const Dashboard: React.FC = () => {
       )}
 
       {/* Dos columnas: Recientes y Prioritarias */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
         {/* Solicitudes Recientes */}
-        <Card
-          title="Solicitudes Recientes"
-          actions={
+        <Card className="hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Solicitudes Recientes</h3>
+              <p className="text-sm text-gray-500">Últimas actualizaciones</p>
+            </div>
             <Button variant="ghost" size="sm" onClick={() => navigate('/techo-propio/solicitudes')}>
-              Ver todas
+              Ver todas →
             </Button>
-          }
-        >
-          <div className="space-y-3">
+          </div>
+          <div className="space-y-2">
             {recentApplications.length > 0 ? (
               recentApplications.map((app) => (
-                <ApplicationCard
+                <div
                   key={app.id}
-                  application={app}
                   onClick={() => navigate(`/techo-propio/ver/${app.id}`)}
-                  showActions={false}
-                />
+                  className="p-3 bg-gray-50 hover:bg-blue-50 rounded-lg border border-gray-200 hover:border-blue-300 cursor-pointer transition-all group"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 truncate group-hover:text-blue-700">
+                        {app.applicant.first_name} {app.applicant.last_name}
+                      </p>
+                      <p className="text-sm text-gray-500 truncate">DNI: {app.applicant.dni}</p>
+                    </div>
+                    <div className="flex items-center gap-2 ml-3">
+                      <StatusBadge status={app.status} size="sm" />
+                      {app.priority_score > 70 && (
+                        <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-700 rounded">
+                          Alta prioridad
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
               ))
             ) : (
               <p className="text-center text-gray-500 py-8">No hay solicitudes recientes</p>
@@ -158,24 +114,42 @@ export const Dashboard: React.FC = () => {
         </Card>
 
         {/* Solicitudes Prioritarias */}
-        <Card
-          title="Solicitudes Prioritarias"
-          subtitle="Por orden de prioridad"
-          actions={
+        <Card className="hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Solicitudes Prioritarias</h3>
+              <p className="text-sm text-gray-500">Requieren atención inmediata</p>
+            </div>
             <Button variant="ghost" size="sm" onClick={() => navigate('/techo-propio/solicitudes')}>
-              Ver todas
+              Ver todas →
             </Button>
-          }
-        >
-          <div className="space-y-3">
+          </div>
+          <div className="space-y-2">
             {priorityApplications.length > 0 ? (
               priorityApplications.map((app) => (
-                <ApplicationCard
+                <div
                   key={app.id}
-                  application={app}
                   onClick={() => navigate(`/techo-propio/ver/${app.id}`)}
-                  showActions={false}
-                />
+                  className="p-3 bg-gray-50 hover:bg-red-50 rounded-lg border border-gray-200 hover:border-red-300 cursor-pointer transition-all group"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 truncate group-hover:text-red-700">
+                        {app.applicant.first_name} {app.applicant.last_name}
+                      </p>
+                      <p className="text-sm text-gray-500 truncate">DNI: {app.applicant.dni}</p>
+                    </div>
+                    <div className="flex items-center gap-2 ml-3">
+                      <div className="flex items-center gap-1">
+                        <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                        <span className="text-sm font-semibold text-red-700">{app.priority_score}</span>
+                      </div>
+                      <StatusBadge status={app.status} size="sm" />
+                    </div>
+                  </div>
+                </div>
               ))
             ) : (
               <p className="text-center text-gray-500 py-8">No hay solicitudes prioritarias</p>
@@ -185,57 +159,67 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Accesos Rápidos */}
-      <Card title="Accesos Rápidos">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <Card className="hover:shadow-md transition-shadow">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Accesos Rápidos</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           <button
             onClick={() => navigate('/techo-propio/nueva')}
-            className="flex flex-col items-center justify-center p-6 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+            className="group flex flex-col items-center justify-center p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-all border border-blue-200 hover:border-blue-300 hover:shadow-sm"
           >
-            <svg className="w-12 h-12 text-blue-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            <span className="font-medium text-blue-900">Nueva Solicitud</span>
+            <div className="p-3 bg-blue-500 rounded-full mb-2 group-hover:scale-110 transition-transform">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </div>
+            <span className="text-sm font-medium text-blue-900 text-center">Nueva Solicitud</span>
           </button>
 
           <button
             onClick={() => navigate('/techo-propio/solicitudes')}
-            className="flex flex-col items-center justify-center p-6 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
+            className="group flex flex-col items-center justify-center p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-all border border-green-200 hover:border-green-300 hover:shadow-sm"
           >
-            <svg className="w-12 h-12 text-green-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-            <span className="font-medium text-green-900">Ver Todas</span>
+            <div className="p-3 bg-green-500 rounded-full mb-2 group-hover:scale-110 transition-transform">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+            </div>
+            <span className="text-sm font-medium text-green-900 text-center">Ver Todas</span>
           </button>
 
           <button
             onClick={() => navigate('/techo-propio/estadisticas')}
-            className="flex flex-col items-center justify-center p-6 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
+            className="group flex flex-col items-center justify-center p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition-all border border-purple-200 hover:border-purple-300 hover:shadow-sm"
           >
-            <svg className="w-12 h-12 text-purple-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            <span className="font-medium text-purple-900">Estadísticas</span>
+            <div className="p-3 bg-purple-500 rounded-full mb-2 group-hover:scale-110 transition-transform">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <span className="text-sm font-medium text-purple-900 text-center">Estadísticas</span>
           </button>
 
           <button
             onClick={() => navigate('/techo-propio/buscar')}
-            className="flex flex-col items-center justify-center p-6 bg-yellow-50 hover:bg-yellow-100 rounded-lg transition-colors"
+            className="group flex flex-col items-center justify-center p-4 bg-yellow-50 hover:bg-yellow-100 rounded-lg transition-all border border-yellow-200 hover:border-yellow-300 hover:shadow-sm"
           >
-            <svg className="w-12 h-12 text-yellow-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <span className="font-medium text-yellow-900">Buscar</span>
+            <div className="p-3 bg-yellow-500 rounded-full mb-2 group-hover:scale-110 transition-transform">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <span className="text-sm font-medium text-yellow-900 text-center">Buscar</span>
           </button>
 
           <button
             onClick={() => navigate('/techo-propio/convocatorias')}
-            className="flex flex-col items-center justify-center p-6 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors"
+            className="group flex flex-col items-center justify-center p-4 bg-orange-50 hover:bg-orange-100 rounded-lg transition-all border border-orange-200 hover:border-orange-300 hover:shadow-sm"
           >
-            <svg className="w-12 h-12 text-orange-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <span className="font-medium text-orange-900">Configuración</span>
+            <div className="p-3 bg-orange-500 rounded-full mb-2 group-hover:scale-110 transition-transform">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <span className="text-sm font-medium text-orange-900 text-center">Convocatorias</span>
           </button>
         </div>
       </Card>

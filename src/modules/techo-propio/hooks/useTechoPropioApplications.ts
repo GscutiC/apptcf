@@ -12,7 +12,7 @@ import {
   ChangeStatusRequest,
   ApplicationStatus
 } from '../types';
-import { SUCCESS_MESSAGES } from '../utils';
+import { SUCCESS_MESSAGES, logger } from '../utils';
 
 export const useTechoPropioApplications = () => {
   const { getToken } = useAuth();
@@ -37,24 +37,24 @@ export const useTechoPropioApplications = () => {
     setSuccess(null);
 
     try {
-      console.log('🚀 Enviando datos al backend:', data);
+      logger.start('Crear aplicación', data);
       const response = await techoPropioApi.createApplication(data);
-      console.log('📥 Respuesta completa del backend:', response);
+      logger.debug('Respuesta completa del backend', response);
 
       // ✅ El backend devuelve directamente TechoPropioApplicationResponseDTO
       const responseData = response as any; // Flexibilidad de tipos para manejar respuesta real
       if (responseData && responseData.id) {
-        console.log('✅ Solicitud creada exitosamente:', responseData);
+        logger.success('Solicitud creada exitosamente', responseData);
         setSuccess(SUCCESS_MESSAGES.APPLICATION_CREATED);
         return responseData as unknown as TechoPropioApplication;
       } else {
-        console.warn('⚠️ Respuesta inesperada del backend:', response);
+        logger.warn('Respuesta inesperada del backend', response);
         throw new Error('La respuesta del backend no contiene un ID válido');
       }
     } catch (err: any) {
-      console.error('❌ Error detallado al crear aplicación:', err);
-      console.error('❌ Error response:', err?.response);
-      console.error('❌ Error data:', err?.response?.data);
+      logger.failure('Error al crear aplicación', err);
+      logger.error('Error response', err?.response);
+      logger.error('Error data', err?.response?.data);
       
       const errorMessage = err?.response?.data?.detail || err.error || err.message || 'Error al crear solicitud';
       setError(errorMessage);
