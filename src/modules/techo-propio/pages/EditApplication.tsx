@@ -16,7 +16,7 @@ import {
 } from '../components/forms';
 import { ApplicationFormData } from '../types';
 import { validateApplicantForm, validateEconomicForm, validatePropertyForm } from '../utils';
-import { getHouseholdMembers } from '../utils/applicationHelpers';
+import { getHouseholdMembers, normalizeToISODate } from '../utils/applicationHelpers';
 
 export const EditApplication: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -185,10 +185,17 @@ export const EditApplication: React.FC = () => {
                 disability_type: member.disability_type || 'ninguna',
                 member_type: memberType,
                 relationship: member.relationship || 'otro',
-                // Info económica
+                // Info económica - SOLO para miembros con ingresos (HEAD y SPOUSE)
                 employment_situation: member.employment_situation || 'dependiente',
                 work_condition: member.work_condition || 'formal',
-                monthly_income: member.monthly_income || 0,
+                monthly_income: (() => {
+                  // Solo HEAD_OF_FAMILY y SPOUSE tienen ingresos reales
+                  if (memberType === 'HEAD_OF_FAMILY' || memberType === 'SPOUSE') {
+                    return parseFloat(String(member.monthly_income || 0));
+                  }
+                  // ADDITIONAL_FAMILY y FAMILY_DEPENDENT no tienen ingresos
+                  return 0;
+                })(),
                 employment_condition: (member.work_condition || 'FORMAL').toUpperCase() as any,
                 family_bond: member.relationship || member.family_bond || '',
                 is_dependent: member.is_dependent !== undefined ? member.is_dependent : true
@@ -199,10 +206,7 @@ export const EditApplication: React.FC = () => {
             allMembers.push(...transformedMembers);
           }
           
-          console.log('📋 [EDIT APPLICATION] Total miembros cargados (incluyendo jefe):', allMembers.length);
-          allMembers.forEach((m, idx) => {
-            console.log(`  ${idx + 1}. ${m.first_name} ${m.apellido_paterno} - member_type: ${m.member_type}, relationship: ${m.relationship}, is_dependent: ${m.is_dependent}`);
-          });
+
           
           return allMembers;
         })() as any,
@@ -309,27 +313,168 @@ export const EditApplication: React.FC = () => {
       return;
     }
 
-    // Validación final
-    if (!formData.head_of_family || !formData.head_of_family_economic || !formData.property_info) {
+    // ✅ NUEVA VALIDACIÓN: Buscar jefe de familia en household_members primero (igual que NewApplication)
+    const headOfFamilyMember = formData.household_members?.find(member =>
+      member.first_name === formData.head_of_family?.first_name &&
+      member.apellido_paterno === formData.head_of_family?.paternal_surname
+    );
+
+    // ✅ VALIDACIÓN ROBUSTA: Verificar datos obligatorios
+    if (!formData.head_of_family || !formData.property_info) {
       setErrors(['Faltan datos obligatorios en la solicitud']);
       return;
     }
 
-    // Preparar datos para el backend con nueva estructura
+    // ✅ VALIDACIÓN ECONÓMICA: Asegurar que haya información económica en household_members
+    if (!headOfFamilyMember || headOfFamilyMember.monthly_income === undefined) {
+      setErrors(['Debe completar la información económica del jefe de familia en el Paso 2']);
+      return;
+    }
+
+    // ✅ CREAR user_data si no existe (desde head_of_family)
+    const transformedUserData = formData.user_data || {
+      dni: formData.head_of_family.dni || formData.head_of_family.document_number,
+      names: formData.head_of_family.first_name,
+      surnames: `${formData.head_of_family.paternal_surname} ${formData.head_of_family.maternal_surname}`.trim(),
+      phone: formData.head_of_family.phone_number || '',
+      email: formData.head_of_family.email || '',
+      birth_date: normalizeToISODate(formData.head_of_family.birth_date),
+      notes: 'Datos actualizados desde formulario web - Edición solicitud Techo Propio'
+    };
+
+    // ✅ TRANSFORMAR jefe de familia con datos completos
+    const transformedHeadOfFamily = {
+      document_type: 'dni',
+      document_number: formData.head_of_family?.document_number || formData.head_of_family?.dni || '',
+      first_name: formData.head_of_family?.first_name || '',
+      paternal_surname: formData.head_of_family?.paternal_surname || 'Sin Apellido',
+      maternal_surname: formData.head_of_family?.maternal_surname || 'Sin Apellido',
+      birth_date: normalizeToISODate(formData.head_of_family?.birth_date),
+      civil_status: formData.head_of_family?.civil_status || 'soltero',
+      education_level: formData.head_of_family?.education_level || 'secundaria_completa',
+      occupation: formData.head_of_family?.occupation,
+      phone_number: formData.head_of_family?.phone_number,
+      email: formData.head_of_family?.email,
+      disability_type: formData.head_of_family?.disability_type || 'ninguna',
+      is_main_applicant: true
+    };
+
+    // ✅ EXTRAER info económica desde household_members (igual que NewApplication)
+    const transformedHeadOfFamilyEconomic = {
+      employment_situation: headOfFamilyMember?.employment_situation || 'dependiente',
+      monthly_income: parseFloat(String(headOfFamilyMember?.monthly_income || 0)),  // ✅ Convertir a número
+      work_condition: headOfFamilyMember?.work_condition || (headOfFamilyMember?.employment_condition?.toLowerCase() as any) || 'formal',
+      occupation_detail: headOfFamilyMember?.occupation || 'Trabajador',
+      has_additional_income: false,
+      additional_income_amount: undefined,
+      additional_income_source: undefined,
+      employer_name: undefined,
+      is_main_applicant: true
+    };
+
+    // Buscar cónyuge en household_members (si existe)
+    const spouseMember = formData.household_members?.find(member =>
+      member.member_type?.toString().includes('SPOUSE') || member.family_bond === 'conyuge'
+    );
+
+    const transformedSpouseEconomic = spouseMember ? {
+      employment_situation: spouseMember.employment_situation || 'dependiente',
+      monthly_income: parseFloat(String(spouseMember.monthly_income || 0)),  // ✅ Convertir a número
+      work_condition: spouseMember.work_condition || (spouseMember.employment_condition?.toLowerCase() as any) || 'formal',
+      occupation_detail: spouseMember.occupation || 'Trabajador',
+      has_additional_income: false,
+      additional_income_amount: undefined,
+      additional_income_source: undefined,
+      employer_name: undefined,
+      is_main_applicant: false
+    } : null;
+
+    // Transformar property_info para que coincida con la estructura del backend
+    const transformedPropertyInfo = {
+      department: formData.property_info?.department || '',
+      province: formData.property_info?.province || '',
+      district: formData.property_info?.district || '',
+      lote: formData.property_info?.lote || '',
+      address: formData.property_info?.address || '',
+      ubigeo_code: formData.property_info?.ubigeo_code || null,
+      populated_center: formData.property_info?.populated_center || null,
+      manzana: formData.property_info?.manzana || null,
+      sub_lote: formData.property_info?.sub_lote || null,
+      reference: formData.property_info?.reference || null,
+      latitude: formData.property_info?.latitude || null,
+      longitude: formData.property_info?.longitude || null,
+      ubigeo_validated: formData.property_info?.ubigeo_validated || false
+    };
+
+    // Filtrar household_members: excluir jefe de familia (va por separado) para evitar duplicación
+    const transformedHouseholdMembers = (formData.household_members || [])
+      .filter(member =>
+        // Filtrar el jefe de familia basado en DNI para evitar duplicación
+        member.dni !== formData.head_of_family?.dni &&
+        member.dni !== formData.head_of_family?.document_number
+      )
+      .map((member, idx) => {
+        const normalized_birth_date = normalizeToISODate(member.birth_date);
+
+        // Mapear member_type a relationship
+        let relationshipValue = 'otro';
+        const memberTypeStr = String(member.member_type || '').toUpperCase();
+
+        if (memberTypeStr.includes('HEAD') || memberTypeStr === 'JEFE_FAMILIA') {
+          relationshipValue = 'jefe_familia';
+        } else if (memberTypeStr.includes('SPOUSE') || memberTypeStr === 'CONYUGE') {
+          relationshipValue = 'conyuge';
+        } else if (memberTypeStr.includes('DEPENDENT') || memberTypeStr.includes('HIJO')) {
+          relationshipValue = member.relationship || 'hijo';
+        } else if (memberTypeStr.includes('ADDITIONAL')) {
+          relationshipValue = 'otro';
+        } else if (member.relationship) {
+          relationshipValue = member.relationship;
+        }
+
+        // Determinar is_dependent basado en member_type
+        const isDependentValue = memberTypeStr.includes('DEPENDENT') ||
+                                memberTypeStr.includes('HIJO');
+
+        return {
+          first_name: member.first_name,
+          paternal_surname: member.apellido_paterno,
+          maternal_surname: member.apellido_materno,
+          document_type: 'dni',
+          document_number: member.dni,
+          birth_date: normalized_birth_date,
+          civil_status: member.marital_status || 'soltero',
+          education_level: member.education_level || 'secundaria_completa',
+          occupation: member.occupation || 'No especificado',
+          employment_situation: member.employment_situation || 'dependiente',
+          work_condition: member.work_condition || (member.employment_condition || 'FORMAL').toLowerCase(),
+          monthly_income: member.monthly_income || 0,
+          disability_type: member.disability_type || 'ninguna',
+          relationship: relationshipValue,
+          is_dependent: isDependentValue
+        };
+      });
+
+
+
+    // Preparar datos para el backend
     const requestData = {
-      user_data: formData.user_data,
-      head_of_family: formData.head_of_family,
-      spouse: formData.spouse,
-      household_members: formData.household_members || [],
-      head_of_family_economic: formData.head_of_family_economic,
-      spouse_economic: formData.spouse_economic,
-      property_info: formData.property_info,
+      user_data: transformedUserData,
+      head_of_family: transformedHeadOfFamily,
+      head_of_family_economic: transformedHeadOfFamilyEconomic,
+      spouse: formData.spouse ? transformedHeadOfFamily : null,
+      spouse_economic: transformedSpouseEconomic,
+      household_members: transformedHouseholdMembers,
+      property_info: transformedPropertyInfo,
       comments: formData.comments
     };
 
-    const result = await updateApplication(id, requestData);
+    const result = await updateApplication(id, requestData as any);
 
     if (result) {
+      // ✅ Mostrar mensaje de éxito
+      alert(`✅ Solicitud actualizada exitosamente!\n\nID: ${result.id}\nCódigo: ${result.code || id}`);
+
       // Navegar a la vista de detalle
       navigate(`/techo-propio/ver/${id}`);
     } else {
@@ -445,33 +590,98 @@ export const EditApplication: React.FC = () => {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Editar Solicitud</h1>
-          <p className="text-gray-600 mt-1">
-            {selectedApplication?.code || 'Modificando solicitud'}
-          </p>
-        </div>
-        <Button variant="ghost" onClick={handleExit} size="sm">
-          Cancelar
-        </Button>
+    <div className="flex min-h-screen bg-gray-50">
+      {/* Main Content */}
+      <div className="flex-1 p-4 space-y-4">
+        {/* Errores */}
+        {errors.length > 0 && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <svg
+                className="w-6 h-6 text-red-600 flex-shrink-0"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <div className="flex-1">
+                <p className="font-semibold text-red-800 mb-1">
+                  Por favor corrija los siguientes errores:
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-sm text-red-700">
+                  {errors.map((error, idx) => (
+                    <li key={idx}>{error}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Form Step Content */}
+        <Card>{renderStep()}</Card>
+
+        {/* Navigation Buttons */}
+        <Card padding="md">
+          <div className="flex items-center justify-between">
+            <Button
+              variant="secondary"
+              onClick={handlePrevious}
+              disabled={currentStep === 0 || isLoading}
+            >
+              ← Anterior
+            </Button>
+
+            <div className="text-sm text-gray-600">
+              Paso {currentStep + 1} de 5
+            </div>
+
+            {currentStep < 4 ? (
+              <Button onClick={handleNext} disabled={isLoading}>
+                Siguiente →
+              </Button>
+            ) : (
+              <Button onClick={handleSubmit} disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                    Guardando...
+                  </>
+                ) : (
+                  'Guardar Cambios'
+                )}
+              </Button>
+            )}
+          </div>
+        </Card>
       </div>
 
-      {/* Stepper */}
-      <Card padding="md">
-        <div className="flex items-center justify-between">
-          {[0, 1, 2, 3, 4].map((step) => (
-            <React.Fragment key={step}>
-              <div className="flex flex-col items-center">
+      {/* Sidebar - Progress Stepper */}
+      <div className="w-80 bg-white shadow-lg border-l border-gray-200 p-6 min-h-screen">
+        <div className="sticky top-6">
+          {/* Header del Sidebar */}
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-semibold text-gray-900">Editar Solicitud</h3>
+            <Button variant="ghost" onClick={handleExit} size="sm" className="text-gray-600 hover:text-gray-800">
+              ✕
+            </Button>
+          </div>
+          
+          <div className="space-y-4">
+            {[0, 1, 2, 3, 4].map((step) => (
+              <div key={step} className="flex items-center space-x-4">
+                {/* Step Circle */}
                 <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${
+                  className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-200 ${
                     step === currentStep
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-blue-600 text-white shadow-lg'
                       : step < currentStep
                       ? 'bg-green-500 text-white'
-                      : 'bg-gray-300 text-gray-600'
+                      : 'bg-gray-200 text-gray-600'
                   }`}
                 >
                   {step < currentStep ? (
@@ -482,103 +692,92 @@ export const EditApplication: React.FC = () => {
                         clipRule="evenodd"
                       />
                     </svg>
+                  ) : step === 0 ? (
+                    'ℹ️'
                   ) : (
-                    step === 0 ? 'ℹ️' : step
+                    step
                   )}
                 </div>
-                <span
-                  className={`text-xs mt-2 font-medium ${
-                    step === currentStep
-                      ? 'text-blue-600'
-                      : step < currentStep
-                      ? 'text-green-600'
-                      : 'text-gray-500'
-                  }`}
-                >
-                  {step === 0 && 'Información'}
-                  {step === 1 && 'Solicitante'}
-                  {step === 2 && 'Grupo Familiar'}
-                  {step === 3 && 'Predio'}
-                  {step === 4 && 'Revisión'}
-                </span>
+                
+                {/* Step Info */}
+                <div className="flex-1">
+                  <h4
+                    className={`font-medium ${
+                      step === currentStep
+                        ? 'text-blue-600'
+                        : step < currentStep
+                        ? 'text-green-600'
+                        : 'text-gray-500'
+                    }`}
+                  >
+                    {step === 0 && 'Información General'}
+                    {step === 1 && 'Datos del Solicitante'}
+                    {step === 2 && 'Grupo Familiar'}
+                    {step === 3 && 'Información del Predio'}
+                    {step === 4 && 'Revisión y Guardar'}
+                  </h4>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {step === 0 && 'Convocatoria y fecha'}
+                    {step === 1 && 'Datos básicos de contacto'}
+                    {step === 2 && 'Miembros del hogar'}
+                    {step === 3 && 'Datos del terreno'}
+                    {step === 4 && 'Verificar cambios'}
+                  </p>
+                </div>
+                
+                {/* Status Badge */}
+                {step < currentStep && (
+                  <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
+                    Completado
+                  </span>
+                )}
+                {step === currentStep && (
+                  <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                    Editando
+                  </span>
+                )}
               </div>
-              {step < 4 && (
-                <div
-                  className={`flex-1 h-1 mx-2 rounded transition-colors ${
-                    step < currentStep ? 'bg-green-500' : 'bg-gray-300'
-                  }`}
-                />
-              )}
-            </React.Fragment>
-          ))}
-        </div>
-      </Card>
-
-      {/* Errores */}
-      {errors.length > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <svg
-              className="w-6 h-6 text-red-600 flex-shrink-0"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
-              <path
-                fillRule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                clipRule="evenodd"
+            ))}
+          </div>
+          
+          {/* Progress Bar */}
+          <div className="mt-8">
+            <div className="flex justify-between text-sm text-gray-600 mb-2">
+              <span>Progreso</span>
+              <span>{Math.round(((currentStep + 1) / 5) * 100)}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${((currentStep + 1) / 5) * 100}%` }}
               />
-            </svg>
-            <div className="flex-1">
-              <p className="font-semibold text-red-800 mb-1">
-                Por favor corrija los siguientes errores:
-              </p>
-              <ul className="list-disc list-inside space-y-1 text-sm text-red-700">
-                {errors.map((error, idx) => (
-                  <li key={idx}>{error}</li>
-                ))}
-              </ul>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Form Step Content */}
-      <Card>{renderStep()}</Card>
-
-      {/* Navigation Buttons */}
-      <Card padding="md">
-        <div className="flex items-center justify-between">
-          <Button
-            variant="secondary"
-            onClick={handlePrevious}
-            disabled={currentStep === 0 || isLoading}
-          >
-            ← Anterior
-          </Button>
-
-          <div className="text-sm text-gray-600">
-            Paso {currentStep + 1} de 5
+          
+          {/* Help Text */}
+          <div className="mt-8 p-4 bg-blue-50 rounded-lg">
+            <h5 className="text-sm font-medium text-blue-800 mb-2">✏️ Editando</h5>
+            <p className="text-xs text-blue-700">
+              {currentStep === 0 && 'Revise la información de la convocatoria.'}
+              {currentStep === 1 && 'Actualice los datos de contacto si es necesario.'}
+              {currentStep === 2 && 'Modifique los miembros del hogar.'}
+              {currentStep === 3 && 'Corrija los datos del terreno si es necesario.'}
+              {currentStep === 4 && 'Revise todos los cambios antes de guardar.'}
+            </p>
           </div>
-
-          {currentStep < 4 ? (
-            <Button onClick={handleNext} disabled={isLoading}>
-              Siguiente →
-            </Button>
-          ) : (
-            <Button onClick={handleSubmit} disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                  Guardando...
-                </>
-              ) : (
-                'Guardar Cambios'
-              )}
-            </Button>
-          )}
+          
+          {/* Application Info */}
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+            <h5 className="text-sm font-medium text-gray-800 mb-2">📄 Solicitud</h5>
+            <p className="text-xs text-gray-600">
+              <strong>Código:</strong> {selectedApplication?.code || 'N/A'}
+            </p>
+            <p className="text-xs text-gray-600 mt-1">
+              <strong>Estado:</strong> {selectedApplication?.status || 'N/A'}
+            </p>
+          </div>
         </div>
-      </Card>
+      </div>
 
       {/* Exit Confirmation Modal */}
       <Modal

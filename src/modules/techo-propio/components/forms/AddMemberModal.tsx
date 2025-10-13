@@ -674,43 +674,19 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
               error={errors.family_bond}
             />
 
-            {/* Información opcional adicional */}
-            <div className="border-t pt-4">
-              <h4 className="text-md font-semibold text-gray-900 mb-4">
-                📝 Información Adicional (Opcional)
-              </h4>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormInput
-                  type="date"
-                  label="Fecha de Nacimiento"
-                  value={currentMember.birth_date || ''}
-                  onChange={(e) => setCurrentMember({ ...currentMember, birth_date: e.target.value })}
-                  hint="Opcional - solo si se conoce"
-                />
+            {/* Información opcional adicional REMOVIDA - Solo campos obligatorios para Familia Adicional */}
 
-                <FormSelect
-                  label="Estado Civil"
-                  value={currentMember.marital_status || ''}
-                  onChange={(e) => setCurrentMember({ ...currentMember, marital_status: e.target.value as CivilStatus })}
-                  options={CIVIL_STATUS_OPTIONS}
-                  placeholder="Seleccionar (opcional)"
-                  hint="Opcional"
-                />
-              </div>
-            </div>
-
-            {/* Resumen específico para familia adicional */}
+            {/* Resumen específico para familia adicional - Solo datos obligatorios */}
             <div className="bg-gray-50 rounded-lg p-4">
               <h4 className="font-medium text-gray-900 mb-2">Resumen del Miembro Adicional</h4>
               <div className="text-sm text-gray-600 space-y-1">
                 <p><strong>Nombre:</strong> {currentMember.first_name} {currentMember.apellido_paterno} {currentMember.apellido_materno}</p>
                 <p><strong>DNI:</strong> {currentMember.dni}</p>
                 <p><strong>Vínculo:</strong> {FAMILY_BOND_OPTIONS.find(b => b.value === currentMember.family_bond)?.label || 'Sin especificar'}</p>
-                {currentMember.birth_date && (
-                  <p><strong>Fecha de Nacimiento:</strong> {new Date(currentMember.birth_date).toLocaleDateString('es-PE')}</p>
-                )}
               </div>
+              <p className="text-xs text-blue-600 mt-2">
+                ℹ️ <strong>Información simplificada:</strong> Para miembros adicionales de la familia, solo se requieren datos básicos de identificación y vínculo familiar.
+              </p>
             </div>
           </div>
         )}

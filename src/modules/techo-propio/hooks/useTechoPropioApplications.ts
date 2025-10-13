@@ -79,9 +79,12 @@ export const useTechoPropioApplications = () => {
     try {
       const response = await techoPropioApi.updateApplication(id, data);
 
-      if (response.success) {
+      // Manejar ambos formatos de respuesta del backend
+      if (response && (response.success === true || (response as any).id)) {
         setSuccess(SUCCESS_MESSAGES.APPLICATION_UPDATED);
-        return response.data;
+        // Si tiene estructura { success: true, data: ... }, usar data
+        // Si es directamente el objeto de la aplicación, usar response
+        return response.data || (response as any);
       } else {
         throw new Error('Error al actualizar solicitud');
       }

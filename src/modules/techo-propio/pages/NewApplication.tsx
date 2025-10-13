@@ -354,18 +354,7 @@ export const NewApplication: React.FC = () => {
         member.dni !== formData.head_of_family?.document_number
       )
       .map((member, idx) => {
-        // 🐛 DEBUG: Ver el valor ANTES de normalizar
-        console.log(`🔍 [MEMBER ${idx + 1}] ANTES de normalizar:`, {
-          name: `${member.first_name} ${member.apellido_paterno}`,
-          birth_date_raw: member.birth_date,
-          birth_date_type: typeof member.birth_date
-        });
-        
         const normalized_birth_date = normalizeToISODate(member.birth_date);
-        
-        console.log(`✅ [MEMBER ${idx + 1}] DESPUÉS de normalizar:`, {
-          birth_date_normalized: normalized_birth_date
-        });
 
         // ✅ Mapear member_type a relationship correctamente
         let relationshipValue = 'otro';
@@ -411,33 +400,35 @@ export const NewApplication: React.FC = () => {
     // 🐛 DEBUG: Verificar que no hay duplicados
 
 
-    // ✅ NUEVA ESTRUCTURA: Preparar datos para el backend usando estructura esperada (head_of_family)
-    const requestData = {
-      convocation_code: formData.application_info?.convocation_code || '',
-      user_data: transformedUserData,  // ✅ NUEVO: Datos de usuario
-      head_of_family: transformedHeadOfFamily,  // ✅ BACKEND ESPERA: head_of_family
-      head_of_family_economic: transformedHeadOfFamilyEconomic,  // ✅ MAPEO: Info económica desde household
-      spouse: formData.spouse ? transformedHeadOfFamily : null,  // ✅ CAMBIO: Usar spouse si existe
-      spouse_economic: transformedSpouseEconomic,  // ✅ MAPEO: Info económica cónyuge desde household
-      household_members: transformedHouseholdMembers,
-      property_info: formData.property_info as any,
-      comments: formData.comments
+    // Transformar property_info para que coincida con la estructura del backend
+    const transformedPropertyInfo = {
+      department: formData.property_info?.department || '',
+      province: formData.property_info?.province || '',
+      district: formData.property_info?.district || '',
+      lote: formData.property_info?.lote || '',
+      address: formData.property_info?.address || '',
+      ubigeo_code: formData.property_info?.ubigeo_code || null,
+      populated_center: formData.property_info?.populated_center || null,
+      manzana: formData.property_info?.manzana || null,
+      sub_lote: formData.property_info?.sub_lote || null,
+      reference: formData.property_info?.reference || null,
+      latitude: formData.property_info?.latitude || null,
+      longitude: formData.property_info?.longitude || null,
+      ubigeo_validated: formData.property_info?.ubigeo_validated || false
     };
 
-    // 🐛 DEBUG: Ver datos que se envían al backend
-    console.log('📤 [NEW APPLICATION] Datos completos enviando al backend:', JSON.stringify(requestData, null, 2));
-    console.log('📤 [HOUSEHOLD MEMBERS] Total miembros:', transformedHouseholdMembers.length);
-    transformedHouseholdMembers.forEach((member, idx) => {
-      console.log(`  - Miembro ${idx + 1}:`, {
-        name: `${member.first_name} ${member.paternal_surname}`,
-        dni: member.document_number,
-        relationship: member.relationship,
-        is_dependent: member.is_dependent,
-        birth_date: member.birth_date,
-        birth_date_type: typeof member.birth_date
-      });
-    });
-
+    // Preparar datos para el backend
+    const requestData = {
+      convocation_code: formData.application_info?.convocation_code || '',
+      user_data: transformedUserData,
+      head_of_family: transformedHeadOfFamily,
+      head_of_family_economic: transformedHeadOfFamilyEconomic,
+      spouse: formData.spouse ? transformedHeadOfFamily : null,
+      spouse_economic: transformedSpouseEconomic,
+      household_members: transformedHouseholdMembers,
+      property_info: transformedPropertyInfo,
+      comments: formData.comments
+    };
 
     const result = await createApplication(requestData as any);
 
@@ -553,169 +544,214 @@ export const NewApplication: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Nueva Solicitud</h1>
-          <p className="text-gray-600 mt-1">Complete el formulario en {totalSteps} pasos</p>
-        </div>
-        <Button variant="ghost" onClick={handleExit} size="sm">
-          Salir
-        </Button>
-      </div>
-
-      {/* Stepper */}
-      <Card padding="md">
-        <div className="flex items-center justify-between">
-          {[0, 1, 2, 3, 4].map((step) => (
-            <React.Fragment key={step}>
-              <div className="flex flex-col items-center">
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${
-                    step === currentStep
-                      ? 'bg-blue-600 text-white'
-                      : step < currentStep
-                      ? 'bg-green-500 text-white'
-                      : 'bg-gray-300 text-gray-600'
-                  }`}
+    <>
+      <div className="flex min-h-screen bg-gray-50">
+        {/* Main Content Area */}
+        <div className="flex-1 p-4 space-y-4">
+          {/* Errores */}
+          {errors.length > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <svg
+                  className="w-6 h-6 text-red-600 flex-shrink-0"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
                 >
-                  {step < currentStep ? (
-                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                      <path
-                        fillRule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  ) : (
-                    step === 0 ? 'ℹ️' : step
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <div className="flex-1">
+                  <p className="font-semibold text-red-800 mb-1">
+                    Por favor corrija los siguientes errores:
+                  </p>
+                  <ul className="list-disc list-inside space-y-1 text-sm text-red-700">
+                    {errors.map((error, idx) => (
+                      <li key={idx}>{error}</li>
+                    ))}
+                  </ul>
+                  {/* Botón de ayuda para DNI duplicado */}
+                  {errors.some(error => error.includes('DNI') && error.includes('registrado')) && (
+                    <div className="mt-3 pt-3 border-t border-red-200">
+                      <p className="text-sm text-red-700 mb-2">
+                        💡 <strong>Solución rápida:</strong> Genere DNIs únicos automáticamente para pruebas
+                      </p>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={generateUniqueDNIs}
+                        className="bg-white border-red-300 text-red-700 hover:bg-red-50"
+                      >
+                        🔄 Generar DNIs Únicos
+                      </Button>
+                    </div>
                   )}
                 </div>
-                <span
-                  className={`text-xs mt-2 font-medium ${
-                    step === currentStep
-                      ? 'text-blue-600'
-                      : step < currentStep
-                      ? 'text-green-600'
-                      : 'text-gray-500'
-                  }`}
-                >
-                  {step === 0 && 'Información'}
-                  {step === 1 && 'Solicitante'}
-                  {step === 2 && 'Grupo Familiar'}
-                  {step === 3 && 'Predio'}
-                  {step === 4 && 'Revisión'}
-                </span>
               </div>
-              {step < lastStepIndex && (
-                <div
-                  className={`flex-1 h-1 mx-2 rounded transition-colors ${
-                    step < currentStep ? 'bg-green-500' : 'bg-gray-300'
-                  }`}
-                />
-              )}
-            </React.Fragment>
-          ))}
-        </div>
-      </Card>
+            </div>
+          )}
 
-      {/* Errores */}
-      {errors.length > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <svg
-              className="w-6 h-6 text-red-600 flex-shrink-0"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
-              <path
-                fillRule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <div className="flex-1">
-              <p className="font-semibold text-red-800 mb-1">
-                Por favor corrija los siguientes errores:
-              </p>
-              <ul className="list-disc list-inside space-y-1 text-sm text-red-700">
-                {errors.map((error, idx) => (
-                  <li key={idx}>{error}</li>
-                ))}
-              </ul>
-              {/* Botón de ayuda para DNI duplicado */}
-              {errors.some(error => error.includes('DNI') && error.includes('registrado')) && (
-                <div className="mt-3 pt-3 border-t border-red-200">
-                  <p className="text-sm text-red-700 mb-2">
-                    💡 <strong>Solución rápida:</strong> Genere DNIs únicos automáticamente para pruebas
-                  </p>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={generateUniqueDNIs}
-                    className="bg-white border-red-300 text-red-700 hover:bg-red-50"
-                  >
-                    🔄 Generar DNIs Únicos
-                  </Button>
-                </div>
+          {/* Form Step Content */}
+          <Card>{renderStep()}</Card>
+
+          {/* Navigation Buttons */}
+          <Card padding="md">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={handlePrevious}
+                  disabled={currentStep === 0 || isLoading}
+                >
+                  ← Anterior
+                </Button>
+                
+                {/* Botón de herramientas de desarrollo */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={generateUniqueDNIs}
+                  disabled={isLoading}
+                  className="text-xs text-gray-600 border border-gray-300 hover:bg-gray-50"
+                  title="Generar DNIs únicos para pruebas"
+                >
+                  🔧 DNIs Únicos
+                </Button>
+              </div>
+
+              <div className="text-sm text-gray-600">
+                Paso {currentStep + 1} de {totalSteps}
+              </div>
+
+              {currentStep < lastStepIndex ? (
+                <Button onClick={handleNext} disabled={isLoading}>
+                  Siguiente →
+                </Button>
+              ) : (
+                <Button onClick={handleSubmit} disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                      Enviando...
+                    </>
+                  ) : (
+                    'Enviar Solicitud'
+                  )}
+                </Button>
               )}
+            </div>
+          </Card>
+        </div>
+
+        {/* Sidebar - Progress Stepper */}
+        <div className="w-80 bg-white shadow-lg border-l border-gray-200 p-6 min-h-screen">
+        <div className="sticky top-6">
+          {/* Header del Sidebar */}
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-semibold text-gray-900">Nueva Solicitud</h3>
+            <Button variant="ghost" onClick={handleExit} size="sm" className="text-gray-600 hover:text-gray-800">
+              ✕
+            </Button>
+          </div>            <div className="space-y-4">
+              {[0, 1, 2, 3, 4].map((step) => (
+                <div key={step} className="flex items-center space-x-4">
+                  {/* Step Circle */}
+                  <div
+                    className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-200 ${
+                      step === currentStep
+                        ? 'bg-blue-600 text-white shadow-lg'
+                        : step < currentStep
+                        ? 'bg-green-500 text-white'
+                        : 'bg-gray-200 text-gray-600'
+                    }`}
+                  >
+                    {step < currentStep ? (
+                      <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                        <path
+                          fillRule="evenodd"
+                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    ) : step === 0 ? (
+                      'ℹ️'
+                    ) : (
+                      step
+                    )}
+                  </div>
+                  
+                  {/* Step Info */}
+                  <div className="flex-1">
+                    <h4
+                      className={`font-medium ${
+                        step === currentStep
+                          ? 'text-blue-600'
+                          : step < currentStep
+                          ? 'text-green-600'
+                          : 'text-gray-500'
+                      }`}
+                    >
+                      {step === 0 && 'Información General'}
+                      {step === 1 && 'Datos del Solicitante'}
+                      {step === 2 && 'Grupo Familiar'}
+                      {step === 3 && 'Información del Predio'}
+                      {step === 4 && 'Revisión y Envío'}
+                    </h4>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {step === 0 && 'Convocatoria y fecha'}
+                      {step === 1 && 'Datos básicos de contacto'}
+                      {step === 2 && 'Miembros del hogar'}
+                      {step === 3 && 'Datos del terreno'}
+                      {step === 4 && 'Verificar información'}
+                    </p>
+                  </div>
+                  
+                  {/* Status Badge */}
+                  {step < currentStep && (
+                    <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
+                      Completado
+                    </span>
+                  )}
+                  {step === currentStep && (
+                    <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                      Actual
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+            
+            {/* Progress Bar */}
+            <div className="mt-8">
+              <div className="flex justify-between text-sm text-gray-600 mb-2">
+                <span>Progreso</span>
+                <span>{Math.round(((currentStep + 1) / totalSteps) * 100)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${((currentStep + 1) / totalSteps) * 100}%` }}
+                />
+              </div>
+            </div>
+            
+            {/* Help Text */}
+            <div className="mt-8 p-4 bg-blue-50 rounded-lg">
+              <h5 className="text-sm font-medium text-blue-800 mb-2">💡 Consejos</h5>
+              <p className="text-xs text-blue-700">
+                {currentStep === 0 && 'Seleccione la convocatoria correspondiente a su solicitud.'}
+                {currentStep === 1 && 'Complete solo los datos básicos de contacto del solicitante principal.'}
+                {currentStep === 2 && 'Agregue todos los miembros que vivan en el hogar.'}
+                {currentStep === 3 && 'Ingrese los datos del terreno donde se construirá la vivienda.'}
+                {currentStep === 4 && 'Revise toda la información antes de enviar la solicitud.'}
+              </p>
             </div>
           </div>
         </div>
-      )}
-
-      {/* Form Step Content */}
-      <Card>{renderStep()}</Card>
-
-      {/* Navigation Buttons */}
-      <Card padding="md">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="secondary"
-              onClick={handlePrevious}
-              disabled={currentStep === 0 || isLoading}
-            >
-              ← Anterior
-            </Button>
-            
-            {/* Botón de herramientas de desarrollo */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={generateUniqueDNIs}
-              disabled={isLoading}
-              className="text-xs text-gray-600 border border-gray-300 hover:bg-gray-50"
-              title="Generar DNIs únicos para pruebas"
-            >
-              🔧 DNIs Únicos
-            </Button>
-          </div>
-
-          <div className="text-sm text-gray-600">
-            Paso {currentStep + 1} de {totalSteps}
-          </div>
-
-          {currentStep < lastStepIndex ? (
-            <Button onClick={handleNext} disabled={isLoading}>
-              Siguiente →
-            </Button>
-          ) : (
-            <Button onClick={handleSubmit} disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                  Enviando...
-                </>
-              ) : (
-                'Enviar Solicitud'
-              )}
-            </Button>
-          )}
-        </div>
-      </Card>
-
+      </div>
+      
       {/* Exit Confirmation Modal */}
       <Modal
         isOpen={exitModal}
@@ -736,7 +772,7 @@ export const NewApplication: React.FC = () => {
           ¿Está seguro de salir? Su progreso se guardará como borrador y podrá continuar más tarde.
         </p>
       </Modal>
-    </div>
+    </>
   );
 };
 

@@ -55,7 +55,10 @@ export const TechoPropioLayout: React.FC<TechoPropioLayoutProps> = ({ children }
 
       {/* Sidebar del módulo - Desktop */}
       <div className="hidden lg:block">
-        <TechoPropioSidebar isCollapsed={isSidebarCollapsed} />
+        <TechoPropioSidebar 
+          isCollapsed={isSidebarCollapsed} 
+          onToggle={toggleSidebar}
+        />
       </div>
 
       {/* Sidebar del módulo - Móvil */}
@@ -64,7 +67,11 @@ export const TechoPropioLayout: React.FC<TechoPropioLayoutProps> = ({ children }
           isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <TechoPropioSidebar isCollapsed={false} onClose={closeMobileSidebar} />
+        <TechoPropioSidebar 
+          isCollapsed={false} 
+          onClose={closeMobileSidebar}
+          onToggle={toggleSidebar}
+        />
       </div>
 
       {/* Contenido principal */}
@@ -73,15 +80,9 @@ export const TechoPropioLayout: React.FC<TechoPropioLayoutProps> = ({ children }
           isSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-56'
         }`}
       >
-        {/* Header del módulo */}
-        <TechoPropioHeader
-          onToggleSidebar={toggleSidebar}
-          isSidebarCollapsed={isSidebarCollapsed}
-        />
-
         {/* Área de contenido scrolleable */}
         <main className="flex-1 overflow-y-auto bg-gray-50">
-          <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="h-full px-4 py-4">
             {children}
           </div>
         </main>

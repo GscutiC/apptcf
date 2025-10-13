@@ -3,8 +3,11 @@
  * Navegación interna del módulo con diseño independiente
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { UserButton } from '@clerk/clerk-react';
+import { useAuthProfile } from '../../../../hooks/useAuthProfile';
+import { adaptUserProfileToUser } from '../../../../shared/utils/userAdapter';
 import { MODULE_CONFIG } from '../../config/moduleConfig';
 
 interface SidebarItemProps {
@@ -45,14 +48,19 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ icon, label, path, isActive, 
 interface TechoPropioSidebarProps {
   isCollapsed?: boolean;
   onClose?: () => void;
+  onToggle?: () => void;
 }
 
 export const TechoPropioSidebar: React.FC<TechoPropioSidebarProps> = ({ 
   isCollapsed = false,
-  onClose 
+  onClose,
+  onToggle
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { userProfile } = useAuthProfile();
+  const currentUser = adaptUserProfileToUser(userProfile);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Navegación items
   const navigationItems = [
@@ -97,6 +105,13 @@ export const TechoPropioSidebar: React.FC<TechoPropioSidebarProps> = ({
     navigate('/dashboard');
   };
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/techo-propio/buscar?q=${encodeURIComponent(searchQuery)}`);
+    }
+  };
+
   const isPathActive = (path: string, exact: boolean = false) => {
     if (exact) {
       return location.pathname === path;
@@ -107,6 +122,19 @@ export const TechoPropioSidebar: React.FC<TechoPropioSidebarProps> = ({
   if (isCollapsed) {
     return (
       <div className="w-20 bg-white border-r border-gray-200 flex flex-col h-screen fixed left-0 top-0 z-40">
+        {/* Botón expandir */}
+        {onToggle && (
+          <button
+            onClick={onToggle}
+            className="absolute top-3 right-2 p-1.5 rounded-lg hover:bg-gray-100 transition-colors z-50"
+            title="Expandir sidebar"
+          >
+            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+            </svg>
+          </button>
+        )}
+
         {/* Logo colapsado */}
         <div className="p-4 border-b border-gray-200">
           <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-blue-600 rounded-lg flex items-center justify-center">
@@ -150,18 +178,34 @@ export const TechoPropioSidebar: React.FC<TechoPropioSidebarProps> = ({
 
   return (
     <div className="w-56 bg-white border-r border-gray-200 flex flex-col h-screen fixed left-0 top-0 z-40 shadow-lg lg:translate-x-0">
-      {/* Botón cerrar para móviles */}
-      {onClose && (
-        <button
-          onClick={onClose}
-          className="lg:hidden absolute top-3 right-3 p-1.5 rounded-lg hover:bg-gray-100 transition-colors z-50"
-          aria-label="Cerrar menú"
-        >
-          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      )}
+      {/* Botones de control */}
+      <div className="absolute top-3 right-3 flex items-center gap-1 z-50">
+        {/* Botón toggle para desktop */}
+        {onToggle && (
+          <button
+            onClick={onToggle}
+            className="hidden lg:block p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+            title="Contraer sidebar"
+          >
+            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+            </svg>
+          </button>
+        )}
+        
+        {/* Botón cerrar para móviles */}
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="lg:hidden p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+            aria-label="Cerrar menú"
+          >
+            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+      </div>
       
       {/* Header del módulo */}
       <div className="p-4 border-b border-gray-200">
@@ -186,6 +230,52 @@ export const TechoPropioSidebar: React.FC<TechoPropioSidebarProps> = ({
             <div className="text-base font-bold text-green-900">0</div>
           </div>
         </div>
+      </div>
+
+      {/* Usuario */}
+      <div className="p-3 border-b border-gray-200">
+        <div className="flex items-center gap-2 mb-3">
+          <UserButton afterSignOutUrl="/sign-in" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium text-gray-900 truncate">
+              {currentUser?.first_name || 'Usuario'}
+            </div>
+            <div className="text-xs text-gray-500 truncate">
+              {currentUser?.role?.display_name || 'Rol'}
+            </div>
+          </div>
+          {/* Notificaciones */}
+          <button
+            className="relative p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+            title="Notificaciones"
+          >
+            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+          </button>
+        </div>
+      </div>
+
+      {/* Búsqueda rápida */}
+      <div className="p-3 border-b border-gray-200">
+        <form onSubmit={handleSearch} className="relative">
+          <input
+            type="text"
+            placeholder="Buscar solicitud..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          />
+          <svg
+            className="w-4 h-4 text-gray-400 absolute left-2.5 top-1/2 transform -translate-y-1/2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </form>
       </div>
 
       {/* Navegación */}
