@@ -123,16 +123,6 @@ export const validateApplicant = (applicant: Partial<Applicant>): { isValid: boo
   if (!applicant.first_name?.trim()) errors.first_name = 'El nombre es requerido';
   if (!applicant.last_name?.trim()) errors.last_name = 'El apellido es requerido';
 
-  // Birth date
-  const birthDateValidation = validateAge(applicant.birth_date || '');
-  if (!birthDateValidation.isValid) errors.birth_date = birthDateValidation.error!;
-
-  // Gender
-  if (!applicant.gender) errors.gender = 'El género es requerido';
-
-  // Marital status
-  if (!applicant.marital_status) errors.marital_status = 'El estado civil es requerido';
-
   // Phone
   const phoneValidation = validatePhone(applicant.phone || '');
   if (!phoneValidation.isValid) errors.phone = phoneValidation.error!;
@@ -141,11 +131,11 @@ export const validateApplicant = (applicant: Partial<Applicant>): { isValid: boo
   const emailValidation = validateEmail(applicant.email || '');
   if (!emailValidation.isValid) errors.email = emailValidation.error!;
 
-  // Current address
-  if (!applicant.current_address?.department) errors['current_address.department'] = 'El departamento es requerido';
-  if (!applicant.current_address?.province) errors['current_address.province'] = 'La provincia es requerida';
-  if (!applicant.current_address?.district) errors['current_address.district'] = 'El distrito es requerido';
-  if (!applicant.current_address?.address?.trim()) errors['current_address.address'] = 'La dirección es requerida';
+  // ✅ CAMPOS ELIMINADOS (se capturan en Paso 2):
+  // - birth_date (Fecha de nacimiento)
+  // - gender (Género)
+  // - marital_status (Estado civil)
+  // - current_address (Dirección actual completa)
 
   return {
     isValid: Object.keys(errors).length === 0,

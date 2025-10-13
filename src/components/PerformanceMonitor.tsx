@@ -58,52 +58,23 @@ export const usePerformanceMonitor = (enabled: boolean = true) => {
         const lastEntry = entries[entries.length - 1] as any;
         metrics.lcp = lastEntry.renderTime || lastEntry.loadTime;
         
-        // Log de métricas en desarrollo
-        if (process.env.NODE_ENV === 'development') {
-          logMetrics(metrics);
-        }
+        // Métricas capturadas para LCP
       });
       
       observer.observe({ type: 'largest-contentful-paint', buffered: true });
     } catch (e) {
-      console.warn('LCP not supported');
+      // LCP not supported in this browser
     }
 
-    // Log inicial de métricas disponibles
-    if (process.env.NODE_ENV === 'development') {
-      setTimeout(() => logMetrics(metrics), 1000);
-    }
+    // Métricas de performance capturadas
 
     // Enviar métricas a analytics (cuando esté configurado)
     // sendToAnalytics(metrics);
   };
 
   const logMetrics = (metrics: PerformanceMetrics) => {
-    console.group('📊 Performance Metrics');
-    
-    if (metrics.ttfb) {
-      console.log(`⏱️  TTFB: ${Math.round(metrics.ttfb)}ms`);
-    }
-    
-    if (metrics.fcp) {
-      const fcpColor = metrics.fcp < 1000 ? '🟢' : metrics.fcp < 2500 ? '🟡' : '🔴';
-      console.log(`${fcpColor} FCP: ${Math.round(metrics.fcp)}ms`);
-    }
-    
-    if (metrics.lcp) {
-      const lcpColor = metrics.lcp < 2500 ? '🟢' : metrics.lcp < 4000 ? '🟡' : '🔴';
-      console.log(`${lcpColor} LCP: ${Math.round(metrics.lcp)}ms`);
-    }
-    
-    if (metrics.domInteractive) {
-      console.log(`🔄 DOM Interactive: ${Math.round(metrics.domInteractive)}ms`);
-    }
-    
-    if (metrics.loadTime) {
-      console.log(`✅ Load Complete: ${Math.round(metrics.loadTime)}ms`);
-    }
-    
-    console.groupEnd();
+    // Métricas disponibles para analytics cuando esté configurado
+    // Se puede enviar a servicio de monitoreo en producción
   };
 };
 

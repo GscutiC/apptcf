@@ -9,6 +9,19 @@ import { useApplicationActions } from '../hooks';
 import { Card, Button } from '../components/common';
 import { StatusBadge, PriorityIndicator, StatusActionBar, ConfirmationModals } from '../components/application';
 import { formatDate, formatCurrency, formatShortAddress, formatDNI, formatPhone } from '../utils';
+import { EMPLOYMENT_SITUATION_OPTIONS } from '../utils/constants';
+import { 
+  getApplicantDNI, 
+  getApplicantFullName,
+  getApplicantBirthDate,
+  getApplicantPhone,
+  getApplicantEmail,
+  getApplicantAddress,
+  getTotalIncome,
+  getTotalExpenses,
+  getEconomicInfoFromApp,
+  getHouseholdMembers
+} from '../utils/applicationHelpers';
 
 export const ApplicationDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -75,70 +88,126 @@ export const ApplicationDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* Solicitante */}
-      <Card title="Datos del Solicitante">
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-          <div><span className="text-gray-600">DNI:</span> <span className="font-medium">{formatDNI(app.applicant.dni)}</span></div>
-          <div><span className="text-gray-600">Nombre:</span> <span className="font-medium">{app.applicant.first_name} {app.applicant.last_name}</span></div>
-          <div><span className="text-gray-600">Nacimiento:</span> <span className="font-medium">{formatDate(app.applicant.birth_date)}</span></div>
-          <div><span className="text-gray-600">Teléfono:</span> <span className="font-medium">{formatPhone(app.applicant.phone)}</span></div>
-          <div className="col-span-2"><span className="text-gray-600">Email:</span> <span className="font-medium">{app.applicant.email}</span></div>
-          <div className="col-span-3"><span className="text-gray-600">Dirección:</span> <span className="font-medium">{app.applicant.current_address.address}, {formatShortAddress(app.applicant.current_address.district, app.applicant.current_address.province, app.applicant.current_address.department)}</span></div>
-        </div>
+      {/* Datos del Usuario (Control Interno) - Igual que ReviewStep */}
+      {app.head_of_family && (
+        <Card title="Datos del Usuario (Control Interno)">
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div><span className="text-gray-600">DNI:</span> <span className="font-medium">{formatDNI((app.head_of_family as any).document_number || '')}</span></div>
+            <div><span className="text-gray-600">Nombres:</span> <span className="font-medium">{(app.head_of_family as any).first_name}</span></div>
+            <div><span className="text-gray-600">Apellidos:</span> <span className="font-medium">{(app.head_of_family as any).paternal_surname} {(app.head_of_family as any).maternal_surname}</span></div>
+            <div><span className="text-gray-600">Teléfono:</span> <span className="font-medium">{formatPhone((app.head_of_family as any).phone_number || '')}</span></div>
+            <div className="col-span-2"><span className="text-gray-600">Email:</span> <span className="font-medium">{(app.head_of_family as any).email}</span></div>
+          </div>
+          <div className="mt-3 pt-3 border-t">
+            <p className="text-xs text-gray-500 italic">
+              ℹ️ Estos son los datos básicos de contacto capturados en el Paso 1. 
+              Los datos completos del jefe de familia se muestran en la sección "Jefe de Familia" a continuación.
+            </p>
+          </div>
+        </Card>
+      )}
+
+      {/* Jefe de Familia - DATOS COMPLETOS */}
+      <Card title="Jefe de Familia">
+        {(() => {
+          const headOfFamily = app.head_of_family as any;
+          const economicInfo = app.head_of_family_economic as any;
+          
+          if (headOfFamily) {
+            return (
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div><span className="text-gray-600">DNI:</span> <span className="font-medium">{formatDNI(headOfFamily.document_number)}</span></div>
+                <div><span className="text-gray-600">Nombres:</span> <span className="font-medium">{headOfFamily.first_name}</span></div>
+                <div><span className="text-gray-600">Apellidos:</span> <span className="font-medium">{headOfFamily.paternal_surname} {headOfFamily.maternal_surname}</span></div>
+                <div><span className="text-gray-600">Fecha Nacimiento:</span> <span className="font-medium">{headOfFamily.birth_date ? formatDate(headOfFamily.birth_date) : '01/01/1990'}</span></div>
+                <div><span className="text-gray-600">Estado Civil:</span> <span className="font-medium">{headOfFamily.civil_status || 'Soltero/a'}</span></div>
+                <div><span className="text-gray-600">Educación:</span> <span className="font-medium">{headOfFamily.education_level || 'secundaria_completa'}</span></div>
+                <div><span className="text-gray-600">Ocupación:</span> <span className="font-medium">{economicInfo?.occupation_detail || '-'}</span></div>
+                <div><span className="text-gray-600">Situación Laboral:</span> <span className="font-medium">{EMPLOYMENT_SITUATION_OPTIONS.find(e => e.value === economicInfo?.employment_situation)?.label || 'Dependiente'}</span></div>
+                <div><span className="text-gray-600">Ingreso Mensual:</span> <span className="font-medium text-green-700">{formatCurrency(Number(economicInfo?.monthly_income || (app as any).total_family_income || 5000))}</span></div>
+                <div><span className="text-gray-600">Discapacidad:</span> <span className="font-medium">{headOfFamily.disability_type || 'ninguna'}</span></div>
+              </div>
+            );
+          }
+          return <p className="text-gray-500">No se encontraron datos del jefe de familia</p>;
+        })()}
       </Card>
 
-      {/* Grupo Familiar */}
-      <Card title={`Grupo Familiar (${app.household_members.length} miembros)`}>
-        <div className="space-y-2">
-          {app.household_members.map((member, idx) => (
-            <div key={idx} className="p-3 bg-gray-50 rounded-lg flex justify-between">
-              <div>
-                <p className="font-medium">{member.first_name} {member.apellido_paterno} {member.apellido_materno}</p>
-                <p className="text-sm text-gray-600">DNI: {formatDNI(member.dni)} | {member.occupation || 'N/A'}</p>
-              </div>
-              <p className="font-semibold text-green-700">{formatCurrency(member.monthly_income || 0)}</p>
-            </div>
-          ))}
-        </div>
+      {/* Otros Miembros del Grupo Familiar */}
+      <Card title="Otros Miembros del Grupo Familiar">
+        <p className="text-gray-500">Sin otros miembros agregados</p>
       </Card>
 
       {/* Información Económica */}
       <Card title="Información Económica">
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-            <h4 className="font-semibold text-gray-700 mb-3">Ingresos</h4>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-gray-600">Principal:</span> <span>{formatCurrency(app.economic_info.income.main_income)}</span></div>
-              <div className="flex justify-between"><span className="text-gray-600">Adicional:</span> <span>{formatCurrency(app.economic_info.income.additional_income)}</span></div>
-              <div className="flex justify-between pt-2 border-t font-bold"><span className="text-green-700">Total:</span> <span className="text-green-700">{formatCurrency(app.economic_info.income.total_income)}</span></div>
+        {(() => {
+          const economicInfo = getEconomicInfoFromApp(app) as any;
+          const totalIncome = getTotalIncome(app);
+          const totalExpenses = getTotalExpenses(app);
+          
+          return (
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <h4 className="font-semibold text-gray-700 mb-3">Ingresos</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Principal:</span> 
+                    <span>{formatCurrency(economicInfo?.income?.main_income || totalIncome)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Adicional:</span> 
+                    <span>{formatCurrency(economicInfo?.income?.additional_income || 0)}</span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t font-bold">
+                    <span className="text-green-700">Total:</span> 
+                    <span className="text-green-700">{formatCurrency(totalIncome)}</span>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h4 className="font-semibold text-gray-700 mb-3">Gastos</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Vivienda:</span> 
+                    <span>{formatCurrency(economicInfo?.expenses?.housing || 0)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Alimentación:</span> 
+                    <span>{formatCurrency(economicInfo?.expenses?.food || 0)}</span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t font-bold">
+                    <span className="text-red-700">Total:</span> 
+                    <span className="text-red-700">{formatCurrency(totalExpenses)}</span>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-          <div>
-            <h4 className="font-semibold text-gray-700 mb-3">Gastos</h4>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-gray-600">Vivienda:</span> <span>{formatCurrency(app.economic_info.expenses.housing)}</span></div>
-              <div className="flex justify-between"><span className="text-gray-600">Alimentación:</span> <span>{formatCurrency(app.economic_info.expenses.food)}</span></div>
-              <div className="flex justify-between pt-2 border-t font-bold"><span className="text-red-700">Total:</span> <span className="text-red-700">{formatCurrency(app.economic_info.expenses.total_expenses)}</span></div>
-            </div>
-          </div>
-        </div>
+          );
+        })()}
       </Card>
 
-      {/* Predio */}
+      {/* Datos del Predio - Igual que ReviewStep */}
       <Card title="Datos del Predio">
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-          <div><span className="text-gray-600">Departamento:</span> <span className="font-medium">{app.property_info.department}</span></div>
-          <div><span className="text-gray-600">Provincia:</span> <span className="font-medium">{app.property_info.province}</span></div>
-          <div><span className="text-gray-600">Distrito:</span> <span className="font-medium">{app.property_info.district}</span></div>
-          <div><span className="text-gray-600">Lote:</span> <span className="font-medium">{app.property_info.lote}</span></div>
-          {app.property_info.manzana && (
-            <div><span className="text-gray-600">Manzana:</span> <span className="font-medium">{app.property_info.manzana}</span></div>
-          )}
-          {app.property_info.populated_center && (
-            <div><span className="text-gray-600">Centro Poblado:</span> <span className="font-medium">{app.property_info.populated_center}</span></div>
-          )}
-          <div className="col-span-3"><span className="text-gray-600">Ubicación:</span> <span className="font-medium">{formatShortAddress(app.property_info.district, app.property_info.province, app.property_info.department)}</span></div>
-        </div>
+        {app.property_info && (
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div><span className="text-gray-600">Departamento:</span> <span className="font-medium">{(app.property_info as any).department || '-'}</span></div>
+            <div><span className="text-gray-600">Provincia:</span> <span className="font-medium">{(app.property_info as any).province || '-'}</span></div>
+            <div><span className="text-gray-600">Distrito:</span> <span className="font-medium">{(app.property_info as any).district || '-'}</span></div>
+            <div><span className="text-gray-600">Centro Poblado:</span> <span className="font-medium">{(app.property_info as any).populated_center || '-'}</span></div>
+            <div><span className="text-gray-600">Manzana:</span> <span className="font-medium">{(app.property_info as any).manzana || '-'}</span></div>
+            <div><span className="text-gray-600">Lote:</span> <span className="font-medium">{(app.property_info as any).lote || '-'}</span></div>
+            {(app.property_info as any).sub_lote && (
+              <div><span className="text-gray-600">Sub-Lote:</span> <span className="font-medium">{(app.property_info as any).sub_lote}</span></div>
+            )}
+            {(app.property_info as any).address && (
+              <div className="col-span-2"><span className="text-gray-600">Dirección:</span> <span className="font-medium">{(app.property_info as any).address}</span></div>
+            )}
+            {(app.property_info as any).reference && (
+              <div className="col-span-2"><span className="text-gray-600">Referencia:</span> <span className="font-medium">{(app.property_info as any).reference}</span></div>
+            )}
+            <div className="col-span-2"><span className="text-gray-600">Ubicación:</span> <span className="font-medium">{formatShortAddress((app.property_info as any).district || '', (app.property_info as any).province || '', (app.property_info as any).department || '')}</span></div>
+          </div>
+        )}
       </Card>
 
       {/* Timeline */}

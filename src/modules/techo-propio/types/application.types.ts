@@ -277,14 +277,23 @@ export interface TechoPropioApplication {
   sequential_number?: number;
   application_number?: string | null;
   
-  applicant: Applicant;
+  // ✅ CORREGIDO: Soportar múltiples nombres de campo para compatibilidad
+  applicant?: Applicant;  // Frontend antiguo
+  head_of_family?: Applicant;  // Backend nuevo (nombre correcto)
+  main_applicant?: Applicant;  // MongoDB (nombre legacy)
+  
   household_members: HouseholdMember[];
-  household_size: number;
-  economic_info: EconomicInfo;
+  household_size?: number;
+  
+  // ✅ CORREGIDO: Soportar múltiples nombres para info económica
+  economic_info?: EconomicInfo;  // Frontend antiguo
+  head_of_family_economic?: EconomicInfo;  // Backend nuevo
+  main_applicant_economic?: EconomicInfo;  // MongoDB legacy
+  
   property_info: PropertyInfo;
   priority_score: number;
-  documents: Document[];
-  state_history: StateHistory[];
+  documents?: Document[];
+  state_history?: StateHistory[];
   comments?: string;
   created_at: string; // ISO date string
   updated_at: string; // ISO date string

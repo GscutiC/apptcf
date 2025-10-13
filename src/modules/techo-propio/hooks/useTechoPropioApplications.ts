@@ -158,9 +158,15 @@ export const useTechoPropioApplications = () => {
 
       const response = await techoPropioApi.changeStatus(id, payload);
 
+      // ✅ ARREGLO: El API puede retornar directamente el objeto o encapsulado en {success, data}
       if (response.success) {
+        // Caso 1: Respuesta encapsulada {success: true, data: {...}}
         setSuccess(SUCCESS_MESSAGES.STATUS_CHANGED);
         return response.data;
+      } else if ((response as any).id && (response as any).status) {
+        // Caso 2: Respuesta directa del objeto (nuestro caso actual)
+        setSuccess(SUCCESS_MESSAGES.STATUS_CHANGED);
+        return response as any;
       } else {
         throw new Error('Error al cambiar estado');
       }

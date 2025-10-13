@@ -13,7 +13,7 @@ import { ModalType, ModalState } from '../components/application/ConfirmationMod
 export const useApplicationActions = (applicationId?: string) => {
   const navigate = useNavigate();
   const { fetchApplication, refreshApplications, deleteApplication } = useTechoPropio();
-  const { submitApplication, changeStatus } = useTechoPropioApplications();
+  const { submitApplication, changeStatus, error: apiError, success: apiSuccess } = useTechoPropioApplications();
   
   const [showModal, setShowModal] = useState<ModalState>({ type: null });
   const [isLoading, setIsLoading] = useState(false);
@@ -52,18 +52,20 @@ export const useApplicationActions = (applicationId?: string) => {
 
         case 'startReview':
           result = await changeStatus(applicationId, ApplicationStatus.UNDER_REVIEW);
-          success = result !== null;
+          success = result !== null && result !== undefined;
           break;
 
         case 'approve':
           result = await changeStatus(applicationId, ApplicationStatus.APPROVED);
-          success = result !== null;
+          // ✅ ARREGLO: changeStatus no arroja excepción si es exitoso, solo retorna null si hay error
+          success = result !== null && result !== undefined;
           break;
 
         case 'reject':
           if (data?.reason) {
             result = await changeStatus(applicationId, ApplicationStatus.REJECTED, data.reason);
-            success = result !== null;
+            // ✅ ARREGLO: Misma lógica mejorada para rechazo
+            success = result !== null && result !== undefined;
           } else {
             setError('Debe proporcionar un motivo de rechazo');
             setIsLoading(false);
@@ -110,20 +112,22 @@ export const useApplicationActions = (applicationId?: string) => {
           return;
       }
 
-      if (success) {
-        // Cerrar modal PRIMERO
+        if (success) {
+        // ✅ OPTIMIZACIÓN: Cerrar modal PRIMERO para mejor UX
         closeModal();
         
-        // Luego refrescar datos en segundo plano
+        // ✅ CRÍTICO: Pequeño delay para asegurar consistencia en el backend
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // ✅ CRÍTICO: Actualizar en paralelo para mejor rendimiento y sincronización
         await Promise.all([
-          fetchApplication(applicationId),
-          refreshApplications()
+          fetchApplication(applicationId), // Actualizar aplicación específica
+          refreshApplications()           // Actualizar lista completa
         ]);
       } else {
         setError('Error al ejecutar la acción');
       }
     } catch (err) {
-      console.error('Error en handleConfirm:', err);
       setError(err instanceof Error ? err.message : 'Error desconocido');
     } finally {
       setIsLoading(false);

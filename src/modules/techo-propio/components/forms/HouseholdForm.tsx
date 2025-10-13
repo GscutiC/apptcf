@@ -10,7 +10,8 @@ import {
   EmploymentSituation,
   WorkCondition,
   DisabilityType,
-  MemberType
+  MemberType,
+  FamilyRelationship
 } from '../../types';
 import { Button, Card } from '../common';
 import { AddMemberModal } from './AddMemberModal';
@@ -77,14 +78,68 @@ export const HouseholdForm: React.FC<HouseholdFormProps> = ({
     setEditingIndex(null);
   };
 
-  const totalIncome = data.reduce((sum, member) => sum + (member.monthly_income || 0), 0);
+  const totalIncome = data.reduce((sum, member) => sum + Number(member.monthly_income || 0), 0);
 
-  // Agrupar miembros por tipo
-  const headOfFamily = data.find(member => member.member_type === MemberType.HEAD_OF_FAMILY);
-  const spouse = data.find(member => member.member_type === MemberType.SPOUSE);
-  const additionalFamily = data.filter(member => member.member_type === MemberType.ADDITIONAL_FAMILY);
-  const familyDependents = data.filter(member => member.member_type === MemberType.FAMILY_DEPENDENT);
-  const otherMembers = data.filter(member => member.member_type === MemberType.OTHER);
+  // 🐛 DEBUG: Ver qué member_type tienen los miembros
+  React.useEffect(() => {
+    if (data.length > 0) {
+      console.log('🔍 [HOUSEHOLD FORM] Miembros cargados:', data.length);
+      data.forEach((member, idx) => {
+        console.log(`  - Miembro ${idx + 1}:`, {
+          name: `${member.first_name} ${member.apellido_paterno}`,
+          member_type: member.member_type,
+          member_type_value: typeof member.member_type,
+          relationship: member.relationship
+        });
+      });
+    }
+  }, [data]);
+
+  // Agrupar miembros por tipo - Compatible con strings y enums
+  const headOfFamily = data.find(member => 
+    member.member_type === MemberType.HEAD_OF_FAMILY ||
+    member.member_type?.toString().toUpperCase().includes('HEAD') ||
+    member.member_type?.toString() === 'JEFE_FAMILIA' ||
+    (member.relationship && String(member.relationship) === 'jefe_familia')
+  );
+  
+  const spouse = data.find(member => 
+    member.member_type === MemberType.SPOUSE ||
+    member.member_type?.toString().toUpperCase().includes('SPOUSE') ||
+    member.member_type?.toString().toLowerCase() === 'conyuge' ||
+    member.relationship === FamilyRelationship.SPOUSE ||
+    (member.relationship && String(member.relationship) === 'conyuge')
+  );
+  
+  const additionalFamily = data.filter(member => 
+    member.member_type === MemberType.ADDITIONAL_FAMILY ||
+    member.member_type?.toString().toUpperCase().includes('ADDITIONAL')
+  );
+  
+  const familyDependents = data.filter(member => 
+    member.member_type === MemberType.FAMILY_DEPENDENT ||
+    member.member_type?.toString().toUpperCase().includes('DEPENDENT')
+  );
+  
+  const otherMembers = data.filter(member => 
+    member.member_type === MemberType.OTHER ||
+    (!headOfFamily || member !== headOfFamily) &&
+    (!spouse || member !== spouse) &&
+    !additionalFamily.includes(member) &&
+    !familyDependents.includes(member)
+  );
+
+  // 🐛 DEBUG: Ver cómo quedó la agrupación
+  React.useEffect(() => {
+    if (data.length > 0) {
+      console.log('📊 [HOUSEHOLD FORM] Agrupación de miembros:');
+      console.log('  - Jefe:', headOfFamily ? `${headOfFamily.first_name} ${headOfFamily.apellido_paterno}` : '❌ NO ENCONTRADO');
+      console.log('  - Cónyuge:', spouse ? `${spouse.first_name} ${spouse.apellido_paterno}` : '❌ NO ENCONTRADO');
+      console.log('  - Familia adicional:', additionalFamily.length);
+      console.log('  - Dependientes:', familyDependents.length);
+      console.log('  - Otros:', otherMembers.length);
+    }
+  }, [data, headOfFamily, spouse, additionalFamily, familyDependents, otherMembers]);
 
   const renderMemberCard = (member: HouseholdMember, index: number, isSimplified = false) => (
     <div
@@ -114,23 +169,28 @@ export const HouseholdForm: React.FC<HouseholdFormProps> = ({
               <span>Situación: {EMPLOYMENT_SITUATION_OPTIONS.find(e => e.value === member.employment_situation)?.label || 'N/A'}</span>
               <span>Condición: {WORK_CONDITION_OPTIONS.find(c => c.value === (member.work_condition || member.employment_condition?.toLowerCase()))?.label || 'N/A'}</span>
               <span>Discapacidad: {DISABILITY_TYPE_OPTIONS.find(d => d.value === member.disability_type)?.label || 'N/A'}</span>
-              <span className="font-medium text-green-700">S/ {(member.monthly_income || 0).toFixed(2)}</span>
+              <span className="font-medium text-green-700">S/ {Number(member.monthly_income || 0).toFixed(2)}</span>
             </div>
           </>
         )}
 
         {/* Información simplificada para familia adicional y carga familiar */}
         {isSimplified && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 text-sm text-gray-600">
-            <span>DNI: {member.dni}</span>
-            <span>Vínculo: {FAMILY_BOND_OPTIONS.find(b => b.value === member.family_bond)?.label || 'Sin especificar'}</span>
-            {member.birth_date && (
-              <span>Nacimiento: {new Date(member.birth_date).toLocaleDateString('es-PE')}</span>
-            )}
-            {member.marital_status && (
-              <span>Estado Civil: {CIVIL_STATUS_OPTIONS.find(s => s.value === member.marital_status)?.label}</span>
-            )}
-          </div>
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2 text-sm text-gray-600">
+              <span>DNI: {member.dni}</span>
+              <span>Vínculo: {FAMILY_BOND_OPTIONS.find(b => b.value === (member.family_bond || member.relationship))?.label || 'Sin especificar'}</span>
+              {member.birth_date && (
+                <span>Nacimiento: {new Date(member.birth_date).toLocaleDateString('es-PE')}</span>
+              )}
+              <span>Estado Civil: {CIVIL_STATUS_OPTIONS.find(s => s.value === member.marital_status)?.label || 'Soltero/a'}</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-1 text-sm text-gray-600">
+              <span>Educación: {EDUCATION_LEVEL_OPTIONS.find(e => e.value === member.education_level)?.label || 'N/A'}</span>
+              <span>Ocupación: {member.occupation || 'No especificado'}</span>
+              <span>Discapacidad: {DISABILITY_TYPE_OPTIONS.find(d => d.value === member.disability_type)?.label || 'Ninguna'}</span>
+            </div>
+          </>
         )}
       </div>
 

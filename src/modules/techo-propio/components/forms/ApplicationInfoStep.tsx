@@ -18,7 +18,6 @@ interface ApplicationInfo {
 interface ApplicationInfoStepProps {
   data: ApplicationInfo;
   onChange: (data: ApplicationInfo) => void;
-  onNext: () => void;
   errors: string[];
 }
 
@@ -27,7 +26,6 @@ interface ApplicationInfoStepProps {
 export const ApplicationInfoStep: React.FC<ApplicationInfoStepProps> = ({
   data,
   onChange,
-  onNext,
   errors
 }) => {
   // Hook de autenticación de Clerk
@@ -49,6 +47,19 @@ export const ApplicationInfoStep: React.FC<ApplicationInfoStepProps> = ({
     application_number: data.application_number || 'Se generará automáticamente'
   });
 
+  // Efecto para preseleccionar convocatoria actual si la aplicación no tiene una asignada
+  useEffect(() => {
+    if (availableConvocations.length > 0 && !formData.convocation_code) {
+      // Buscar la convocatoria marcada como actual (is_current: true)
+      const currentConvocation = availableConvocations.find(conv => conv.is_current);
+      if (currentConvocation) {
+        const updated = { ...formData, convocation_code: currentConvocation.value };
+        setFormData(updated);
+        onChange(updated);
+      }
+    }
+  }, [availableConvocations]); // Removido formData.convocation_code y onChange para evitar loops
+
   // Cargar convocatorias disponibles
   useEffect(() => {
     const loadConvocations = async () => {
@@ -62,19 +73,15 @@ export const ApplicationInfoStep: React.FC<ApplicationInfoStepProps> = ({
         // Usar el servicio para cargar convocatorias
         const convocations = await convocationService.getConvocationOptions();
         
-        console.log('🎯 [ApplicationInfoStep] Convocatorias cargadas:', convocations);
-        
-        // Filtrar solo convocatorias activas
-        const activeConvocations = convocations.filter(conv => conv.is_active);
-        setAvailableConvocations(activeConvocations);
-
-        console.log('✅ [ApplicationInfoStep] Convocatorias activas:', activeConvocations);
+        // Para edit mode, incluir TODAS las convocatorias para evitar pérdida de datos
+        // Esto permite editar aplicaciones con convocatorias que ya no están activas
+        setAvailableConvocations(convocations);
 
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
         setConvocationError(`Error al cargar las convocatorias: ${errorMessage}`);
         
-        console.error('❌ [ApplicationInfoStep] Error al cargar convocatorias:', error);
+
         
         // Fallback a lista mínima
         setAvailableConvocations([
@@ -95,32 +102,16 @@ export const ApplicationInfoStep: React.FC<ApplicationInfoStepProps> = ({
 
 
   useEffect(() => {
-    console.log('🔄 [ApplicationInfoStep] Props data cambió:', data);
-    setFormData(prev => {
-      const updated = {
-        ...prev,
-        ...data
-      };
-      console.log('🔄 [ApplicationInfoStep] FormData actualizado:', {
-        anterior: prev,
-        nuevo: updated
-      });
-      return updated;
-    });
+    setFormData(prev => ({
+      ...prev,
+      ...data
+    }));
   }, [data]);
 
   const handleChange = (field: keyof ApplicationInfo, value: any) => {
-    console.log('✏️ [ApplicationInfoStep] Campo cambiado:', field, '=', value);
     const updated = { ...formData, [field]: value };
     setFormData(updated);
     onChange(updated);
-  };
-
-  const handleNext = () => {
-    if (!formData.convocation_code || loadingConvocations) {
-      return; // Validación básica
-    }
-    onNext();
   };
 
   const isValid = formData.convocation_code && 
@@ -283,21 +274,7 @@ export const ApplicationInfoStep: React.FC<ApplicationInfoStepProps> = ({
         </div>
       )}
 
-      {/* Action Buttons */}
-      <div className="flex justify-end">
-        <Button
-          variant="primary"
-          size="lg"
-          onClick={handleNext}
-          disabled={!isValid}
-          className="min-w-[200px]"
-        >
-          Continuar al Paso 1
-          <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </Button>
-      </div>
+
     </div>
   );
 };

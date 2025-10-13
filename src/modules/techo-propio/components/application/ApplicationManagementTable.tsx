@@ -7,6 +7,12 @@ import React, { useState } from 'react';
 import { TechoPropioApplication, ApplicationStatus } from '../../types';
 import { StatusBadge, PriorityIndicator } from './';
 import { formatDate, formatDNI, STATUS_CONFIG } from '../../utils';
+import { 
+  getApplicantDNI, 
+  getApplicantFullName,
+  getApplicantFirstName,
+  getApplicantLastName 
+} from '../../utils/applicationHelpers';
 
 interface ApplicationManagementTableProps {
   applications: TechoPropioApplication[];
@@ -38,9 +44,9 @@ export const ApplicationManagementTable: React.FC<ApplicationManagementTableProp
   const filteredApplications = applications.filter(app => {
     const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
     const matchesSearch = !searchTerm ||
-      app.applicant.dni.includes(searchTerm) ||
-      app.applicant.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      app.applicant.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      getApplicantDNI(app).includes(searchTerm) ||
+      getApplicantFirstName(app).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      getApplicantLastName(app).toLowerCase().includes(searchTerm.toLowerCase()) ||
       app.code.toLowerCase().includes(searchTerm.toLowerCase());
 
     return matchesStatus && matchesSearch;
@@ -256,10 +262,10 @@ export const ApplicationManagementTable: React.FC<ApplicationManagementTableProp
                     {app.code}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                    {app.applicant.first_name} {app.applicant.last_name}
+                    {getApplicantFullName(app)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                    {formatDNI(app.applicant.dni)}
+                    {formatDNI(getApplicantDNI(app))}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <StatusBadge status={app.status} size="sm" />

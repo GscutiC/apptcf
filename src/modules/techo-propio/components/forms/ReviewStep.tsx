@@ -14,17 +14,95 @@ interface ReviewStepProps {
 }
 
 export const ReviewStep: React.FC<ReviewStepProps> = ({ data, onEdit }) => {
-  // 🐛 DEBUG: Ver qué datos están llegando al componente
-  React.useEffect(() => {
-    console.log('📋 ReviewStep - data:', data);
-    console.log('👤 user_data:', data.user_data);
-    console.log('👨‍👩‍👧‍👦 head_of_family:', data.head_of_family);
-    console.log('💑 spouse:', data.spouse);
-    console.log('👥 household_members:', data.household_members);
-    console.log('🏠 property_info:', data.property_info);
-  }, [data]);
+  const { user_data, head_of_family, spouse, household_members, property_info, comments, head_of_family_economic } = data;
 
-  const { user_data, head_of_family, spouse, household_members, property_info, comments } = data;
+  // 🔧 DETECCIÓN DE MODO: Creación vs Edición
+  // En CREACIÓN: household_members puede estar vacío o tener solo adicionales/dependientes
+  // En EDICIÓN: household_members contiene TODOS los miembros incluyendo jefe
+  const isEditMode = household_members?.some(m => 
+    m.member_type?.toString().includes('HEAD') || 
+    m.member_type?.toString() === 'JEFE_FAMILIA'
+  );
+
+  // 🔧 CONSTRUIR ARRAY COMPLETO DE MIEMBROS
+  let allMembers = household_members || [];
+  
+  if (!isEditMode && head_of_family) {
+    // MODO CREACIÓN: Construir miembro jefe manualmente
+    const headMember: any = {
+      id: 'temp-head',
+      member_type: 'HEAD_OF_FAMILY',
+      dni: head_of_family.document_number || head_of_family.dni || '',
+      first_name: head_of_family.first_name || '',
+      apellido_paterno: head_of_family.paternal_surname || '',
+      apellido_materno: head_of_family.maternal_surname || '',
+      birth_date: head_of_family.birth_date || '',
+      marital_status: head_of_family.civil_status || '',
+      phone_number: head_of_family.phone_number || '',
+      email: head_of_family.email || '',
+      education_level: head_of_family.education_level || '',
+      occupation: head_of_family_economic?.occupation_detail || '',
+      employment_situation: head_of_family_economic?.employment_situation || '',
+      work_condition: head_of_family_economic?.work_condition || '',
+      monthly_income: head_of_family_economic?.monthly_income || 0,
+      disability_type: head_of_family.disability_type || 'Ninguna',
+      relationship: 'jefe',
+      family_bond: 'Jefe de Familia'
+    };
+    
+    // Agregar spouse si existe
+    const spouseMember: any = spouse ? {
+      id: 'temp-spouse',
+      member_type: 'SPOUSE',
+      dni: spouse.document_number || spouse.dni || '',
+      first_name: spouse.first_name || '',
+      apellido_paterno: spouse.paternal_surname || '',
+      apellido_materno: spouse.maternal_surname || '',
+      birth_date: spouse.birth_date || '',
+      marital_status: spouse.civil_status || '',
+      phone_number: spouse.phone_number || '',
+      email: spouse.email || '',
+      education_level: spouse.education_level || '',
+      occupation: (data.spouse_economic as any)?.occupation_detail || '',
+      employment_situation: (data.spouse_economic as any)?.employment_situation || '',
+      monthly_income: (data.spouse_economic as any)?.monthly_income || 0,
+      disability_type: spouse.disability_type || 'Ninguna',
+      relationship: 'conyuge',
+      family_bond: 'Cónyuge'
+    } : null;
+    
+    allMembers = [headMember, ...(spouseMember ? [spouseMember] : []), ...allMembers];
+  }
+
+  // 🔧 Buscar el jefe de familia en el array completo
+  const realHeadOfFamily = allMembers.find(member => 
+    member.member_type?.toString().includes('HEAD') || 
+    member.member_type?.toString() === 'JEFE_FAMILIA' ||
+    String(member.relationship) === 'jefe' ||
+    (member.dni === head_of_family?.dni || member.dni === head_of_family?.document_number)
+  );
+
+  // 🔧 DEBUG: Console logs para diagnosticar
+  console.log('🔍 ReviewStep DEBUG:');
+  console.log('- isEditMode:', isEditMode);
+  console.log('- household_members length:', household_members?.length || 0);
+  console.log('- allMembers length:', allMembers?.length || 0);
+  allMembers?.forEach((member, index) => {
+    console.log(`- allMembers[${index}]:`, {
+      id: member.id,
+      name: `${member.first_name} ${member.apellido_paterno}`,
+      member_type: member.member_type,
+      member_type_toString: member.member_type?.toString(),
+      relationship: member.relationship,
+      // Tests para cada condición
+      isHEAD: member.member_type?.toString().includes('HEAD'),
+      isSPOUSE: member.member_type?.toString().includes('SPOUSE'),
+      isADDITIONAL: member.member_type?.toString().includes('ADDITIONAL'),
+      isDEPENDENT: member.member_type?.toString().includes('DEPENDENT'),
+      relationshipConyuge: member.relationship === 'conyuge'
+    });
+  });
+  console.log('- realHeadOfFamily:', realHeadOfFamily ? `${realHeadOfFamily.first_name} ${realHeadOfFamily.apellido_paterno}` : 'NOT FOUND');
 
   const EditButton: React.FC<{ step: number }> = ({ step }) => (
     <button
@@ -46,75 +124,222 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ data, onEdit }) => {
         </p>
       </div>
 
-      {/* Datos del Usuario (Control Interno) */}
-      <Card title="Datos del Usuario (Control Interno)" actions={<EditButton step={1} />}>
-        {user_data && (
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div><span className="text-gray-600">DNI:</span> <span className="font-medium">{formatDNI(user_data.dni || '')}</span></div>
-            <div><span className="text-gray-600">Nombres:</span> <span className="font-medium">{user_data.names}</span></div>
-            <div><span className="text-gray-600">Apellidos:</span> <span className="font-medium">{user_data.surnames}</span></div>
-            <div><span className="text-gray-600">Teléfono:</span> <span className="font-medium">{formatPhone(user_data.phone || '')}</span></div>
-            <div className="col-span-2"><span className="text-gray-600">Email:</span> <span className="font-medium">{user_data.email}</span></div>
-            {user_data.notes && (
-              <div className="col-span-2"><span className="text-gray-600">Notas:</span> <span className="font-medium">{user_data.notes}</span></div>
-            )}
-          </div>
-        )}
-      </Card>
-
-      {/* Jefe de Familia */}
-      <Card title="Jefe de Familia" actions={<EditButton step={2} />}>
-        {head_of_family && (
+      {/* Datos del Usuario (Control Interno) - Solo datos básicos del Paso 1 */}
+      {head_of_family && (
+        <Card title="Datos del Usuario (Control Interno)" actions={<EditButton step={1} />}>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div><span className="text-gray-600">DNI:</span> <span className="font-medium">{formatDNI(head_of_family.dni || head_of_family.document_number || '')}</span></div>
             <div><span className="text-gray-600">Nombres:</span> <span className="font-medium">{head_of_family.first_name}</span></div>
             <div><span className="text-gray-600">Apellidos:</span> <span className="font-medium">{head_of_family.paternal_surname} {head_of_family.maternal_surname}</span></div>
-            <div><span className="text-gray-600">Fecha Nacimiento:</span> <span className="font-medium">{head_of_family.birth_date ? formatDate(head_of_family.birth_date) : '-'}</span></div>
-            <div><span className="text-gray-600">Estado Civil:</span> <span className="font-medium">{CIVIL_STATUS_OPTIONS.find(m => m.value === head_of_family.civil_status)?.label || '-'}</span></div>
             <div><span className="text-gray-600">Teléfono:</span> <span className="font-medium">{formatPhone(head_of_family.phone_number || '')}</span></div>
             <div className="col-span-2"><span className="text-gray-600">Email:</span> <span className="font-medium">{head_of_family.email}</span></div>
-            <div className="col-span-2"><span className="text-gray-600">Ocupación:</span> <span className="font-medium">{head_of_family.occupation}</span></div>
           </div>
-        )}
-      </Card>
-
-      {/* Cónyuge */}
-      {spouse && (
-        <Card title="Cónyuge/Conviviente" actions={<EditButton step={2} />}>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div><span className="text-gray-600">DNI:</span> <span className="font-medium">{formatDNI(spouse.dni || spouse.document_number || '')}</span></div>
-            <div><span className="text-gray-600">Nombres:</span> <span className="font-medium">{spouse.first_name}</span></div>
-            <div><span className="text-gray-600">Apellidos:</span> <span className="font-medium">{spouse.paternal_surname} {spouse.maternal_surname}</span></div>
-            <div><span className="text-gray-600">Fecha Nacimiento:</span> <span className="font-medium">{spouse.birth_date ? formatDate(spouse.birth_date) : '-'}</span></div>
-            <div><span className="text-gray-600">Estado Civil:</span> <span className="font-medium">{CIVIL_STATUS_OPTIONS.find(m => m.value === spouse.civil_status)?.label || '-'}</span></div>
-            <div><span className="text-gray-600">Teléfono:</span> <span className="font-medium">{formatPhone(spouse.phone_number || '')}</span></div>
-            <div className="col-span-2"><span className="text-gray-600">Email:</span> <span className="font-medium">{spouse.email}</span></div>
-            <div className="col-span-2"><span className="text-gray-600">Ocupación:</span> <span className="font-medium">{spouse.occupation}</span></div>
+          <div className="mt-3 pt-3 border-t">
+            <p className="text-xs text-gray-500 italic">
+              ℹ️ Estos son los datos básicos de contacto capturados en el Paso 1. 
+              Los datos completos del jefe de familia se muestran en la sección "Jefe de Familia" a continuación.
+            </p>
           </div>
         </Card>
       )}
 
-      {/* Grupo Familiar */}
-      <Card title="Grupo Familiar" actions={<EditButton step={2} />}>
-        {household_members && household_members.length > 0 ? (
-          <div className="space-y-3">
-            {household_members.map((member, idx) => (
-              <div key={idx} className="p-3 bg-gray-50 rounded-lg">
-                <p className="font-medium">{member.first_name} {member.apellido_paterno} {member.apellido_materno}</p>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2 text-sm text-gray-600">
-                  <span>DNI: {formatDNI(member.dni)}</span>
-                  <span>Relación: {FAMILY_RELATIONSHIP_OPTIONS.find(r => r.value === member.relationship)?.label}</span>
-                  <span>Ocupación: {member.occupation || 'N/A'}</span>
-                  <span className="text-green-700 font-medium">{formatCurrency(member.monthly_income || 0)}</span>
+      {/* Jefe de Familia - DATOS COMPLETOS desde household_members */}
+      <Card title="Jefe de Familia" actions={<EditButton step={2} />}>
+        {realHeadOfFamily ? (
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div><span className="text-gray-600">DNI:</span> <span className="font-medium">{formatDNI(realHeadOfFamily.dni || '')}</span></div>
+            <div><span className="text-gray-600">Nombres:</span> <span className="font-medium">{realHeadOfFamily.first_name}</span></div>
+            <div><span className="text-gray-600">Apellidos:</span> <span className="font-medium">{realHeadOfFamily.apellido_paterno} {realHeadOfFamily.apellido_materno}</span></div>
+            <div><span className="text-gray-600">Fecha Nacimiento:</span> <span className="font-medium">{realHeadOfFamily.birth_date ? formatDate(realHeadOfFamily.birth_date) : '-'}</span></div>
+            <div><span className="text-gray-600">Estado Civil:</span> <span className="font-medium">{CIVIL_STATUS_OPTIONS.find(m => m.value === realHeadOfFamily.marital_status)?.label || '-'}</span></div>
+            <div><span className="text-gray-600">Educación:</span> <span className="font-medium">{realHeadOfFamily.education_level || '-'}</span></div>
+            <div><span className="text-gray-600">Ocupación:</span> <span className="font-medium">{realHeadOfFamily.occupation || '-'}</span></div>
+            <div><span className="text-gray-600">Situación Laboral:</span> <span className="font-medium">{realHeadOfFamily.employment_situation || '-'}</span></div>
+            <div><span className="text-gray-600">Ingreso Mensual:</span> <span className="font-medium text-green-700">{formatCurrency(realHeadOfFamily.monthly_income || 0)}</span></div>
+            <div><span className="text-gray-600">Discapacidad:</span> <span className="font-medium">{realHeadOfFamily.disability_type || 'Ninguna'}</span></div>
+          </div>
+        ) : (
+          <div className="text-center py-4">
+            <p className="text-gray-500">⚠️ No se encontró el jefe de familia en el grupo familiar.</p>
+            <p className="text-sm text-gray-400 mt-2">Debe agregar al jefe de familia en el Paso 2: Grupo Familiar</p>
+          </div>
+        )}
+      </Card>
+
+      {/* Cónyuge/Conviviente - Desde household_members */}
+      {(() => {
+        const spouseMember = allMembers?.find(member => 
+          member.member_type?.toString().includes('SPOUSE') ||
+          member.member_type?.toString() === 'CONYUGE' ||
+          member.member_type?.toString() === 'SPOUSE' ||
+          member.relationship === 'conyuge'
+        );
+        
+        console.log('🔍 SPOUSE DEBUG:');
+        console.log('- spouseMember found:', spouseMember ? `${spouseMember.first_name} ${spouseMember.apellido_paterno}` : 'NOT FOUND');
+        allMembers?.forEach((m, i) => {
+          console.log(`  [${i}] ${m.first_name} ${m.apellido_paterno}:`, {
+            member_type: m.member_type,
+            relationship: m.relationship,
+            includesSpouse: m.member_type?.toString().includes('SPOUSE'),
+            equalsConyuge: m.relationship === 'conyuge',
+            matchesSpouseCondition: (
+              m.member_type?.toString().includes('SPOUSE') ||
+              m.member_type?.toString() === 'CONYUGE' ||
+              m.relationship === 'conyuge'
+            )
+          });
+        });
+        
+        if (!spouseMember) return null;
+        
+        return (
+          <Card title="Cónyuge/Conviviente" actions={<EditButton step={2} />}>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div><span className="text-gray-600">DNI:</span> <span className="font-medium">{formatDNI(spouseMember.dni || '')}</span></div>
+              <div><span className="text-gray-600">Nombres:</span> <span className="font-medium">{spouseMember.first_name}</span></div>
+              <div><span className="text-gray-600">Apellidos:</span> <span className="font-medium">{spouseMember.apellido_paterno} {spouseMember.apellido_materno}</span></div>
+              <div><span className="text-gray-600">Fecha Nacimiento:</span> <span className="font-medium">{spouseMember.birth_date ? formatDate(spouseMember.birth_date) : '-'}</span></div>
+              <div><span className="text-gray-600">Estado Civil:</span> <span className="font-medium">{CIVIL_STATUS_OPTIONS.find(m => m.value === spouseMember.marital_status)?.label || '-'}</span></div>
+              <div><span className="text-gray-600">Educación:</span> <span className="font-medium">{spouseMember.education_level || '-'}</span></div>
+              <div><span className="text-gray-600">Ocupación:</span> <span className="font-medium">{spouseMember.occupation || 'No especificado'}</span></div>
+              <div><span className="text-gray-600">Situación Laboral:</span> <span className="font-medium">{spouseMember.employment_situation || '-'}</span></div>
+              <div><span className="text-gray-600">Condición:</span> <span className="font-medium">{spouseMember.work_condition || '-'}</span></div>
+              <div><span className="text-gray-600">Ingreso Mensual:</span> <span className="font-medium text-green-700">{formatCurrency(spouseMember.monthly_income || 0)}</span></div>
+              <div><span className="text-gray-600">Discapacidad:</span> <span className="font-medium">{spouseMember.disability_type || 'Ninguna'}</span></div>
+            </div>
+          </Card>
+        );
+      })()}
+
+      {/* Información Adicional del Grupo Familiar */}
+      {(() => {
+        const additionalMembers = allMembers?.filter(member => 
+          member.member_type?.toString().includes('ADDITIONAL') ||
+          member.member_type?.toString() === 'ADDITIONAL_FAMILY' ||
+          member.member_type?.toString() === 'FAMILIA_ADICIONAL' ||
+          (!member.member_type?.toString().includes('HEAD') &&
+           !member.member_type?.toString().includes('SPOUSE') &&
+           !member.member_type?.toString().includes('DEPENDENT') &&
+           !member.member_type?.toString().includes('CARGA_FAMILIAR'))
+        ) || [];
+        
+        console.log('🔍 ADDITIONAL DEBUG:', {
+          additionalCount: additionalMembers.length,
+          additionalMembers: additionalMembers.map(m => ({
+            name: `${m.first_name} ${m.apellido_paterno}`,
+            member_type: m.member_type,
+            includesAdditional: m.member_type?.toString().includes('ADDITIONAL')
+          }))
+        });
+        
+        if (additionalMembers.length === 0) return null;
+        
+        return (
+          <Card title="👥 Información Adicional del Grupo Familiar" actions={<EditButton step={2} />}>
+            <div className="space-y-3">
+              {additionalMembers.map((member, idx) => (
+                <div key={idx} className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                  <p className="font-medium text-gray-900">{member.first_name} {member.apellido_paterno} {member.apellido_materno}</p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2 text-sm text-gray-600">
+                    <span>DNI: {formatDNI(member.dni)}</span>
+                    <span>Vínculo: {member.family_bond || member.relationship || 'Sin especificar'}</span>
+                    {member.birth_date && <span>Nacimiento: {formatDate(member.birth_date)}</span>}
+                    {member.marital_status && <span>Estado Civil: {CIVIL_STATUS_OPTIONS.find(s => s.value === member.marital_status)?.label}</span>}
+                  </div>
                 </div>
+              ))}
+              <div className="pt-3 border-t text-sm text-gray-600">
+                <span>Total miembros adicionales: <strong>{additionalMembers.length}</strong></span>
+                <span className="text-xs italic ml-2">*Información simplificada - Solo datos básicos</span>
               </div>
-            ))}
-            <div className="pt-3 border-t text-right">
-              <span className="text-sm font-medium">Total: {household_members.length} miembro(s) | Ingreso: <span className="text-green-700 text-lg">{formatCurrency(household_members.reduce((sum, m) => sum + (m.monthly_income || 0), 0))}</span></span>
+            </div>
+          </Card>
+        );
+      })()}
+
+      {/* Carga Familiar */}
+      {(() => {
+        const familyDependents = allMembers?.filter(member => 
+          member.member_type?.toString().includes('DEPENDENT') ||
+          member.member_type?.toString() === 'FAMILY_DEPENDENT' ||
+          member.member_type?.toString() === 'CARGA_FAMILIAR'
+        ) || [];
+        
+        console.log('🔍 DEPENDENTS DEBUG:', {
+          dependentsCount: familyDependents.length,
+          familyDependents: familyDependents.map(m => ({
+            name: `${m.first_name} ${m.apellido_paterno}`,
+            member_type: m.member_type,
+            includesDependent: m.member_type?.toString().includes('DEPENDENT')
+          }))
+        });
+        
+        if (familyDependents.length === 0) return null;
+        
+        return (
+          <Card title="🏠 Carga Familiar" actions={<EditButton step={2} />}>
+            <div className="space-y-3">
+              {familyDependents.map((member, idx) => (
+                <div key={idx} className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="font-medium text-gray-900">{member.first_name} {member.apellido_paterno} {member.apellido_materno}</p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2 text-sm text-gray-600">
+                    <span>DNI: {formatDNI(member.dni)}</span>
+                    <span>Vínculo: {member.family_bond || member.relationship || 'Sin especificar'}</span>
+                    {member.birth_date && <span>Nacimiento: {formatDate(member.birth_date)}</span>}
+                    <span>Estado Civil: {CIVIL_STATUS_OPTIONS.find(s => s.value === member.marital_status)?.label || 'Soltero/a'}</span>
+                    <span>Educación: {member.education_level || 'N/A'}</span>
+                    <span>Ocupación: {member.occupation || 'No especificado'}</span>
+                    <span>Discapacidad: {member.disability_type || 'Ninguna'}</span>
+                  </div>
+                </div>
+              ))}
+              <div className="pt-3 border-t text-sm text-gray-600">
+                <span>Total carga familiar: <strong>{familyDependents.length}</strong></span>
+                <span className="text-xs italic ml-2">*Hijos, hermanos, nietos menores de 25 años o mayores con discapacidad permanente</span>
+              </div>
+            </div>
+          </Card>
+        );
+      })()}
+
+      {/* Resumen del Grupo Familiar */}
+      {allMembers && allMembers.length > 0 && (
+        <Card title="📊 Resumen del Grupo Familiar">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div className="text-center p-3 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600">{allMembers.length}</div>
+              <div className="text-gray-600">Total Miembros</div>
+            </div>
+            <div className="text-center p-3 bg-green-50 rounded-lg">
+              <div className="text-2xl font-bold text-green-600">
+                {formatCurrency(allMembers.reduce((sum, m) => sum + (m.monthly_income || 0), 0))}
+              </div>
+              <div className="text-gray-600">Ingreso Total</div>
+            </div>
+            <div className="text-center p-3 bg-orange-50 rounded-lg">
+              <div className="text-2xl font-bold text-orange-600">
+                {allMembers.filter(m => 
+                  m.member_type?.toString().includes('ADDITIONAL') ||
+                  m.member_type?.toString() === 'ADDITIONAL_FAMILY' ||
+                  m.member_type?.toString() === 'FAMILIA_ADICIONAL'
+                ).length}
+              </div>
+              <div className="text-gray-600">Familia Adicional</div>
+            </div>
+            <div className="text-center p-3 bg-yellow-50 rounded-lg">
+              <div className="text-2xl font-bold text-yellow-600">
+                {allMembers.filter(m => 
+                  m.member_type?.toString().includes('DEPENDENT') ||
+                  m.member_type?.toString() === 'FAMILY_DEPENDENT' ||
+                  m.member_type?.toString() === 'CARGA_FAMILIAR'
+                ).length}
+              </div>
+              <div className="text-gray-600">Carga Familiar</div>
             </div>
           </div>
-        ) : <p className="text-gray-500">Sin miembros agregados</p>}
-      </Card>
+        </Card>
+      )}
 
       {/* Datos del Predio */}
       <Card title="Datos del Predio" actions={<EditButton step={4} />}>

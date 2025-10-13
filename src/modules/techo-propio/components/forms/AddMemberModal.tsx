@@ -48,10 +48,21 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
   );
   const [activeTab, setActiveTab] = useState<'personal' | 'economic' | 'additional' | 'familyDependent'>('personal');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  
+  // ✅ Determinar el tipo efectivo del miembro (prioridad: editingMember.member_type > prop memberType)
+  const effectiveMemberType = (editingMember?.member_type || currentMember.member_type || memberType) as MemberType;
 
   React.useEffect(() => {
     if (isOpen) {
-      setCurrentMember(editingMember || { member_type: memberType });
+      const effectiveMemberType = editingMember?.member_type || memberType;
+      console.log('🔧 [ADD MEMBER MODAL] Opening with:', {
+        memberType: memberType,
+        editingMemberType: editingMember?.member_type,
+        effectiveMemberType: effectiveMemberType,
+        editingMember: editingMember
+      });
+      
+      setCurrentMember(editingMember || { member_type: effectiveMemberType });
       setActiveTab('personal');
       setErrors({});
     }
@@ -75,7 +86,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
     }
 
     // Validaciones para Carga Familiar (solo datos básicos)
-    if (memberType === MemberType.FAMILY_DEPENDENT) {
+    if (effectiveMemberType === MemberType.FAMILY_DEPENDENT) {
       if (!currentMember.birth_date) {
         newErrors.birth_date = 'Fecha de nacimiento es requerida';
       }
@@ -90,7 +101,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
       }
     }
     // Validaciones solo para miembros completos (HEAD_OF_FAMILY y SPOUSE)
-    else if (memberType !== MemberType.ADDITIONAL_FAMILY) {
+    else if (effectiveMemberType !== MemberType.ADDITIONAL_FAMILY) {
       if (!currentMember.birth_date) {
         newErrors.birth_date = 'Fecha de nacimiento es requerida';
       }
@@ -118,7 +129,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
     }
 
     // Validación específica para familia adicional
-    if (memberType === MemberType.ADDITIONAL_FAMILY && !currentMember.family_bond?.trim()) {
+    if (effectiveMemberType === MemberType.ADDITIONAL_FAMILY && !currentMember.family_bond?.trim()) {
       newErrors.family_bond = 'Vínculo familiar es requerido';
     }
 
@@ -175,13 +186,13 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
     }
 
     // Validaciones para Carga Familiar
-    if (memberType === MemberType.FAMILY_DEPENDENT) {
+    if (effectiveMemberType === MemberType.FAMILY_DEPENDENT) {
       if (!currentMember.birth_date) {
         personalErrors.birth_date = 'Fecha de nacimiento es requerida';
       }
     }
     // Validaciones adicionales solo para miembros completos
-    else if (memberType !== MemberType.ADDITIONAL_FAMILY) {
+    else if (effectiveMemberType !== MemberType.ADDITIONAL_FAMILY) {
       if (!currentMember.birth_date) {
         personalErrors.birth_date = 'Fecha de nacimiento es requerida';
       }
@@ -200,11 +211,11 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
     
     if (Object.keys(personalErrors).length === 0) {
       // Para carga familiar, ir directamente a la pestaña específica
-      if (memberType === MemberType.FAMILY_DEPENDENT) {
+      if (effectiveMemberType === MemberType.FAMILY_DEPENDENT) {
         setActiveTab('familyDependent');
       }
       // Para familia adicional, ir a la pestaña adicional
-      else if (memberType === MemberType.ADDITIONAL_FAMILY) {
+      else if (effectiveMemberType === MemberType.ADDITIONAL_FAMILY) {
         setActiveTab('additional');
       } else {
         setActiveTab('economic');
@@ -221,12 +232,12 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
     );
 
     // Para carga familiar, necesita datos básicos + fecha de nacimiento
-    if (memberType === MemberType.FAMILY_DEPENDENT) {
+    if (effectiveMemberType === MemberType.FAMILY_DEPENDENT) {
       return basicPersonal && currentMember.birth_date;
     }
 
     // Para familia adicional, solo necesita datos básicos
-    if (memberType === MemberType.ADDITIONAL_FAMILY) {
+    if (effectiveMemberType === MemberType.ADDITIONAL_FAMILY) {
       return basicPersonal;
     }
 
@@ -242,7 +253,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
 
   const isEconomicDataComplete = () => {
     // Para familia adicional, no necesita datos económicos
-    if (memberType === MemberType.ADDITIONAL_FAMILY) {
+    if (effectiveMemberType === MemberType.ADDITIONAL_FAMILY) {
       return true;
     }
 
@@ -259,7 +270,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
 
   const isAdditionalDataComplete = () => {
     // Solo para familia adicional
-    if (memberType === MemberType.ADDITIONAL_FAMILY) {
+    if (effectiveMemberType === MemberType.ADDITIONAL_FAMILY) {
       return currentMember.family_bond?.trim();
     }
     return true;
@@ -267,7 +278,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
 
   const isFamilyDependentDataComplete = () => {
     // Solo para carga familiar
-    if (memberType === MemberType.FAMILY_DEPENDENT) {
+    if (effectiveMemberType === MemberType.FAMILY_DEPENDENT) {
       return (
         currentMember.family_bond?.trim() &&
         currentMember.education_level &&
@@ -292,17 +303,17 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
             <div className={`w-3 h-3 rounded-full ${
               activeTab === 'personal' ? 'bg-blue-600' : isPersonalDataComplete() ? 'bg-green-500' : 'bg-gray-300'
             }`} />
-            {memberType === MemberType.FAMILY_DEPENDENT && (
+            {effectiveMemberType === MemberType.FAMILY_DEPENDENT && (
               <div className={`w-3 h-3 rounded-full ${
                 activeTab === 'familyDependent' ? 'bg-blue-600' : isFamilyDependentDataComplete() ? 'bg-green-500' : 'bg-gray-300'
               }`} />
             )}
-            {memberType !== MemberType.ADDITIONAL_FAMILY && memberType !== MemberType.FAMILY_DEPENDENT && (
+            {effectiveMemberType !== MemberType.ADDITIONAL_FAMILY && effectiveMemberType !== MemberType.FAMILY_DEPENDENT && (
               <div className={`w-3 h-3 rounded-full ${
                 activeTab === 'economic' ? 'bg-blue-600' : isEconomicDataComplete() ? 'bg-green-500' : 'bg-gray-300'
               }`} />
             )}
-            {memberType === MemberType.ADDITIONAL_FAMILY && (
+            {effectiveMemberType === MemberType.ADDITIONAL_FAMILY && (
               <div className={`w-3 h-3 rounded-full ${
                 activeTab === 'additional' ? 'bg-blue-600' : isAdditionalDataComplete() ? 'bg-green-500' : 'bg-gray-300'
               }`} />
@@ -388,7 +399,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
             )}
           </button>
           
-          {memberType === MemberType.FAMILY_DEPENDENT && (
+          {effectiveMemberType === MemberType.FAMILY_DEPENDENT && (
             <button
               onClick={() => setActiveTab('familyDependent')}
               disabled={!isPersonalDataComplete()}
@@ -407,7 +418,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
             </button>
           )}
 
-          {memberType !== MemberType.ADDITIONAL_FAMILY && memberType !== MemberType.FAMILY_DEPENDENT && (
+          {effectiveMemberType !== MemberType.ADDITIONAL_FAMILY && effectiveMemberType !== MemberType.FAMILY_DEPENDENT && (
             <button
               onClick={() => setActiveTab('economic')}
               disabled={!isPersonalDataComplete()}
@@ -426,7 +437,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
             </button>
           )}
 
-          {memberType === MemberType.ADDITIONAL_FAMILY && (
+          {effectiveMemberType === MemberType.ADDITIONAL_FAMILY && (
             <button
               onClick={() => setActiveTab('additional')}
               disabled={!isPersonalDataComplete()}
@@ -498,7 +509,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
             {/* Campos condicionales según el tipo de miembro */}
             
             {/* Solo fecha de nacimiento para ADDITIONAL_FAMILY y FAMILY_DEPENDENT */}
-            {(memberType === MemberType.ADDITIONAL_FAMILY || memberType === MemberType.FAMILY_DEPENDENT) && (
+            {(effectiveMemberType === MemberType.ADDITIONAL_FAMILY || effectiveMemberType === MemberType.FAMILY_DEPENDENT) && (
               <FormInput
                 type="date"
                 label="Fecha de Nacimiento"
@@ -510,7 +521,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
             )}
 
             {/* Campos completos para HEAD_OF_FAMILY y SPOUSE */}
-            {(memberType === MemberType.HEAD_OF_FAMILY || memberType === MemberType.SPOUSE) && (
+            {(effectiveMemberType === MemberType.HEAD_OF_FAMILY || effectiveMemberType === MemberType.SPOUSE) && (
               <>
                 {/* Fecha, Estado Civil, Grado de Instrucción */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -553,7 +564,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
                 />
 
                 {/* Relación (Solo para Cónyuge, no para Jefe de Familia) */}
-                {memberType === MemberType.SPOUSE && (
+                {effectiveMemberType === MemberType.SPOUSE && (
                   <FormSelect
                     label="Relación con el Solicitante"
                     value={currentMember.relationship || ''}
@@ -633,7 +644,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
           </div>
         )}
 
-        {activeTab === 'additional' && memberType === MemberType.ADDITIONAL_FAMILY && (
+        {activeTab === 'additional' && effectiveMemberType === MemberType.ADDITIONAL_FAMILY && (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-900">
               👥 Información Adicional del Grupo Familiar
@@ -704,7 +715,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
           </div>
         )}
 
-        {activeTab === 'familyDependent' && memberType === MemberType.FAMILY_DEPENDENT && (
+        {activeTab === 'familyDependent' && effectiveMemberType === MemberType.FAMILY_DEPENDENT && (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-900">
               👥 Información de Carga Familiar

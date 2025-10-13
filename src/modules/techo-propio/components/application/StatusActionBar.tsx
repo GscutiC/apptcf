@@ -6,6 +6,7 @@
 import React from 'react';
 import { TechoPropioApplication, ApplicationStatus } from '../../types';
 import { Button } from '../common';
+import { ALLOWED_STATUS_TRANSITIONS } from '../../utils';
 
 interface StatusActionBarProps {
   application: TechoPropioApplication;
@@ -44,6 +45,12 @@ export const StatusActionBar: React.FC<StatusActionBarProps> = ({
       </div>
     );
   }
+
+  // ✅ VALIDACIÓN: Función para verificar transiciones de estado permitidas
+  const isTransitionAllowed = (targetStatus: ApplicationStatus): boolean => {
+    const allowedTransitions = ALLOWED_STATUS_TRANSITIONS[application.status] || [];
+    return allowedTransitions.includes(targetStatus);
+  };
 
   // Renderizar botones según el estado
   const renderActions = () => {
@@ -96,7 +103,7 @@ export const StatusActionBar: React.FC<StatusActionBarProps> = ({
             <Button
               onClick={onStartReview}
               variant="primary"
-              disabled={disabled}
+              disabled={disabled || !isTransitionAllowed(ApplicationStatus.UNDER_REVIEW)}
               leftIcon={
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -138,7 +145,7 @@ export const StatusActionBar: React.FC<StatusActionBarProps> = ({
             <Button
               onClick={onApprove}
               variant="success"
-              disabled={disabled}
+              disabled={disabled || !isTransitionAllowed(ApplicationStatus.APPROVED)}
               leftIcon={
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -150,7 +157,7 @@ export const StatusActionBar: React.FC<StatusActionBarProps> = ({
             <Button
               onClick={onReject}
               variant="danger"
-              disabled={disabled}
+              disabled={disabled || !isTransitionAllowed(ApplicationStatus.REJECTED)}
               leftIcon={
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

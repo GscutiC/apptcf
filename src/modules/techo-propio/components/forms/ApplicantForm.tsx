@@ -3,10 +3,10 @@
  */
 
 import React, { useState } from 'react';
-import { Applicant, Gender, CivilStatus } from '../../types';
-import { FormInput, FormSelect } from '../common';
-import { DniValidator, UbigeoSelector } from '../application';
-import { CIVIL_STATUS_OPTIONS, GENDER_OPTIONS, FORM_CONSTANTS } from '../../utils';
+import { Applicant } from '../../types';
+import { FormInput } from '../common';
+import { DniValidator } from '../application';
+import { FORM_CONSTANTS } from '../../utils';
 
 interface ApplicantFormProps {
   data: Partial<Applicant>;
@@ -20,23 +20,6 @@ export const ApplicantForm: React.FC<ApplicantFormProps> = ({
   errors = {}
 }) => {
   const [dniValidated, setDniValidated] = useState(false);
-  
-  // ✅ FIX: Mantener una referencia actualizada de current_address
-  // para evitar problemas de estado desactualizado en React batching
-  const addressRef = React.useRef(data.current_address || {
-    department: '',
-    province: '',
-    district: '',
-    address: '',
-    reference: ''
-  });
-  
-  // Sincronizar la referencia cuando cambian las props
-  React.useEffect(() => {
-    if (data.current_address) {
-      addressRef.current = data.current_address;
-    }
-  }, [data.current_address]);
   
   const handleDniValidated = (reniecData: {
     dni: string;
@@ -62,35 +45,6 @@ export const ApplicantForm: React.FC<ApplicantFormProps> = ({
     });
   };
 
-  const handleLocationChange = (field: string, value: string) => {
-    const updatedAddress = { ...addressRef.current };
-    
-    if (field === 'department') {
-      updatedAddress.department = value;
-      if (value) {
-        updatedAddress.province = '';
-        updatedAddress.district = '';
-      }
-    } else if (field === 'province') {
-      updatedAddress.province = value;
-      if (value) {
-        updatedAddress.district = '';
-      }
-    } else if (field === 'district') {
-      updatedAddress.district = value;
-    } else {
-      // Para address y reference
-      updatedAddress[field as keyof typeof updatedAddress] = value;
-    }
-
-    addressRef.current = updatedAddress;
-    
-    onChange({
-      ...data,
-      current_address: updatedAddress
-    });
-  };
-
   return (
     <div className="space-y-6">
       <div>
@@ -98,8 +52,14 @@ export const ApplicantForm: React.FC<ApplicantFormProps> = ({
           Paso 1: Datos del Solicitante
         </h3>
         <p className="text-sm text-gray-600 mb-6">
-          Ingrese los datos personales del solicitante. El DNI será validado con RENIEC.
+          Ingrese los datos básicos de contacto del solicitante. El DNI será validado con RENIEC.
         </p>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+          <p className="text-sm text-blue-800">
+            ℹ️ <strong>Nota:</strong> Los datos adicionales como fecha de nacimiento, estado civil y dirección 
+            se completarán en el <strong>Paso 2: Grupo Familiar</strong> al agregar al jefe de familia.
+          </p>
+        </div>
       </div>
 
       {/* DNI con validación RENIEC */}
@@ -136,36 +96,6 @@ export const ApplicantForm: React.FC<ApplicantFormProps> = ({
         />
       </div>
 
-      {/* Fecha de nacimiento, Género, Estado Civil */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <FormInput
-          type="date"
-          label="Fecha de Nacimiento"
-          required
-          value={data.birth_date || ''}
-          onChange={(e) => handleFieldChange('birth_date', e.target.value)}
-          error={errors.birth_date}
-        />
-
-        <FormSelect
-          label="Género"
-          required
-          value={data.gender || ''}
-          onChange={(e) => handleFieldChange('gender', e.target.value as Gender)}
-          options={GENDER_OPTIONS}
-          error={errors.gender}
-        />
-
-        <FormSelect
-          label="Estado Civil"
-          required
-          value={data.marital_status || ''}
-          onChange={(e) => handleFieldChange('marital_status', e.target.value as CivilStatus)}
-          options={CIVIL_STATUS_OPTIONS}
-          error={errors.marital_status}
-        />
-      </div>
-
       {/* Contacto */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormInput
@@ -191,44 +121,12 @@ export const ApplicantForm: React.FC<ApplicantFormProps> = ({
         />
       </div>
 
-      {/* Dirección Actual */}
-      <div className="border-t pt-6">
-        <h4 className="text-md font-semibold text-gray-900 mb-4">
-          Dirección Actual
-        </h4>
-
-        <UbigeoSelector
-          department={data.current_address?.department || ''}
-          province={data.current_address?.province || ''}
-          district={data.current_address?.district || ''}
-          onDepartmentChange={(value) => handleLocationChange('department', value)}
-          onProvinceChange={(value) => handleLocationChange('province', value)}
-          onDistrictChange={(value) => handleLocationChange('district', value)}
-          required
-          errors={{
-            department: errors['current_address.department'],
-            province: errors['current_address.province'],
-            district: errors['current_address.district']
-          }}
-        />
-
-        <div className="mt-4 space-y-4">
-          <FormInput
-            label="Dirección"
-            required
-            value={data.current_address?.address || ''}
-            onChange={(e) => handleLocationChange('address', e.target.value)}
-            placeholder="Av. Principal 123, Mz. A Lt. 5"
-            error={errors['current_address.address']}
-          />
-
-          <FormInput
-            label="Referencia (Opcional)"
-            value={data.current_address?.reference || ''}
-            onChange={(e) => handleLocationChange('reference', e.target.value)}
-            placeholder="Cerca del mercado central"
-          />
-        </div>
+      {/* Nota informativa final */}
+      <div className="border-t pt-4">
+        <p className="text-sm text-gray-600 italic">
+          ✅ Complete estos datos básicos y continúe al siguiente paso para registrar 
+          la información completa del grupo familiar.
+        </p>
       </div>
     </div>
   );

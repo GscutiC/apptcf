@@ -10,7 +10,8 @@ import {
   ApplicationFilters,
   ApplicationStatistics,
   SearchQuery,
-  Gender
+  Gender,
+  ApplicationStatus
 } from '../types';
 import { techoPropioApi } from '../services';
 
@@ -24,8 +25,13 @@ import { techoPropioApi } from '../services';
 const mapBackendApplicationToFrontend = (backendApp: any): TechoPropioApplication => {
   const headOfFamily = backendApp.head_of_family || backendApp.main_applicant;
   
+  const finalStatus = backendApp.status || backendApp.application_status || ApplicationStatus.DRAFT;
+  
   return {
     ...backendApp,
+    // ✅ CRÍTICO: Preservar el estado del backend correctamente
+    id: backendApp.id,
+    status: finalStatus,
     code: backendApp.id || backendApp.code || 'N/A',
     applicant: {
       dni: headOfFamily.document_number,
@@ -179,6 +185,14 @@ export const TechoPropioProvider: React.FC<TechoPropioProviderProps> = ({ childr
       // 🔄 MAPPER: Transformar datos del backend al formato del frontend
       const mappedApplications = items.map(mapBackendApplicationToFrontend);
       setApplications(mappedApplications);
+      
+      // ✅ SYNC: Si hay una aplicación seleccionada, actualizarla también
+      if (selectedApplication) {
+        const updatedSelected = mappedApplications.find(app => app.id === selectedApplication.id);
+        if (updatedSelected && updatedSelected.status !== selectedApplication.status) {
+          setSelectedApplication(updatedSelected);
+        }
+      }
     } catch (err: any) {
       setError(err.message || 'Error al cargar solicitudes');
       setApplications([]);
@@ -201,6 +215,16 @@ export const TechoPropioProvider: React.FC<TechoPropioProviderProps> = ({ childr
         // 🔄 MAPPER: Transformar datos del backend al formato del frontend
         const mappedApplication = mapBackendApplicationToFrontend(applicationData);
         setSelectedApplication(mappedApplication);
+        
+        // ✅ SYNC: También actualizar en la lista de applications si existe
+        setApplications(prev => 
+          prev.map(app => 
+            app.id === mappedApplication.id 
+              ? { ...mappedApplication }
+              : app
+          )
+        );
+        
         return mappedApplication;
       } else {
         throw new Error('Error al cargar solicitud');

@@ -5,6 +5,12 @@
 import React from 'react';
 import { TechoPropioApplication, ApplicationStatus } from '../../types';
 import { formatDate, formatCurrency, formatShortAddress } from '../../utils';
+import { 
+  getApplicantFullName, 
+  getApplicantDNI, 
+  getTotalIncome,
+  hasRequiredApplicantData 
+} from '../../utils/applicationHelpers';
 import { StatusBadge } from './StatusBadge';
 import { PriorityIndicator } from './PriorityIndicator';
 import { Card } from '../common';
@@ -16,6 +22,7 @@ interface ApplicationCardProps {
   onDelete?: () => void;
   onSubmit?: () => void;
   showActions?: boolean;
+  isLoading?: boolean; // ✅ Nuevo prop para estado de carga
 }
 
 export const ApplicationCard: React.FC<ApplicationCardProps> = ({
@@ -24,9 +31,22 @@ export const ApplicationCard: React.FC<ApplicationCardProps> = ({
   onEdit,
   onDelete,
   onSubmit,
-  showActions = true
+  showActions = true,
+  isLoading = false
 }) => {
-  const { applicant, property_info, economic_info } = application;
+  const { property_info } = application;
+
+  // ✅ CORREGIDO: Verificar que la aplicación tenga datos mínimos requeridos
+  if (!hasRequiredApplicantData(application)) {
+    return (
+      <Card className="p-4">
+        <div className="text-center text-gray-500">
+          <p>⚠️ Datos de solicitante incompletos</p>
+          <p className="text-sm">ID: {application.id}</p>
+        </div>
+      </Card>
+    );
+  }
 
   // Determinar si se puede enviar (debe estar en DRAFT)
   const canSubmit = application.status === ApplicationStatus.DRAFT && onSubmit;
@@ -88,7 +108,17 @@ export const ApplicationCard: React.FC<ApplicationCardProps> = ({
   ) : undefined;
 
   return (
-    <Card hover onClick={onClick} actions={actions} className="transition-all">
+    <Card hover onClick={onClick} actions={actions} className="transition-all relative">
+      {/* ✅ Indicador de carga visual */}
+      {isLoading && (
+        <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
+          <div className="flex items-center gap-2">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <span className="text-sm text-gray-600">Actualizando...</span>
+          </div>
+        </div>
+      )}
+      
       <div className="space-y-4">
         {/* Header: Code and Status */}
         <div className="flex items-start justify-between">
@@ -97,7 +127,7 @@ export const ApplicationCard: React.FC<ApplicationCardProps> = ({
               {application.code}
             </h3>
             <p className="text-sm text-gray-600 mt-1">
-              {applicant.first_name} {applicant.last_name}
+              {getApplicantFullName(application)}
             </p>
           </div>
           <div className="flex flex-col items-end gap-2">
@@ -110,7 +140,7 @@ export const ApplicationCard: React.FC<ApplicationCardProps> = ({
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <p className="text-gray-500">DNI</p>
-            <p className="font-medium text-gray-900">{applicant.dni}</p>
+            <p className="font-medium text-gray-900">{getApplicantDNI(application)}</p>
           </div>
 
           <div>
@@ -127,7 +157,7 @@ export const ApplicationCard: React.FC<ApplicationCardProps> = ({
           <div>
             <p className="text-gray-500">Ingreso Familiar</p>
             <p className="font-medium text-gray-900">
-              {formatCurrency(economic_info.income.total_income)}
+              {formatCurrency(getTotalIncome(application))}
             </p>
           </div>
 

@@ -2,7 +2,7 @@
  * ApplicationList Page - Lista de solicitudes con filtros
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTechoPropio } from '../context';
 import { useTechoPropioApplications } from '../hooks';
@@ -21,6 +21,21 @@ export const ApplicationList: React.FC = () => {
   useEffect(() => {
     refreshApplications();
   }, []);
+
+
+
+  // ✅ OPTIMIZACIÓN: Memoizar las opciones de estado para evitar re-renders innecesarios
+  const statusOptions = useMemo(() => 
+    Object.values(ApplicationStatus).map(value => ({
+      value: value,
+      label: STATUS_CONFIG[value as keyof typeof STATUS_CONFIG]?.label || value
+    })), []
+  );
+
+  // ✅ OPTIMIZACIÓN: Memoizar handlers para mejor rendimiento
+  const handleRefresh = useCallback(() => {
+    refreshApplications();
+  }, [refreshApplications]);
 
   const handleDelete = async () => {
     if (deleteModal.id) {
@@ -42,10 +57,7 @@ export const ApplicationList: React.FC = () => {
     }
   };
 
-  const statusOptions = Object.values(ApplicationStatus).map(value => ({
-    value: value,
-    label: STATUS_CONFIG[value as keyof typeof STATUS_CONFIG]?.label || value
-  }));
+
 
   return (
     <div className="space-y-6">
@@ -69,7 +81,7 @@ export const ApplicationList: React.FC = () => {
           />
           <div className="flex items-end gap-2">
             <Button onClick={() => setFilters({})}>Limpiar</Button>
-            <Button variant="secondary" onClick={refreshApplications}>Actualizar</Button>
+            <Button variant="secondary" onClick={handleRefresh}>Actualizar</Button>
           </div>
         </div>
       </Card>

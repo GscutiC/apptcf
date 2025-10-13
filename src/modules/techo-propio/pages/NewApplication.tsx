@@ -18,6 +18,7 @@ import {
 import { ApplicationFormData } from '../types';
 import { storageService } from '../services';
 import { validateApplicantForm, validateEconomicForm, validatePropertyForm } from '../utils';
+import { normalizeToISODate } from '../utils/applicationHelpers';
 
 const INITIAL_FORM_DATA: ApplicationFormData = {
   application_info: {
@@ -169,15 +170,21 @@ export const NewApplication: React.FC = () => {
 
     switch (currentStep) {
       case 1:
-        // Validación: Datos del Usuario (control interno)
+        // Validación: Datos Básicos del Usuario (control interno) - SIMPLIFICADO
         if (!formData.head_of_family) {
-          stepErrors.push('Debe completar los datos del solicitante');
+          stepErrors.push('Debe completar los datos básicos del solicitante');
         } else {
           if (!formData.head_of_family.dni || formData.head_of_family.dni.length !== 8) {
             stepErrors.push('DNI debe tener 8 dígitos');
           }
           if (!formData.head_of_family.first_name || formData.head_of_family.first_name.trim().length < 2) {
             stepErrors.push('Los nombres son obligatorios');
+          }
+          if (!formData.head_of_family.phone_number || formData.head_of_family.phone_number.length < 9) {
+            stepErrors.push('El teléfono es obligatorio (9 dígitos)');
+          }
+          if (!formData.head_of_family.email || !formData.head_of_family.email.includes('@')) {
+            stepErrors.push('El correo electrónico es obligatorio y debe ser válido');
           }
         }
         break;
@@ -267,11 +274,7 @@ export const NewApplication: React.FC = () => {
       member.apellido_paterno === formData.head_of_family?.paternal_surname
     );
 
-    // 🐛 DEBUG: Ver si se encuentra el jefe de familia
-    console.log('🔍 Buscando jefe de familia...');
-    console.log('head_of_family:', formData.head_of_family);
-    console.log('household_members:', formData.household_members);
-    console.log('headOfFamilyMember encontrado:', headOfFamilyMember);
+
 
     // ✅ NUEVA VALIDACIÓN: Verificar datos obligatorios (user_data se crea desde head_of_family)
     if (!formData.head_of_family || !formData.property_info) {
@@ -292,7 +295,7 @@ export const NewApplication: React.FC = () => {
       surnames: `${formData.head_of_family.paternal_surname} ${formData.head_of_family.maternal_surname}`.trim(),
       phone: formData.head_of_family.phone_number || '',
       email: formData.head_of_family.email || '',
-      birth_date: formData.head_of_family.birth_date || '1990-01-01',
+      birth_date: normalizeToISODate(formData.head_of_family.birth_date),
       notes: 'Datos ingresados desde formulario web - Nueva solicitud Techo Propio'
     };
 
@@ -303,7 +306,7 @@ export const NewApplication: React.FC = () => {
       first_name: formData.head_of_family?.first_name || '',
       paternal_surname: formData.head_of_family?.paternal_surname || 'Sin Apellido',
       maternal_surname: formData.head_of_family?.maternal_surname || 'Sin Apellido',
-      birth_date: formData.head_of_family?.birth_date || '1990-01-01',
+      birth_date: normalizeToISODate(formData.head_of_family?.birth_date),
       civil_status: formData.head_of_family?.civil_status || 'soltero',
       education_level: formData.head_of_family?.education_level || 'secundaria_completa',
       occupation: formData.head_of_family?.occupation,
@@ -350,27 +353,63 @@ export const NewApplication: React.FC = () => {
         member.dni !== formData.head_of_family?.dni &&
         member.dni !== formData.head_of_family?.document_number
       )
-      .map(member => ({
-        first_name: member.first_name,
-        paternal_surname: member.apellido_paterno,  // ✅ apellido_paterno -> paternal_surname
-        maternal_surname: member.apellido_materno,  // ✅ apellido_materno -> maternal_surname
-        document_type: 'dni',  // Por defecto DNI
-        document_number: member.dni,
-        birth_date: member.birth_date || '1990-01-01',
-        civil_status: member.marital_status || 'soltero',  // ✅ marital_status -> civil_status
-        education_level: member.education_level || 'secundaria_completa',
-        occupation: member.occupation || 'No especificado',
-        employment_situation: member.employment_situation || 'dependiente',
-        work_condition: member.work_condition || (member.employment_condition || 'FORMAL').toLowerCase(),  // ✅ Usar work_condition o convertir employment_condition a minúsculas
-        monthly_income: member.monthly_income || 0,
-        disability_type: member.disability_type || 'ninguna',
-        relationship: member.relationship || (member.member_type?.toLowerCase() === 'conyuge' ? 'conyuge' : 'otro'),  // ✅ Mapear member_type a relationship
-        is_dependent: true
-      }));
+      .map((member, idx) => {
+        // 🐛 DEBUG: Ver el valor ANTES de normalizar
+        console.log(`🔍 [MEMBER ${idx + 1}] ANTES de normalizar:`, {
+          name: `${member.first_name} ${member.apellido_paterno}`,
+          birth_date_raw: member.birth_date,
+          birth_date_type: typeof member.birth_date
+        });
+        
+        const normalized_birth_date = normalizeToISODate(member.birth_date);
+        
+        console.log(`✅ [MEMBER ${idx + 1}] DESPUÉS de normalizar:`, {
+          birth_date_normalized: normalized_birth_date
+        });
+
+        // ✅ Mapear member_type a relationship correctamente
+        let relationshipValue = 'otro';
+        const memberTypeStr = String(member.member_type || '').toUpperCase();
+        
+        if (memberTypeStr.includes('HEAD') || memberTypeStr === 'JEFE_FAMILIA') {
+          relationshipValue = 'jefe_familia';
+        } else if (memberTypeStr.includes('SPOUSE') || memberTypeStr === 'CONYUGE') {
+          relationshipValue = 'conyuge';
+        } else if (memberTypeStr.includes('DEPENDENT') || memberTypeStr.includes('HIJO')) {
+          relationshipValue = member.relationship || 'hijo';  // Preservar relationship específico si existe
+        } else if (memberTypeStr.includes('ADDITIONAL')) {
+          relationshipValue = 'otro';  // Familia adicional → otro
+        } else if (member.relationship) {
+          relationshipValue = member.relationship;  // Usar relationship explícito si existe
+        }
+        
+        // ✅ Determinar is_dependent basado SOLO en member_type
+        const isDependentValue = memberTypeStr.includes('DEPENDENT') || 
+                                memberTypeStr.includes('HIJO');
+        // Si member_type es ADDITIONAL_FAMILY, es_dependent debe ser false
+        // Si member_type es FAMILY_DEPENDENT, is_dependent debe ser true
+
+        return {
+          first_name: member.first_name,
+          paternal_surname: member.apellido_paterno,  // ✅ apellido_paterno -> paternal_surname
+          maternal_surname: member.apellido_materno,  // ✅ apellido_materno -> maternal_surname
+          document_type: 'dni',  // Por defecto DNI
+          document_number: member.dni,
+          birth_date: normalized_birth_date,
+          civil_status: member.marital_status || 'soltero',  // ✅ marital_status -> civil_status
+          education_level: member.education_level || 'secundaria_completa',
+          occupation: member.occupation || 'No especificado',
+          employment_situation: member.employment_situation || 'dependiente',
+          work_condition: member.work_condition || (member.employment_condition || 'FORMAL').toLowerCase(),  // ✅ Usar work_condition o convertir employment_condition a minúsculas
+          monthly_income: member.monthly_income || 0,
+          disability_type: member.disability_type || 'ninguna',
+          relationship: relationshipValue,  // ✅ Mapear member_type → relationship
+          is_dependent: isDependentValue  // ✅ Determinar is_dependent desde member_type
+        };
+      });
 
     // 🐛 DEBUG: Verificar que no hay duplicados
-    console.log('🔍 Household members filtrados (sin jefe de familia):', transformedHouseholdMembers);
-    console.log('📊 Total miembros después del filtro:', transformedHouseholdMembers.length);
+
 
     // ✅ NUEVA ESTRUCTURA: Preparar datos para el backend usando estructura esperada (head_of_family)
     const requestData = {
@@ -386,9 +425,19 @@ export const NewApplication: React.FC = () => {
     };
 
     // 🐛 DEBUG: Ver datos que se envían al backend
-    console.log('🚀 Enviando datos al backend:', requestData);
-    console.log('👤 head_of_family_economic:', transformedHeadOfFamilyEconomic);
-    console.log('💑 spouse_economic:', transformedSpouseEconomic);
+    console.log('📤 [NEW APPLICATION] Datos completos enviando al backend:', JSON.stringify(requestData, null, 2));
+    console.log('📤 [HOUSEHOLD MEMBERS] Total miembros:', transformedHouseholdMembers.length);
+    transformedHouseholdMembers.forEach((member, idx) => {
+      console.log(`  - Miembro ${idx + 1}:`, {
+        name: `${member.first_name} ${member.paternal_surname}`,
+        dni: member.document_number,
+        relationship: member.relationship,
+        is_dependent: member.is_dependent,
+        birth_date: member.birth_date,
+        birth_date_type: typeof member.birth_date
+      });
+    });
+
 
     const result = await createApplication(requestData as any);
 
@@ -444,7 +493,6 @@ export const NewApplication: React.FC = () => {
               registration_year: new Date().getFullYear()
             }}
             onChange={(application_info) => updateFormData({ application_info })}
-            onNext={handleNext}
             errors={errors}
           />
         );
@@ -455,17 +503,10 @@ export const NewApplication: React.FC = () => {
               dni: formData.head_of_family?.dni || formData.head_of_family?.document_number || '',
               first_name: formData.head_of_family?.first_name || '',
               last_name: `${formData.head_of_family?.paternal_surname || ''} ${formData.head_of_family?.maternal_surname || ''}`.trim(),
-              birth_date: formData.head_of_family?.birth_date || '',
-              marital_status: formData.head_of_family?.civil_status,
               phone: formData.head_of_family?.phone_number || '',
-              email: formData.head_of_family?.email || '',
-              current_address: formData.head_of_family?.current_address || {
-                department: '',
-                province: '',
-                district: '',
-                address: '',
-                reference: ''
-              }
+              email: formData.head_of_family?.email || ''
+              // ✅ Campos eliminados: birth_date, marital_status, current_address
+              // Estos se capturarán en el Paso 2 (HouseholdForm)
             }}
             onChange={(applicant) => updateFormData({ 
               head_of_family: {
@@ -474,11 +515,10 @@ export const NewApplication: React.FC = () => {
                 first_name: applicant.first_name,
                 paternal_surname: applicant.last_name?.split(' ')[0] || '',
                 maternal_surname: applicant.last_name?.split(' ')[1] || '',
-                birth_date: applicant.birth_date,
-                civil_status: applicant.marital_status,
                 phone_number: applicant.phone,
-                email: applicant.email,
-                current_address: applicant.current_address
+                email: applicant.email
+                // ✅ No se almacenan birth_date, civil_status, current_address aquí
+                // Se completarán desde el Paso 2
               }
             })}
           />

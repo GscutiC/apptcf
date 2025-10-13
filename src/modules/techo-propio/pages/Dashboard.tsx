@@ -9,6 +9,7 @@ import { useTechoPropioApplications } from '../hooks';
 import { Card, Button, Modal } from '../components/common';
 import { ApplicationCard, StatusBadge, PriorityIndicator, ApplicationManagementTable } from '../components/application';
 import { formatCurrency } from '../utils';
+import { getApplicantFullName, getApplicantDNI } from '../utils/applicationHelpers';
 import { ApplicationStatus } from '../types';
 
 export const Dashboard: React.FC = () => {
@@ -152,9 +153,9 @@ export const Dashboard: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-gray-900 truncate group-hover:text-blue-700">
-                        {app.applicant.first_name} {app.applicant.last_name}
+                        {getApplicantFullName(app)}
                       </p>
-                      <p className="text-sm text-gray-500 truncate">DNI: {app.applicant.dni}</p>
+                      <p className="text-sm text-gray-500 truncate">DNI: {getApplicantDNI(app)}</p>
                     </div>
                     <div className="flex items-center gap-2 ml-3">
                       <StatusBadge status={app.status} size="sm" />
@@ -195,9 +196,9 @@ export const Dashboard: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-gray-900 truncate group-hover:text-red-700">
-                        {app.applicant.first_name} {app.applicant.last_name}
+                        {getApplicantFullName(app)}
                       </p>
-                      <p className="text-sm text-gray-500 truncate">DNI: {app.applicant.dni}</p>
+                      <p className="text-sm text-gray-500 truncate">DNI: {getApplicantDNI(app)}</p>
                     </div>
                     <div className="flex items-center gap-2 ml-3">
                       <div className="flex items-center gap-1">
