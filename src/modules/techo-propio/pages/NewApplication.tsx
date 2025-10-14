@@ -418,8 +418,16 @@ export const NewApplication: React.FC = () => {
     };
 
     // Preparar datos para el backend
+    const finalConvocationCode = formData.application_info?.convocation_code || '';
+    
+    // ⚠️ VALIDACIÓN: No enviar solicitudes sin convocatoria
+    if (!finalConvocationCode || finalConvocationCode.trim() === '') {
+      alert('⚠️ Error: Debe seleccionar una convocatoria antes de crear la solicitud.');
+      return;
+    }
+    
     const requestData = {
-      convocation_code: formData.application_info?.convocation_code || '',
+      convocation_code: finalConvocationCode,
       user_data: transformedUserData,
       head_of_family: transformedHeadOfFamily,
       head_of_family_economic: transformedHeadOfFamilyEconomic,

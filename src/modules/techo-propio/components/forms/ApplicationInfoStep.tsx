@@ -52,8 +52,25 @@ export const ApplicationInfoStep: React.FC<ApplicationInfoStepProps> = ({
     if (availableConvocations.length > 0 && !formData.convocation_code) {
       // Buscar la convocatoria marcada como actual (is_current: true)
       const currentConvocation = availableConvocations.find(conv => conv.is_current);
+      
       if (currentConvocation) {
         const updated = { ...formData, convocation_code: currentConvocation.value };
+        setFormData(updated);
+        onChange(updated);
+      } else {
+        // Si no hay convocatoria actual, usar la primera disponible
+        const firstConvocation = availableConvocations[0];
+        if (firstConvocation) {
+          const updated = { ...formData, convocation_code: firstConvocation.value };
+          setFormData(updated);
+          onChange(updated);
+        }
+      }
+    } else if (availableConvocations.length > 0 && formData.convocation_code === '') {
+      // FUERZA: Si el convocation_code es cadena vacía, usar la primera disponible
+      const firstConvocation = availableConvocations[0];
+      if (firstConvocation) {
+        const updated = { ...formData, convocation_code: firstConvocation.value };
         setFormData(updated);
         onChange(updated);
       }

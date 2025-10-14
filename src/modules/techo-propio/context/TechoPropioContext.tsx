@@ -24,15 +24,16 @@ import { techoPropioApi } from '../services';
  */
 const mapBackendApplicationToFrontend = (backendApp: any): TechoPropioApplication => {
   const headOfFamily = backendApp.head_of_family || backendApp.main_applicant;
-  
   const finalStatus = backendApp.status || backendApp.application_status || ApplicationStatus.DRAFT;
+  const mappedCode = backendApp.application_number || backendApp.id || 'N/A';
   
   return {
     ...backendApp,
     // ✅ CRÍTICO: Preservar el estado del backend correctamente
     id: backendApp.id,
     status: finalStatus,
-    code: backendApp.id || backendApp.code || 'N/A',
+    // ✅ CORREGIDO: Usar application_number que contiene el código con formato convocatoria
+    code: mappedCode,
     applicant: {
       dni: headOfFamily.document_number,
       first_name: headOfFamily.first_name,
@@ -184,6 +185,7 @@ export const TechoPropioProvider: React.FC<TechoPropioProviderProps> = ({ childr
 
       // 🔄 MAPPER: Transformar datos del backend al formato del frontend
       const mappedApplications = items.map(mapBackendApplicationToFrontend);
+      
       setApplications(mappedApplications);
       
       // ✅ SYNC: Si hay una aplicación seleccionada, actualizarla también

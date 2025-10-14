@@ -258,8 +258,17 @@ export const ApplicationManagementTable: React.FC<ApplicationManagementTableProp
             ) : filteredApplications.length > 0 ? (
               filteredApplications.map((app) => (
                 <tr key={app.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {app.code}
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-gray-900 font-mono">
+                        {app.code}
+                      </span>
+                      {app.convocation_code && (
+                        <span className="text-xs text-gray-500">
+                          {app.convocation_code} - #{app.sequential_number || '-'}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                     {getApplicantFullName(app)}
