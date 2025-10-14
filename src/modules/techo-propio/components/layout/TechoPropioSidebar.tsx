@@ -9,6 +9,53 @@ import { UserButton } from '@clerk/clerk-react';
 import { useAuthProfile } from '../../../../hooks/useAuthProfile';
 import { adaptUserProfileToUser } from '../../../../shared/utils/userAdapter';
 import { MODULE_CONFIG } from '../../config/moduleConfig';
+import { useTechoPropioConfigContext } from '../../config/context/TechoPropioConfigContext';
+import { getLogoToDisplay } from '../../config/types/config.types';
+
+/**
+ * Helper component to render logo (image or emoji)
+ */
+const LogoDisplay: React.FC<{ logos: any; size?: 'sm' | 'md' | 'lg' }> = ({ logos, size = 'md' }) => {
+  // Usar la función helper actualizada que maneja valores null/undefined
+  const logoDisplay = getLogoToDisplay(logos, 'sidebar');
+  
+  const sizeClasses = {
+    sm: 'text-lg',
+    md: 'text-2xl',
+    lg: 'text-3xl'
+  };
+
+  const imageSizes = {
+    sm: 'w-5 h-5',
+    md: 'w-8 h-8',
+    lg: 'w-10 h-10'
+  };
+
+  if (logoDisplay.type === 'image' && logoDisplay.value) {
+    return (
+      <img
+        src={logoDisplay.value}
+        alt="Logo"
+        className={`${imageSizes[size]} object-contain`}
+        onError={(e) => {
+          // Fallback to emoji on image load error
+          const target = e.target as HTMLImageElement;
+          target.style.display = 'none';
+          const parent = target.parentElement;
+          if (parent) {
+            const fallback = document.createElement('span');
+            fallback.className = sizeClasses[size];
+            fallback.textContent = logos?.sidebar_icon || '🏠';
+            parent.appendChild(fallback);
+          }
+        }}
+      />
+    );
+  }
+
+  // Mostrar emoji/texto con fallback seguro
+  return <span className={sizeClasses[size]}>{logoDisplay.value || '🏠'}</span>;
+};
 
 interface SidebarItemProps {
   icon: string;
@@ -25,19 +72,29 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ icon, label, path, isActive, 
       onClick={onClick}
       className={`
         w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200
-        ${isActive 
-          ? 'bg-gradient-to-r from-green-500 to-blue-600 text-white shadow-md' 
-          : 'text-gray-700 hover:bg-gray-100 hover:text-green-600'
+        ${isActive
+          ? 'text-white shadow-md'
+          : 'text-gray-700 hover:bg-gray-100'
         }
       `}
+      style={isActive ? {
+        background: 'linear-gradient(to right, var(--tp-primary, #16a34a), var(--tp-secondary, #2563eb))'
+      } : {}}
     >
       <span className="text-xl">{icon}</span>
       <span className="font-medium flex-1 text-left text-sm">{label}</span>
       {badge !== undefined && badge > 0 && (
-        <span className={`
-          px-1.5 py-0.5 rounded-full text-xs font-bold
-          ${isActive ? 'bg-white text-green-600' : 'bg-green-100 text-green-600'}
-        `}>
+        <span
+          className={`
+            px-1.5 py-0.5 rounded-full text-xs font-bold
+            ${isActive ? 'bg-white' : 'bg-opacity-20'}
+          `}
+          style={isActive ? {} : {
+            backgroundColor: 'var(--tp-primary, #16a34a)',
+            color: 'white',
+            opacity: 0.2
+          }}
+        >
           {badge}
         </span>
       )}
@@ -51,7 +108,7 @@ interface TechoPropioSidebarProps {
   onToggle?: () => void;
 }
 
-export const TechoPropioSidebar: React.FC<TechoPropioSidebarProps> = ({ 
+export const TechoPropioSidebar: React.FC<TechoPropioSidebarProps> = ({
   isCollapsed = false,
   onClose,
   onToggle
@@ -60,7 +117,9 @@ export const TechoPropioSidebar: React.FC<TechoPropioSidebarProps> = ({
   const location = useLocation();
   const { userProfile } = useAuthProfile();
   const currentUser = adaptUserProfileToUser(userProfile);
-  const [searchQuery, setSearchQuery] = useState('');
+
+  // Obtener configuración personalizada
+  const { config } = useTechoPropioConfigContext();
 
   // Navegación items
   const navigationItems = [
@@ -95,6 +154,11 @@ export const TechoPropioSidebar: React.FC<TechoPropioSidebarProps> = ({
       label: 'Búsqueda Avanzada',
       path: '/techo-propio/buscar',
     },
+    {
+      icon: '⚙️',
+      label: 'Configuración Visual',
+      path: '/techo-propio/configuracion',
+    },
   ];
 
   const handleNavigate = (path: string) => {
@@ -105,12 +169,7 @@ export const TechoPropioSidebar: React.FC<TechoPropioSidebarProps> = ({
     navigate('/dashboard');
   };
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/techo-propio/buscar?q=${encodeURIComponent(searchQuery)}`);
-    }
-  };
+
 
   const isPathActive = (path: string, exact: boolean = false) => {
     if (exact) {
@@ -137,8 +196,13 @@ export const TechoPropioSidebar: React.FC<TechoPropioSidebarProps> = ({
 
         {/* Logo colapsado */}
         <div className="p-4 border-b border-gray-200">
-          <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-blue-600 rounded-lg flex items-center justify-center">
-            <span className="text-2xl">🏠</span>
+          <div
+            className="w-12 h-12 rounded-lg flex items-center justify-center"
+            style={{
+              background: 'linear-gradient(to right, var(--tp-primary, #16a34a), var(--tp-secondary, #2563eb))'
+            }}
+          >
+            <LogoDisplay logos={config?.logos} size="md" />
           </div>
         </div>
 
@@ -151,10 +215,13 @@ export const TechoPropioSidebar: React.FC<TechoPropioSidebarProps> = ({
               className={`
                 w-full p-3 rounded-lg transition-all duration-200 flex items-center justify-center
                 ${isPathActive(item.path, item.exact)
-                  ? 'bg-gradient-to-r from-green-500 to-blue-600 text-white shadow-lg'
-                  : 'text-gray-600 hover:bg-gray-100 hover:text-green-600'
+                  ? 'text-white shadow-lg'
+                  : 'text-gray-600 hover:bg-gray-100'
                 }
               `}
+              style={isPathActive(item.path, item.exact) ? {
+                background: 'linear-gradient(to right, var(--tp-primary, #16a34a), var(--tp-secondary, #2563eb))'
+              } : {}}
               title={item.label}
             >
               <span className="text-2xl">{item.icon}</span>
@@ -169,7 +236,7 @@ export const TechoPropioSidebar: React.FC<TechoPropioSidebarProps> = ({
             className="w-full p-3 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-blue-600 transition-all duration-200 flex items-center justify-center"
             title="Volver al Dashboard Principal"
           >
-            <span className="text-2xl">🏠</span>
+            <LogoDisplay logos={config?.logos} size="md" />
           </button>
         </div>
       </div>
@@ -210,26 +277,25 @@ export const TechoPropioSidebar: React.FC<TechoPropioSidebarProps> = ({
       {/* Header del módulo */}
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center gap-2 mb-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-600 rounded-lg flex items-center justify-center shadow-md">
-            <span className="text-2xl">🏠</span>
+          <div
+            className="w-10 h-10 rounded-lg flex items-center justify-center shadow-md"
+            style={{
+              background: 'linear-gradient(to bottom right, var(--tp-primary, #16a34a), var(--tp-secondary, #2563eb))'
+            }}
+          >
+            <LogoDisplay logos={config?.logos} size="md" />
           </div>
           <div className="flex-1">
-            <h2 className="text-base font-bold text-gray-900">Techo Propio</h2>
-            <p className="text-[10px] text-gray-500">Gestión de Solicitudes</p>
+            <h2 className="text-base font-bold text-gray-900">
+              {config?.branding?.module_title || 'Techo Propio'}
+            </h2>
+            <p className="text-[10px] text-gray-500">
+              {config?.branding?.module_description || 'Gestión de Solicitudes'}
+            </p>
           </div>
         </div>
         
-        {/* Stats rápidos */}
-        <div className="grid grid-cols-2 gap-1.5">
-          <div className="bg-blue-50 rounded-md p-1.5 text-center">
-            <div className="text-[10px] text-blue-600 font-medium">Total</div>
-            <div className="text-base font-bold text-blue-900">0</div>
-          </div>
-          <div className="bg-green-50 rounded-md p-1.5 text-center">
-            <div className="text-[10px] text-green-600 font-medium">Activas</div>
-            <div className="text-base font-bold text-green-900">0</div>
-          </div>
-        </div>
+
       </div>
 
       {/* Usuario */}
@@ -257,26 +323,7 @@ export const TechoPropioSidebar: React.FC<TechoPropioSidebarProps> = ({
         </div>
       </div>
 
-      {/* Búsqueda rápida */}
-      <div className="p-3 border-b border-gray-200">
-        <form onSubmit={handleSearch} className="relative">
-          <input
-            type="text"
-            placeholder="Buscar solicitud..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-          />
-          <svg
-            className="w-4 h-4 text-gray-400 absolute left-2.5 top-1/2 transform -translate-y-1/2"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-        </form>
-      </div>
+
 
       {/* Navegación */}
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
@@ -302,7 +349,7 @@ export const TechoPropioSidebar: React.FC<TechoPropioSidebarProps> = ({
           onClick={handleBackToDashboard}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-blue-600 transition-all duration-200 border border-gray-200"
         >
-          <span className="text-lg">🏠</span>
+          <LogoDisplay logos={config?.logos} size="sm" />
           <span className="font-medium flex-1 text-left text-xs">Dashboard Principal</span>
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />

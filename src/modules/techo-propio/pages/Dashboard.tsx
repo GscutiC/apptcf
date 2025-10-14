@@ -11,11 +11,13 @@ import { ApplicationCard, StatusBadge, PriorityIndicator, ApplicationManagementT
 import { formatCurrency } from '../utils';
 import { getApplicantFullName, getApplicantDNI } from '../utils/applicationHelpers';
 import { ApplicationStatus } from '../types';
+import { useTechoPropioConfigContext } from '../config/context/TechoPropioConfigContext';
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { applications, statistics, isLoading, fetchApplications, fetchStatistics, refreshApplications } = useTechoPropio();
   const { submitApplication, changeStatus } = useTechoPropioApplications();
+  const { config } = useTechoPropioConfigContext();
 
   // Estados para modals
   const [submitModal, setSubmitModal] = useState<{ show: boolean; id?: string }>({ show: false });
@@ -92,7 +94,10 @@ export const Dashboard: React.FC = () => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
+          <div
+            className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
+            style={{ borderColor: 'var(--tp-primary, #2563eb)' }}
+          />
           <p className="text-gray-600">Cargando dashboard...</p>
         </div>
       </div>
@@ -101,6 +106,33 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Mensaje de Bienvenida */}
+      {config?.branding?.dashboard_welcome && (
+        <div
+          className="bg-white rounded-lg shadow p-6 border-l-4"
+          style={{ borderLeftColor: 'var(--tp-primary, #16a34a)' }}
+        >
+          <div className="flex items-center gap-4">
+            <div
+              className="w-12 h-12 rounded-full flex items-center justify-center"
+              style={{
+                background: 'linear-gradient(to right, var(--tp-primary, #16a34a), var(--tp-secondary, #2563eb))'
+              }}
+            >
+              <span className="text-2xl">👋</span>
+            </div>
+            <div className="flex-1">
+              <h2 className="text-xl font-bold text-gray-900">
+                {config.branding.dashboard_welcome}
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                {config.branding.module_description || 'Gestiona tus solicitudes desde aquí'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Botón de acción rápida - Móvil */}
       <div className="lg:hidden">
         <Button onClick={() => navigate('/techo-propio/nueva')} size="lg" className="w-full">
@@ -148,11 +180,19 @@ export const Dashboard: React.FC = () => {
                 <div
                   key={app.id}
                   onClick={() => navigate(`/techo-propio/ver/${app.id}`)}
-                  className="p-3 bg-gray-50 hover:bg-blue-50 rounded-lg border border-gray-200 hover:border-blue-300 cursor-pointer transition-all group"
+                  className="p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer transition-all group"
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(37, 99, 235, 0.05)';
+                    e.currentTarget.style.borderColor = 'var(--tp-secondary, #2563eb)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '';
+                    e.currentTarget.style.borderColor = '';
+                  }}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 truncate group-hover:text-blue-700">
+                      <p className="font-medium text-gray-900 truncate">
                         {getApplicantFullName(app)}
                       </p>
                       <p className="text-sm text-gray-500 truncate">DNI: {getApplicantDNI(app)}</p>
@@ -160,7 +200,13 @@ export const Dashboard: React.FC = () => {
                     <div className="flex items-center gap-2 ml-3">
                       <StatusBadge status={app.status} size="sm" />
                       {app.priority_score > 70 && (
-                        <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-700 rounded">
+                        <span
+                          className="px-2 py-1 text-xs font-medium rounded"
+                          style={{
+                            backgroundColor: 'rgba(220, 38, 38, 0.1)',
+                            color: 'var(--tp-accent, #dc2626)'
+                          }}
+                        >
                           Alta prioridad
                         </span>
                       )}
@@ -191,21 +237,39 @@ export const Dashboard: React.FC = () => {
                 <div
                   key={app.id}
                   onClick={() => navigate(`/techo-propio/ver/${app.id}`)}
-                  className="p-3 bg-gray-50 hover:bg-red-50 rounded-lg border border-gray-200 hover:border-red-300 cursor-pointer transition-all group"
+                  className="p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer transition-all group"
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(220, 38, 38, 0.05)';
+                    e.currentTarget.style.borderColor = 'var(--tp-accent, #dc2626)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '';
+                    e.currentTarget.style.borderColor = '';
+                  }}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 truncate group-hover:text-red-700">
+                      <p className="font-medium text-gray-900 truncate">
                         {getApplicantFullName(app)}
                       </p>
                       <p className="text-sm text-gray-500 truncate">DNI: {getApplicantDNI(app)}</p>
                     </div>
                     <div className="flex items-center gap-2 ml-3">
                       <div className="flex items-center gap-1">
-                        <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                        <svg
+                          className="w-4 h-4"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                          style={{ color: 'var(--tp-accent, #dc2626)' }}
+                        >
                           <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                         </svg>
-                        <span className="text-sm font-semibold text-red-700">{app.priority_score}</span>
+                        <span
+                          className="text-sm font-semibold"
+                          style={{ color: 'var(--tp-accent, #dc2626)' }}
+                        >
+                          {app.priority_score}
+                        </span>
                       </div>
                       <StatusBadge status={app.status} size="sm" />
                     </div>
@@ -225,26 +289,52 @@ export const Dashboard: React.FC = () => {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           <button
             onClick={() => navigate('/techo-propio/nueva')}
-            className="group flex flex-col items-center justify-center p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-all border border-blue-200 hover:border-blue-300 hover:shadow-sm"
+            className="group flex flex-col items-center justify-center p-4 rounded-lg transition-all border hover:shadow-sm"
+            style={{
+              backgroundColor: 'rgba(37, 99, 235, 0.05)',
+              borderColor: 'var(--tp-secondary, #2563eb)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(37, 99, 235, 0.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(37, 99, 235, 0.05)';
+            }}
           >
-            <div className="p-3 bg-blue-500 rounded-full mb-2 group-hover:scale-110 transition-transform">
+            <div
+              className="p-3 rounded-full mb-2 group-hover:scale-110 transition-transform"
+              style={{ backgroundColor: 'var(--tp-secondary, #2563eb)' }}
+            >
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
             </div>
-            <span className="text-sm font-medium text-blue-900 text-center">Nueva Solicitud</span>
+            <span className="text-sm font-medium text-gray-900 text-center">Nueva Solicitud</span>
           </button>
 
           <button
             onClick={() => navigate('/techo-propio/solicitudes')}
-            className="group flex flex-col items-center justify-center p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-all border border-green-200 hover:border-green-300 hover:shadow-sm"
+            className="group flex flex-col items-center justify-center p-4 rounded-lg transition-all border hover:shadow-sm"
+            style={{
+              backgroundColor: 'rgba(22, 163, 74, 0.05)',
+              borderColor: 'var(--tp-primary, #16a34a)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(22, 163, 74, 0.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(22, 163, 74, 0.05)';
+            }}
           >
-            <div className="p-3 bg-green-500 rounded-full mb-2 group-hover:scale-110 transition-transform">
+            <div
+              className="p-3 rounded-full mb-2 group-hover:scale-110 transition-transform"
+              style={{ backgroundColor: 'var(--tp-primary, #16a34a)' }}
+            >
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
             </div>
-            <span className="text-sm font-medium text-green-900 text-center">Ver Todas</span>
+            <span className="text-sm font-medium text-gray-900 text-center">Ver Todas</span>
           </button>
 
           <button
@@ -292,7 +382,13 @@ export const Dashboard: React.FC = () => {
             <h3 className="text-lg font-semibold text-gray-900">🛠️ Gestión de Solicitudes</h3>
             <p className="text-sm text-gray-500">Administra y cambia estados de todas las solicitudes</p>
           </div>
-          <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+          <span
+            className="px-3 py-1 rounded-full text-sm font-medium"
+            style={{
+              backgroundColor: 'rgba(37, 99, 235, 0.1)',
+              color: 'var(--tp-secondary, #2563eb)'
+            }}
+          >
             {applications.length} solicitudes
           </span>
         </div>
@@ -355,7 +451,9 @@ export const Dashboard: React.FC = () => {
           </>
         }
       >
-        <p className="text-green-700 font-semibold">✅ ¿Aprobar esta solicitud?</p>
+        <p className="font-semibold" style={{ color: 'var(--tp-primary, #16a34a)' }}>
+          ✅ ¿Aprobar esta solicitud?
+        </p>
         <p className="text-sm text-gray-600 mt-2">Esta es una acción final. La solicitud será marcada como APROBADA.</p>
       </Modal>
 
@@ -371,14 +469,22 @@ export const Dashboard: React.FC = () => {
           </>
         }
       >
-        <p className="text-red-700 font-semibold">❌ ¿Rechazar esta solicitud?</p>
+        <p className="font-semibold" style={{ color: 'var(--tp-accent, #dc2626)' }}>
+          ❌ ¿Rechazar esta solicitud?
+        </p>
         <p className="text-sm text-gray-600 mt-2 mb-4">Debe proporcionar una razón para el rechazo:</p>
         <textarea
           value={rejectModal.reason || ''}
           onChange={(e) => setRejectModal({ ...rejectModal, reason: e.target.value })}
           placeholder="Razón del rechazo..."
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
           rows={4}
+          onFocus={(e) => {
+            e.currentTarget.style.boxShadow = `0 0 0 2px var(--tp-accent, #dc2626)`;
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.boxShadow = '';
+          }}
         />
       </Modal>
 
@@ -399,8 +505,14 @@ export const Dashboard: React.FC = () => {
           value={requestInfoModal.comments || ''}
           onChange={(e) => setRequestInfoModal({ ...requestInfoModal, comments: e.target.value })}
           placeholder="Descripción de la información requerida..."
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mt-3"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent mt-3"
           rows={4}
+          onFocus={(e) => {
+            e.currentTarget.style.boxShadow = `0 0 0 2px var(--tp-secondary, #2563eb)`;
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.boxShadow = '';
+          }}
         />
       </Modal>
     </div>

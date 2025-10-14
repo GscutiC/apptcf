@@ -103,6 +103,7 @@ export const ApplicationCard: React.FC<ApplicationCardProps> = React.memo(({
   }, [onDelete]);
 
   // ✅ MEJORA: Memoizar JSX de acciones
+  // ✅ Actualizado para usar CSS Variables personalizadas
   const actions = useMemo(() => {
     if (!showActions) return undefined;
 
@@ -111,7 +112,14 @@ export const ApplicationCard: React.FC<ApplicationCardProps> = React.memo(({
         {canSubmit && (
           <button
             onClick={handleSubmitClick}
-            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+            className="p-2 rounded-lg transition-colors"
+            style={{ color: 'var(--tp-primary, #16a34a)' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(22, 163, 74, 0.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
             title="Enviar Solicitud"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -122,7 +130,14 @@ export const ApplicationCard: React.FC<ApplicationCardProps> = React.memo(({
         {canEdit && (
           <button
             onClick={handleEditClick}
-            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            className="p-2 rounded-lg transition-colors"
+            style={{ color: 'var(--tp-secondary, #2563eb)' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(37, 99, 235, 0.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
             title="Editar"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -133,7 +148,14 @@ export const ApplicationCard: React.FC<ApplicationCardProps> = React.memo(({
         {canDelete && (
           <button
             onClick={handleDeleteClick}
-            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            className="p-2 rounded-lg transition-colors"
+            style={{ color: 'var(--tp-accent, #dc2626)' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(220, 38, 38, 0.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
             title="Eliminar"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -151,7 +173,10 @@ export const ApplicationCard: React.FC<ApplicationCardProps> = React.memo(({
       {isLoading && (
         <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
           <div className="flex items-center gap-2">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <div
+              className="animate-spin rounded-full h-6 w-6 border-b-2"
+              style={{ borderColor: 'var(--tp-primary, #2563eb)' }}
+            ></div>
             <span className="text-sm text-gray-600">Actualizando...</span>
           </div>
         </div>

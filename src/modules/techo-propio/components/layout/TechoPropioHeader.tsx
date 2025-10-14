@@ -8,6 +8,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { UserButton } from '@clerk/clerk-react';
 import { useAuthProfile } from '../../../../hooks/useAuthProfile';
 import { adaptUserProfileToUser } from '../../../../shared/utils/userAdapter';
+import { useTechoPropioConfigContext } from '../../config/context/TechoPropioConfigContext';
+import { getLogoToDisplay } from '../../config/types/config.types';
 
 interface Breadcrumb {
   label: string;
@@ -29,6 +31,12 @@ export const TechoPropioHeader: React.FC<TechoPropioHeaderProps> = ({
   const { userProfile } = useAuthProfile();
   const currentUser = adaptUserProfileToUser(userProfile);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Obtener configuración personalizada
+  const { config } = useTechoPropioConfigContext();
+
+  // Obtener logo del header (getLogoToDisplay ahora maneja valores null/undefined)
+  const headerLogoDisplay = getLogoToDisplay(config?.logos, 'header');
 
   // Generar breadcrumbs basado en la ruta actual
   const getBreadcrumbs = (): Breadcrumb[] => {
@@ -72,7 +80,7 @@ export const TechoPropioHeader: React.FC<TechoPropioHeaderProps> = ({
     <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-30">
       <div className="px-6 py-4">
         <div className="flex items-center justify-between gap-4">
-          {/* Left section: Menu toggle + Breadcrumbs */}
+          {/* Left section: Menu toggle + Logo + Breadcrumbs */}
           <div className="flex items-center gap-4 flex-1 min-w-0">
             {/* Toggle sidebar button */}
             {onToggleSidebar && (
@@ -84,6 +92,31 @@ export const TechoPropioHeader: React.FC<TechoPropioHeaderProps> = ({
                 <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
+              </button>
+            )}
+
+            {/* Logo del Header (si está configurado) - Botón para regresar al Dashboard Principal */}
+            {headerLogoDisplay && headerLogoDisplay.value && (
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="flex items-center justify-center px-3 py-2 border-r border-gray-200 hover:bg-gray-50 rounded-lg transition-colors group"
+                title="Regresar al Dashboard Principal"
+              >
+                {headerLogoDisplay.type === 'image' ? (
+                  <img
+                    src={headerLogoDisplay.value}
+                    alt="Logo - Regresar al Dashboard"
+                    className="h-8 w-auto object-contain transition-transform group-hover:scale-110"
+                    onError={(e) => {
+                      // Hide on error
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <span className="text-2xl transition-transform group-hover:scale-110">
+                    {headerLogoDisplay.value}
+                  </span>
+                )}
               </button>
             )}
 
@@ -99,7 +132,10 @@ export const TechoPropioHeader: React.FC<TechoPropioHeaderProps> = ({
                   {crumb.path ? (
                     <button
                       onClick={() => navigate(crumb.path!)}
-                      className="flex items-center gap-1 text-sm text-gray-600 hover:text-green-600 transition-colors whitespace-nowrap"
+                      className="flex items-center gap-1 text-sm text-gray-600 transition-colors whitespace-nowrap"
+                      style={{ ['--hover-color' as any]: 'var(--tp-primary, #16a34a)' }}
+                      onMouseEnter={(e) => e.currentTarget.style.color = 'var(--tp-primary, #16a34a)'}
+                      onMouseLeave={(e) => e.currentTarget.style.color = ''}
                     >
                       {crumb.icon && <span>{crumb.icon}</span>}
                       <span>{crumb.label}</span>
@@ -125,7 +161,16 @@ export const TechoPropioHeader: React.FC<TechoPropioHeaderProps> = ({
                   placeholder="Buscar solicitud..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+                  className="w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent text-sm"
+                  style={{
+                    ['--tw-ring-color' as any]: 'var(--tp-primary, #16a34a)'
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.boxShadow = `0 0 0 2px var(--tp-primary, #16a34a)`;
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.boxShadow = '';
+                  }}
                 />
                 <svg
                   className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2"
@@ -141,7 +186,10 @@ export const TechoPropioHeader: React.FC<TechoPropioHeaderProps> = ({
             {/* Botón Nueva Solicitud */}
             <button
               onClick={() => navigate('/techo-propio/nueva')}
-              className="hidden lg:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-blue-600 text-white rounded-lg hover:shadow-lg transition-all duration-200 text-sm font-medium"
+              className="hidden lg:flex items-center gap-2 px-4 py-2 text-white rounded-lg hover:shadow-lg transition-all duration-200 text-sm font-medium"
+              style={{
+                background: 'linear-gradient(to right, var(--tp-primary, #16a34a), var(--tp-secondary, #2563eb))'
+              }}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

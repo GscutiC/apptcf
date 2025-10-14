@@ -22,6 +22,9 @@ const NewApplication = lazy(() => import('./pages/NewApplication'));
 const EditApplication = lazy(() => import('./pages/EditApplication'));
 const ConvocationManagement = lazy(() => import('./components/ConvocationManagement'));
 
+// Configuración visual del módulo
+import { TechoPropioConfigPanel } from './config/components/TechoPropioConfigPanel';
+
 // Loading fallback component
 const LoadingFallback = () => (
   <div className="flex items-center justify-center min-h-screen bg-gray-50">
@@ -60,6 +63,9 @@ export const TechoPropio: React.FC = () => {
 
                 {/* Convocatorias Management */}
                 <Route path="/convocatorias" element={<ConvocationManagement />} />
+
+                {/* Configuración Visual del Módulo */}
+                <Route path="/configuracion" element={<TechoPropioConfigPanel />} />
 
                 {/* Redirect old paths for compatibility */}
                 <Route path="/dashboard" element={<Navigate to="/techo-propio/" replace />} />

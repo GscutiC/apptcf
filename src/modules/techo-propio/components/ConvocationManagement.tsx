@@ -274,7 +274,10 @@ const ConvocationManagement: React.FC = () => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
+          <div
+            className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
+            style={{ borderColor: 'var(--tp-primary, #2563eb)' }}
+          />
           <p className="text-gray-600">Cargando convocatorias...</p>
         </div>
       </div>
@@ -293,9 +296,12 @@ const ConvocationManagement: React.FC = () => {
             Administra las convocatorias del programa Techo Propio
           </p>
         </div>
-        <button 
+        <button
           onClick={handleCreateNew}
-          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+          className="text-white font-bold py-2 px-4 rounded transition-all"
+          style={{
+            background: 'linear-gradient(to right, var(--tp-primary, #16a34a), var(--tp-secondary, #2563eb))'
+          }}
         >
           ➕ Nueva Convocatoria
         </button>
@@ -303,13 +309,27 @@ const ConvocationManagement: React.FC = () => {
 
       {/* Mensajes de estado */}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+        <div
+          className="px-4 py-3 rounded border"
+          style={{
+            backgroundColor: 'rgba(220, 38, 38, 0.05)',
+            borderColor: 'var(--tp-accent, #dc2626)',
+            color: 'var(--tp-accent, #dc2626)'
+          }}
+        >
           ❌ {error}
         </div>
       )}
 
       {success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
+        <div
+          className="px-4 py-3 rounded border"
+          style={{
+            backgroundColor: 'rgba(22, 163, 74, 0.05)',
+            borderColor: 'var(--tp-primary, #16a34a)',
+            color: 'var(--tp-primary, #16a34a)'
+          }}
+        >
           ✅ {success}
         </div>
       )}
@@ -389,28 +409,48 @@ const ConvocationManagement: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                         <button
                           onClick={() => handleEdit(convocation)}
-                          className="text-indigo-600 hover:text-indigo-900"
+                          className="transition-colors"
+                          style={{ color: 'var(--tp-secondary, #2563eb)' }}
+                          onMouseEnter={(e) => e.currentTarget.style.opacity = '0.7'}
+                          onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                           title="Editar"
                         >
                           ✏️
                         </button>
                         <button
                           onClick={() => handleToggleActive(convocation)}
-                          className={convocation.is_active ? 'text-orange-600 hover:text-orange-900' : 'text-green-600 hover:text-green-900'}
+                          className="transition-colors"
+                          style={{
+                            color: convocation.is_active
+                              ? '#f97316'
+                              : 'var(--tp-primary, #16a34a)'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.opacity = '0.7'}
+                          onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                           title={convocation.is_active ? 'Desactivar' : 'Activar'}
                         >
                           {convocation.is_active ? '⏸️' : '▶️'}
                         </button>
                         <button
                           onClick={() => handleTogglePublish(convocation)}
-                          className={convocation.is_published ? 'text-purple-600 hover:text-purple-900' : 'text-blue-600 hover:text-blue-900'}
+                          className="transition-colors"
+                          style={{
+                            color: convocation.is_published
+                              ? '#9333ea'
+                              : 'var(--tp-secondary, #2563eb)'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.opacity = '0.7'}
+                          onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                           title={convocation.is_published ? 'Despublicar' : 'Publicar'}
                         >
                           {convocation.is_published ? '🔒' : '📢'}
                         </button>
                         <button
                           onClick={() => handleDelete(convocation)}
-                          className="text-red-600 hover:text-red-900"
+                          className="transition-colors"
+                          style={{ color: 'var(--tp-accent, #dc2626)' }}
+                          onMouseEnter={(e) => e.currentTarget.style.opacity = '0.7'}
+                          onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                           title="Eliminar"
                         >
                           🗑️
@@ -568,13 +608,16 @@ const ConvocationManagement: React.FC = () => {
                 <div className="flex justify-end space-x-3 pt-4">
                   <button
                     onClick={() => setIsModalOpen(false)}
-                    className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded"
+                    className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded transition-colors"
                   >
                     Cancelar
                   </button>
                   <button
                     onClick={handleSave}
-                    className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                    className="text-white font-bold py-2 px-4 rounded transition-all"
+                    style={{
+                      background: 'linear-gradient(to right, var(--tp-primary, #16a34a), var(--tp-secondary, #2563eb))'
+                    }}
                   >
                     {editingConvocation ? 'Actualizar' : 'Crear'}
                   </button>

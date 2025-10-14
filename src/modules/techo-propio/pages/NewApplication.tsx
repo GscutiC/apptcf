@@ -660,12 +660,19 @@ export const NewApplication: React.FC = () => {
                   {/* Step Circle */}
                   <div
                     className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-200 ${
-                      step === currentStep
-                        ? 'bg-blue-600 text-white shadow-lg'
-                        : step < currentStep
-                        ? 'bg-green-500 text-white'
+                      step < currentStep
+                        ? 'text-white shadow-lg'
+                        : step === currentStep
+                        ? 'text-white shadow-lg'
                         : 'bg-gray-200 text-gray-600'
                     }`}
+                    style={
+                      step === currentStep
+                        ? { backgroundColor: 'var(--tp-secondary, #2563eb)' }
+                        : step < currentStep
+                        ? { backgroundColor: 'var(--tp-primary, #16a34a)' }
+                        : {}
+                    }
                   >
                     {step < currentStep ? (
                       <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
@@ -685,13 +692,14 @@ export const NewApplication: React.FC = () => {
                   {/* Step Info */}
                   <div className="flex-1">
                     <h4
-                      className={`font-medium ${
-                        step === currentStep
-                          ? 'text-blue-600'
+                      className="font-medium"
+                      style={{
+                        color: step === currentStep
+                          ? 'var(--tp-secondary, #2563eb)'
                           : step < currentStep
-                          ? 'text-green-600'
-                          : 'text-gray-500'
-                      }`}
+                          ? 'var(--tp-primary, #16a34a)'
+                          : '#6b7280'
+                      }}
                     >
                       {step === 0 && 'Información General'}
                       {step === 1 && 'Datos del Solicitante'}
@@ -710,12 +718,24 @@ export const NewApplication: React.FC = () => {
                   
                   {/* Status Badge */}
                   {step < currentStep && (
-                    <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
+                    <span
+                      className="px-2 py-1 text-xs rounded-full"
+                      style={{
+                        backgroundColor: 'rgba(22, 163, 74, 0.1)',
+                        color: 'var(--tp-primary, #16a34a)'
+                      }}
+                    >
                       Completado
                     </span>
                   )}
                   {step === currentStep && (
-                    <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                    <span
+                      className="px-2 py-1 text-xs rounded-full"
+                      style={{
+                        backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                        color: 'var(--tp-secondary, #2563eb)'
+                      }}
+                    >
                       Actual
                     </span>
                   )}
@@ -731,16 +751,30 @@ export const NewApplication: React.FC = () => {
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${((currentStep + 1) / totalSteps) * 100}%` }}
+                  className="h-2 rounded-full transition-all duration-300"
+                  style={{
+                    width: `${((currentStep + 1) / totalSteps) * 100}%`,
+                    background: 'linear-gradient(to right, var(--tp-primary, #16a34a), var(--tp-secondary, #2563eb))'
+                  }}
                 />
               </div>
             </div>
             
             {/* Help Text */}
-            <div className="mt-8 p-4 bg-blue-50 rounded-lg">
-              <h5 className="text-sm font-medium text-blue-800 mb-2">💡 Consejos</h5>
-              <p className="text-xs text-blue-700">
+            <div
+              className="mt-8 p-4 rounded-lg"
+              style={{
+                backgroundColor: 'rgba(37, 99, 235, 0.05)',
+                borderLeft: '4px solid var(--tp-secondary, #2563eb)'
+              }}
+            >
+              <h5
+                className="text-sm font-medium mb-2"
+                style={{ color: 'var(--tp-secondary, #2563eb)' }}
+              >
+                💡 Consejos
+              </h5>
+              <p className="text-xs text-gray-700">
                 {currentStep === 0 && 'Seleccione la convocatoria correspondiente a su solicitud.'}
                 {currentStep === 1 && 'Complete solo los datos básicos de contacto del solicitante principal.'}
                 {currentStep === 2 && 'Agregue todos los miembros que vivan en el hogar.'}
