@@ -4,3 +4,4 @@
 
 export * from './techoPropioApi';
 export * from './storageService';
+export * from './cacheService';

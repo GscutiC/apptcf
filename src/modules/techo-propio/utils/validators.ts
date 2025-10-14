@@ -1,5 +1,9 @@
 /**
  * Validation utilities for Techo Propio Module
+ *
+ * ✅ MEJORA: Sprint 1 - B3
+ * Validaciones powered by Zod para type-safety y consistencia
+ * Mantiene interfaz compatible con código existente
  */
 
 import { VALIDATION_RULES } from './constants';
@@ -11,39 +15,45 @@ import {
   ApplicationFormData
 } from '../types';
 
+// ✅ NUEVO: Importar schemas de Zod
+import {
+  DniSchema,
+  PhoneSchema,
+  EmailSchema,
+  ApplicantSchema,
+  PropertySchema,
+  HouseholdMemberSchema,
+  validateField
+} from './schemas';
+
 // ==================== BASIC VALIDATORS ====================
+// ✅ MEJORA: Ahora usan Zod internamente
 
 export const validateDNI = (dni: string): { isValid: boolean; error?: string } => {
-  if (!dni) {
-    return { isValid: false, error: 'El DNI es requerido' };
-  }
+  const error = validateField(DniSchema, dni);
 
-  if (!VALIDATION_RULES.DNI.pattern.test(dni)) {
-    return { isValid: false, error: VALIDATION_RULES.DNI.errorMessage };
+  if (error) {
+    return { isValid: false, error };
   }
 
   return { isValid: true };
 };
 
 export const validatePhone = (phone: string): { isValid: boolean; error?: string } => {
-  if (!phone) {
-    return { isValid: false, error: 'El teléfono es requerido' };
-  }
+  const error = validateField(PhoneSchema, phone);
 
-  if (!VALIDATION_RULES.PHONE.pattern.test(phone)) {
-    return { isValid: false, error: VALIDATION_RULES.PHONE.errorMessage };
+  if (error) {
+    return { isValid: false, error };
   }
 
   return { isValid: true };
 };
 
 export const validateEmail = (email: string): { isValid: boolean; error?: string } => {
-  if (!email) {
-    return { isValid: false, error: 'El email es requerido' };
-  }
+  const error = validateField(EmailSchema, email);
 
-  if (!VALIDATION_RULES.EMAIL.pattern.test(email)) {
-    return { isValid: false, error: VALIDATION_RULES.EMAIL.errorMessage };
+  if (error) {
+    return { isValid: false, error };
   }
 
   return { isValid: true };
@@ -113,32 +123,22 @@ export const validateRequired = (value: any, fieldName: string = 'Este campo'): 
 // ==================== COMPLEX VALIDATORS ====================
 
 export const validateApplicant = (applicant: Partial<Applicant>): { isValid: boolean; errors: Record<string, string> } => {
+  // ✅ MEJORA: Usar Zod para validación automática
+  const result = ApplicantSchema.safeParse(applicant);
+
+  if (result.success) {
+    return { isValid: true, errors: {} };
+  }
+
+  // Convertir errores de Zod a formato esperado
   const errors: Record<string, string> = {};
-
-  // DNI
-  const dniValidation = validateDNI(applicant.dni || '');
-  if (!dniValidation.isValid) errors.dni = dniValidation.error!;
-
-  // Names
-  if (!applicant.first_name?.trim()) errors.first_name = 'El nombre es requerido';
-  if (!applicant.last_name?.trim()) errors.last_name = 'El apellido es requerido';
-
-  // Phone
-  const phoneValidation = validatePhone(applicant.phone || '');
-  if (!phoneValidation.isValid) errors.phone = phoneValidation.error!;
-
-  // Email
-  const emailValidation = validateEmail(applicant.email || '');
-  if (!emailValidation.isValid) errors.email = emailValidation.error!;
-
-  // ✅ CAMPOS ELIMINADOS (se capturan en Paso 2):
-  // - birth_date (Fecha de nacimiento)
-  // - gender (Género)
-  // - marital_status (Estado civil)
-  // - current_address (Dirección actual completa)
+  result.error.issues.forEach((error: any) => {
+    const field = error.path[0]?.toString() || 'unknown';
+    errors[field] = error.message;
+  });
 
   return {
-    isValid: Object.keys(errors).length === 0,
+    isValid: false,
     errors
   };
 };
@@ -235,35 +235,22 @@ export const validateEconomicInfo = (economicInfo: Partial<EconomicInfo>): { isV
 };
 
 export const validatePropertyInfo = (propertyInfo: Partial<PropertyInfo>): { isValid: boolean; errors: Record<string, string> } => {
+  // ✅ MEJORA: Usar Zod para validación automática
+  const result = PropertySchema.safeParse(propertyInfo);
+
+  if (result.success) {
+    return { isValid: true, errors: {} };
+  }
+
+  // Convertir errores de Zod a formato esperado
   const errors: Record<string, string> = {};
-
-  // Campos obligatorios del nuevo PropertyInfo (alineado con backend)
-  if (!propertyInfo.department?.trim()) errors.department = 'El departamento es requerido';
-  if (!propertyInfo.province?.trim()) errors.province = 'La provincia es requerida';  
-  if (!propertyInfo.district?.trim()) errors.district = 'El distrito es requerido';
-  if (!propertyInfo.lote?.trim()) errors.lote = 'El lote es requerido';
-  if (!propertyInfo.address?.trim()) errors.address = 'La dirección es requerida';
-
-  // Validación de dirección (debe tener al menos 5 caracteres)
-  if (propertyInfo.address && propertyInfo.address.trim().length < 5) {
-    errors.address = 'La dirección debe tener al menos 5 caracteres';
-  }
-
-  // Validación de coordenadas si se proporcionan
-  if (propertyInfo.latitude !== undefined) {
-    if (propertyInfo.latitude < -90 || propertyInfo.latitude > 90) {
-      errors.latitude = 'La latitud debe estar entre -90 y 90 grados';
-    }
-  }
-
-  if (propertyInfo.longitude !== undefined) {
-    if (propertyInfo.longitude < -180 || propertyInfo.longitude > 180) {
-      errors.longitude = 'La longitud debe estar entre -180 y 180 grados';
-    }
-  }
+  result.error.issues.forEach((error: any) => {
+    const field = error.path[0]?.toString() || 'unknown';
+    errors[field] = error.message;
+  });
 
   return {
-    isValid: Object.keys(errors).length === 0,
+    isValid: false,
     errors
   };
 };
