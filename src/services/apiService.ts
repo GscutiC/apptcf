@@ -10,12 +10,43 @@ const api = axios.create({
   },
 });
 
+// Variable global para almacenar la función getToken de Clerk
+let getTokenFunction: (() => Promise<string | null>) | null = null;
+
+// Función para configurar el servicio con la función getToken de Clerk
+export const setAuthToken = (getToken: () => Promise<string | null>) => {
+  getTokenFunction = getToken;
+};
+
+// Interceptor para agregar token de autenticación
+api.interceptors.request.use(
+  async (config) => {
+    if (getTokenFunction) {
+      try {
+        const token = await getTokenFunction();
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+      } catch (error) {
+        console.warn('Error obteniendo token:', error);
+      }
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 // Interceptor para manejo de errores
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.code === 'ECONNREFUSED') {
       throw new Error('No se pudo conectar con el servidor backend');
+    }
+    if (error.response?.status === 401) {
+      console.error('Error de autenticación: Token inválido o expirado');
     }
     throw error;
   }

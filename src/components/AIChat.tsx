@@ -15,14 +15,30 @@ const AIChat: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
+  const [retryCount, setRetryCount] = useState<number>(0);
+  const MAX_RETRIES = 3;
 
   useEffect(() => {
-    initializeChat();
-  }, []);
+    // Solo intentar inicializar una vez
+    let mounted = true;
+
+    const init = async () => {
+      if (mounted && connectionStatus === 'connecting') {
+        await initializeChat();
+      }
+    };
+
+    init();
+
+    return () => {
+      mounted = false;
+    };
+  }, []); // Array vacío para ejecutar solo una vez
 
   const initializeChat = async () => {
     try {
       setConnectionStatus('connecting');
+      setError(null);
 
       // Verificar conexión con el backend
       await apiService.checkHealth();
@@ -40,10 +56,22 @@ const AIChat: React.FC = () => {
 
       setMessages([welcomeMessage]);
       setConnectionStatus('connected');
-    } catch (err) {
+      setRetryCount(0); // Reset retry count on success
+    } catch (err: any) {
       console.error('Error initializing chat:', err);
+
+      let errorMessage = 'No se pudo conectar con el servicio de IA.';
+
+      if (err.response?.status === 401) {
+        errorMessage = 'Error de autenticación. Por favor, recarga la página.';
+      } else if (err.response?.status === 500) {
+        errorMessage = 'Error del servidor. El servicio de IA no está disponible temporalmente.';
+      } else if (err.code === 'ECONNREFUSED') {
+        errorMessage = 'No se puede conectar con el backend. Verifica que el servidor esté ejecutándose.';
+      }
+
       setConnectionStatus('error');
-      setError('No se pudo conectar con el servicio de IA. Verifica que el backend esté ejecutándose.');
+      setError(errorMessage);
     }
   };
 

@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import { useUser } from '@clerk/clerk-react';
+import { useUser, useAuth } from '@clerk/clerk-react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
@@ -15,6 +15,7 @@ import { usePrefetchCriticalRoutes } from './hooks/useRoutePrefetch';
 import { PerformanceMonitor } from './components/PerformanceMonitor';
 import Loading from './shared/components/ui/Loading';
 import LoginPage from './components/LoginPage';
+import { setAuthToken } from './services/apiService';
 
 // ============================================
 // LAZY LOADING DE PÁGINAS CON PREFETCH
@@ -59,6 +60,17 @@ LayoutWrapper.displayName = 'LayoutWrapper';
 
 function App() {
   const { user, isSignedIn } = useUser();
+  const { getToken } = useAuth();
+
+  // ============================================
+  // CONFIGURAR TOKEN PARA API SERVICE
+  // ============================================
+  // Configurar la función getToken para que apiService la use
+  React.useEffect(() => {
+    if (isSignedIn && getToken) {
+      setAuthToken(getToken);
+    }
+  }, [isSignedIn, getToken]);
 
   // ============================================
   // PREFETCH DE RUTAS CRÍTICAS
