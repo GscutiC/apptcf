@@ -40,11 +40,9 @@ export const useValidation = () => {
     setValidationError(null);
 
     try {
-      // 🚫 NO CACHE - Cada validación es única por persona
+      // NO CACHE - Cada validación es única por persona
       const response = await techoPropioApi.validateDni(dni);
-
       if (response.success && response.data) {
-        console.info(`[RENIEC] DNI ${dni} validado correctamente en tiempo real`);
         return response;
       } else {
         throw new Error(response.error || 'Error al validar DNI');
@@ -52,7 +50,6 @@ export const useValidation = () => {
     } catch (err: any) {
       const errorMessage = err.error || err.message || 'Error al validar DNI';
       setValidationError(errorMessage);
-      console.error(`[RENIEC] Error validando DNI ${dni}:`, errorMessage);
       return null;
     } finally {
       setIsValidating(false);
@@ -72,7 +69,6 @@ export const useValidation = () => {
     const cached = cacheService.get<UbigeoDepartment[]>(cacheKey);
 
     if (cached) {
-      console.info('[UBIGEO] Departamentos cargados desde cache');
       setDepartments(cached);
       return cached;
     }
@@ -82,11 +78,7 @@ export const useValidation = () => {
 
     try {
       const data = await techoPropioApi.getDepartments();
-
-      // Guardar en cache por 24 horas
       cacheService.set(cacheKey, data);
-      console.info('[UBIGEO] Departamentos cargados desde API y cacheados');
-
       setDepartments(data);
       return data;
     } catch (err: any) {
@@ -104,7 +96,6 @@ export const useValidation = () => {
     const cached = cacheService.get<UbigeoProvince[]>(cacheKey);
 
     if (cached) {
-      console.info(`[UBIGEO] Provincias del departamento ${departmentCode} cargadas desde cache`);
       setProvinces(cached);
       return cached;
     }
@@ -114,11 +105,7 @@ export const useValidation = () => {
 
     try {
       const data = await techoPropioApi.getProvinces(departmentCode);
-
-      // Guardar en cache por 24 horas
       cacheService.set(cacheKey, data);
-      console.info(`[UBIGEO] Provincias del departamento ${departmentCode} cargadas desde API y cacheadas`);
-
       setProvinces(data);
       return data;
     } catch (err: any) {
@@ -136,7 +123,6 @@ export const useValidation = () => {
     const cached = cacheService.get<UbigeoDistrict[]>(cacheKey);
 
     if (cached) {
-      console.info(`[UBIGEO] Distritos de ${departmentCode}-${provinceCode} cargados desde cache`);
       setDistricts(cached);
       return cached;
     }
@@ -146,11 +132,7 @@ export const useValidation = () => {
 
     try {
       const data = await techoPropioApi.getDistricts(departmentCode, provinceCode);
-
-      // Guardar en cache por 24 horas
       cacheService.set(cacheKey, data);
-      console.info(`[UBIGEO] Distritos de ${departmentCode}-${provinceCode} cargados desde API y cacheados`);
-
       setDistricts(data);
       return data;
     } catch (err: any) {

@@ -97,9 +97,12 @@ export const LoginPage: React.FC<LoginPageProps> = () => {
   const loadPublicConfig = async () => {
     try {
       setLoading(true);
-      
+
+      // Usar variable de entorno para la URL de la API
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+
       // Intentar obtener configuración pública/segura sin autenticación
-      const response = await fetch('http://localhost:8000/api/interface-config/current/safe');
+      const response = await fetch(`${apiUrl}/api/interface-config/current/safe`);
       
       if (response.ok) {
         const configData = await response.json();

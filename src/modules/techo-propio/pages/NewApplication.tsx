@@ -170,7 +170,6 @@ export const NewApplication: React.FC = () => {
 
     switch (currentStep) {
       case 1:
-        // Validación: Datos Básicos del Usuario (control interno) - SIMPLIFICADO
         if (!formData.head_of_family) {
           stepErrors.push('Debe completar los datos básicos del solicitante');
         } else {
@@ -189,7 +188,6 @@ export const NewApplication: React.FC = () => {
         }
         break;
       case 2:
-        // Validación: Grupo Familiar
         if (!formData.head_of_family) {
           stepErrors.push('Debe completar los datos del jefe de familia');
         } else {
@@ -201,14 +199,12 @@ export const NewApplication: React.FC = () => {
           }
         }
         
-        // Validar cónyuge si existe
         if (formData.spouse) {
           if (!formData.spouse.dni || formData.spouse.dni.length !== 8) {
             stepErrors.push('DNI del cónyuge debe tener 8 dígitos');
           }
         }
         
-        // Validar carga familiar si hay miembros
         if (formData.household_members && formData.household_members.length > 0) {
           formData.household_members.forEach((member, idx) => {
             if (!member.dni || !member.first_name || !member.apellido_paterno || !member.apellido_materno) {
@@ -218,7 +214,6 @@ export const NewApplication: React.FC = () => {
         }
         break;
       case 3:
-        // ✅ Paso 3 = Información del Predio
         if (!formData.property_info) {
           stepErrors.push('Debe completar los datos del predio');
         } else {
@@ -227,7 +222,6 @@ export const NewApplication: React.FC = () => {
         }
         break;
       case 4:
-        // ✅ Paso 4 = Revisión Final
         if (!formData.head_of_family || !formData.property_info) {
           stepErrors.push('Faltan datos obligatorios en la solicitud');
         }
@@ -268,27 +262,21 @@ export const NewApplication: React.FC = () => {
       return;
     }
 
-    // ✅ NUEVA VALIDACIÓN: Buscar jefe de familia en household_members primero
     const headOfFamilyMember = formData.household_members?.find(member => 
       member.first_name === formData.head_of_family?.first_name && 
       member.apellido_paterno === formData.head_of_family?.paternal_surname
     );
 
-
-
-    // ✅ NUEVA VALIDACIÓN: Verificar datos obligatorios (user_data se crea desde head_of_family)
     if (!formData.head_of_family || !formData.property_info) {
       setErrors(['Faltan datos obligatorios en la solicitud']);
       return;
     }
     
-    // Validar que haya información económica en household_members
     if (!headOfFamilyMember || headOfFamilyMember.monthly_income === undefined) {
       setErrors(['Debe completar la información económica del jefe de familia en el Paso 2']);
       return;
     }
 
-    // ✅ NUEVA LÓGICA: Crear datos de usuario (control interno) desde head_of_family (duplicación permitida)
     const transformedUserData = {
       dni: formData.head_of_family.dni || formData.head_of_family.document_number,
       names: formData.head_of_family.first_name,
@@ -299,7 +287,6 @@ export const NewApplication: React.FC = () => {
       notes: 'Datos ingresados desde formulario web - Nueva solicitud Techo Propio'
     };
 
-    // ✅ CAMBIO: Transformar jefe de familia (antes era main_applicant)
     const transformedHeadOfFamily = {
       document_type: 'dni',
       document_number: formData.head_of_family?.document_number || '',
@@ -316,20 +303,18 @@ export const NewApplication: React.FC = () => {
       is_main_applicant: true
     };
 
-    // ✅ NUEVO: Mapear info económica desde HouseholdForm data
     const transformedHeadOfFamilyEconomic = {
       employment_situation: headOfFamilyMember?.employment_situation || 'dependiente',
       monthly_income: headOfFamilyMember?.monthly_income || 0,
       work_condition: headOfFamilyMember?.work_condition || (headOfFamilyMember?.employment_condition?.toLowerCase() as any) || 'formal',
       occupation_detail: headOfFamilyMember?.occupation || 'Trabajador',
-      has_additional_income: false, // Por ahora no capturamos ingresos adicionales en household
+      has_additional_income: false,
       additional_income_amount: undefined,
       additional_income_source: undefined,
-      employer_name: undefined, // Por ahora no capturamos empleador en household
+      employer_name: undefined,
       is_main_applicant: true
     };
     
-    // Buscar cónyuge en household_members (si existe)
     const spouseMember = formData.household_members?.find(member => 
       member.member_type?.toString().includes('SPOUSE') || member.family_bond === 'conyuge'
     );
@@ -365,42 +350,35 @@ export const NewApplication: React.FC = () => {
         } else if (memberTypeStr.includes('SPOUSE') || memberTypeStr === 'CONYUGE') {
           relationshipValue = 'conyuge';
         } else if (memberTypeStr.includes('DEPENDENT') || memberTypeStr.includes('HIJO')) {
-          relationshipValue = member.relationship || 'hijo';  // Preservar relationship específico si existe
+          relationshipValue = member.relationship || 'hijo';
         } else if (memberTypeStr.includes('ADDITIONAL')) {
-          relationshipValue = 'otro';  // Familia adicional → otro
+          relationshipValue = 'otro';
         } else if (member.relationship) {
-          relationshipValue = member.relationship;  // Usar relationship explícito si existe
+          relationshipValue = member.relationship;
         }
         
-        // ✅ Determinar is_dependent basado SOLO en member_type
         const isDependentValue = memberTypeStr.includes('DEPENDENT') || 
                                 memberTypeStr.includes('HIJO');
-        // Si member_type es ADDITIONAL_FAMILY, es_dependent debe ser false
-        // Si member_type es FAMILY_DEPENDENT, is_dependent debe ser true
 
         return {
           first_name: member.first_name,
-          paternal_surname: member.apellido_paterno,  // ✅ apellido_paterno -> paternal_surname
-          maternal_surname: member.apellido_materno,  // ✅ apellido_materno -> maternal_surname
-          document_type: 'dni',  // Por defecto DNI
+          paternal_surname: member.apellido_paterno,
+          maternal_surname: member.apellido_materno,
+          document_type: 'dni',
           document_number: member.dni,
           birth_date: normalized_birth_date,
-          civil_status: member.marital_status || 'soltero',  // ✅ marital_status -> civil_status
+          civil_status: member.marital_status || 'soltero',
           education_level: member.education_level || 'secundaria_completa',
           occupation: member.occupation || 'No especificado',
           employment_situation: member.employment_situation || 'dependiente',
-          work_condition: member.work_condition || (member.employment_condition || 'FORMAL').toLowerCase(),  // ✅ Usar work_condition o convertir employment_condition a minúsculas
+          work_condition: member.work_condition || (member.employment_condition || 'FORMAL').toLowerCase(),
           monthly_income: member.monthly_income || 0,
           disability_type: member.disability_type || 'ninguna',
-          relationship: relationshipValue,  // ✅ Mapear member_type → relationship
-          is_dependent: isDependentValue  // ✅ Determinar is_dependent desde member_type
+          relationship: relationshipValue,
+          is_dependent: isDependentValue
         };
       });
 
-    // 🐛 DEBUG: Verificar que no hay duplicados
-
-
-    // Transformar property_info para que coincida con la estructura del backend
     const transformedPropertyInfo = {
       department: formData.property_info?.department || '',
       province: formData.property_info?.province || '',
@@ -417,10 +395,8 @@ export const NewApplication: React.FC = () => {
       ubigeo_validated: formData.property_info?.ubigeo_validated || false
     };
 
-    // Preparar datos para el backend
     const finalConvocationCode = formData.application_info?.convocation_code || '';
     
-    // ⚠️ VALIDACIÓN: No enviar solicitudes sin convocatoria
     if (!finalConvocationCode || finalConvocationCode.trim() === '') {
       alert('⚠️ Error: Debe seleccionar una convocatoria antes de crear la solicitud.');
       return;
@@ -441,24 +417,16 @@ export const NewApplication: React.FC = () => {
     const result = await createApplication(requestData as any);
 
     if (result) {
-      // Limpiar borrador
       storageService.clearDraft();
-      
-      // ✅ Mostrar mensaje de éxito
       alert(`✅ Solicitud creada exitosamente!\n\nID: ${result.id}\nCódigo de Convocatoria: ${result.convocation_code}`);
-      
-      // Navegar a la lista de solicitudes (no a detalle porque tiene estructura diferente)
       navigate('/techo-propio/solicitudes');
     } else {
-      // Manejar error específico de DNI duplicado
       if (apiError && apiError.includes('DNI') && apiError.includes('ya está registrado')) {
-        // Mostrar error con sugerencia automática
         setErrors([
           'Error de DNI duplicado: ' + apiError,
           '💡 Sugerencia: Use el botón "Generar DNIs Únicos" para resolver este problema automáticamente'
         ]);
         
-        // Opcional: Auto-generar DNIs únicos después de 3 segundos
         setTimeout(() => {
           if (window.confirm('¿Desea generar DNIs únicos automáticamente para continuar con la prueba?')) {
             generateUniqueDNIs();
@@ -516,14 +484,11 @@ export const NewApplication: React.FC = () => {
                 maternal_surname: applicant.last_name?.split(' ')[1] || '',
                 phone_number: applicant.phone,
                 email: applicant.email
-                // ✅ No se almacenan birth_date, civil_status, current_address aquí
-                // Se completarán desde el Paso 2
               }
             })}
           />
         );
       case 2:
-        // ✅ Paso 2: Grupo Familiar con tarjetas y modales (datos oficiales)
         return (
           <HouseholdForm
             data={formData.household_members || []}
@@ -531,7 +496,6 @@ export const NewApplication: React.FC = () => {
           />
         );
       case 3:
-        // ✅ Paso 3 = Información del Predio
         return (
           <PropertyForm
             data={formData.property_info || {}}
@@ -539,7 +503,6 @@ export const NewApplication: React.FC = () => {
           />
         );
       case 4:
-        // ✅ Paso 4 = Revisión Final
         return (
           <ReviewStep
             data={formData}

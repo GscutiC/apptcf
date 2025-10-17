@@ -79,6 +79,12 @@ export const useTechoPropioApplications = () => {
     try {
       const response = await techoPropioApi.updateApplication(id, data);
 
+      // 🐛 DEBUG: Ver exactamente qué responde el backend
+      console.log('🔍 [UPDATE APPLICATION HOOK] Respuesta completa del backend:', response);
+      console.log('  - response.success:', response?.success);
+      console.log('  - response.data:', response?.data);
+      console.log('  - response.id:', (response as any)?.id);
+
       // Manejar ambos formatos de respuesta del backend
       if (response && (response.success === true || (response as any).id)) {
         setSuccess(SUCCESS_MESSAGES.APPLICATION_UPDATED);
@@ -86,9 +92,17 @@ export const useTechoPropioApplications = () => {
         // Si es directamente el objeto de la aplicación, usar response
         return response.data || (response as any);
       } else {
+        console.error('❌ [UPDATE APPLICATION HOOK] Respuesta inválida del backend:', response);
         throw new Error('Error al actualizar solicitud');
       }
     } catch (err: any) {
+      // 🐛 DEBUG: Ver exactamente qué error ocurrió
+      console.error('❌ [UPDATE APPLICATION HOOK] Error completo:', err);
+      console.error('  - err.error:', err.error);
+      console.error('  - err.message:', err.message);
+      console.error('  - err.response:', err.response);
+      console.error('  - err.response?.data:', err.response?.data);
+      
       const errorMessage = err.error || err.message || 'Error al actualizar solicitud';
       setError(errorMessage);
       return null;

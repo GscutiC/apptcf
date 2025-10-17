@@ -80,20 +80,6 @@ export const HouseholdForm: React.FC<HouseholdFormProps> = ({
 
   const totalIncome = data.reduce((sum, member) => sum + Number(member.monthly_income || 0), 0);
 
-  // 🐛 DEBUG: Ver qué member_type tienen los miembros
-  React.useEffect(() => {
-    if (data.length > 0) {
-      console.log('🔍 [HOUSEHOLD FORM] Miembros cargados:', data.length);
-      data.forEach((member, idx) => {
-        console.log(`  - Miembro ${idx + 1}:`, {
-          name: `${member.first_name} ${member.apellido_paterno}`,
-          member_type: member.member_type,
-          member_type_value: typeof member.member_type,
-          relationship: member.relationship
-        });
-      });
-    }
-  }, [data]);
 
   // Agrupar miembros por tipo - Compatible con strings y enums
   const headOfFamily = data.find(member => 
@@ -129,17 +115,6 @@ export const HouseholdForm: React.FC<HouseholdFormProps> = ({
     !familyDependents.includes(member)
   );
 
-  // 🐛 DEBUG: Ver cómo quedó la agrupación
-  React.useEffect(() => {
-    if (data.length > 0) {
-      console.log('📊 [HOUSEHOLD FORM] Agrupación de miembros:');
-      console.log('  - Jefe:', headOfFamily ? `${headOfFamily.first_name} ${headOfFamily.apellido_paterno}` : '❌ NO ENCONTRADO');
-      console.log('  - Cónyuge:', spouse ? `${spouse.first_name} ${spouse.apellido_paterno}` : '❌ NO ENCONTRADO');
-      console.log('  - Familia adicional:', additionalFamily.length);
-      console.log('  - Dependientes:', familyDependents.length);
-      console.log('  - Otros:', otherMembers.length);
-    }
-  }, [data, headOfFamily, spouse, additionalFamily, familyDependents, otherMembers]);
 
   const renderMemberCard = (member: HouseholdMember, index: number, isSimplified = false) => {
     // Determinar si es realmente "Familia Adicional" (solo datos básicos)

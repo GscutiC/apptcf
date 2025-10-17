@@ -14,7 +14,7 @@ import {
   PropertyForm,
   ReviewStep
 } from '../components/forms';
-import { ApplicationFormData } from '../types';
+import { ApplicationFormData, MemberType } from '../types';
 import { validateApplicantForm, validateEconomicForm, validatePropertyForm } from '../utils';
 import { getHouseholdMembers, normalizeToISODate } from '../utils/applicationHelpers';
 
@@ -40,27 +40,22 @@ export const EditApplication: React.FC = () => {
   // Poblar formulario cuando se cargue la solicitud
   useEffect(() => {
     if (selectedApplication) {
-      // ✅ CORREGIDO: Buscar jefe de familia en TODOS los campos posibles (backend envía con diferentes nombres)
       const headOfFamilyFromAPI: any = 
-        selectedApplication.head_of_family ||      // Nombre nuevo del backend
-        selectedApplication.main_applicant ||      // Nombre en MongoDB (legacy)
-        selectedApplication.applicant;              // Nombre antiguo del frontend
+        selectedApplication.head_of_family ||
+        selectedApplication.main_applicant ||
+        selectedApplication.applicant;
       
-      // Buscar también en household_members como fallback (si está ahí)
       const headOfFamilyFromHousehold: any = selectedApplication.household_members?.find(
         (member: any) => 
-          member.member_type?.toString().includes('HEAD') || 
+          member.member_type?.toString() === MemberType.HEAD_OF_FAMILY || 
           member.member_type?.toString() === 'JEFE_FAMILIA' ||
           member.relationship === 'jefe_familia' ||
           member.document_number === headOfFamilyFromAPI?.document_number
       );
       
-      // ✅ PRIORIDAD: Usar el del API primero, luego el de household_members
       const realHeadOfFamily: any = headOfFamilyFromAPI || headOfFamilyFromHousehold;
       
-      // Mapear datos de la solicitud existente al formato del formulario
       const mappedData: ApplicationFormData = {
-        // ✅ Paso 0: Información de la solicitud
         application_info: {
           registration_date: selectedApplication.registration_date || selectedApplication.created_at || new Date().toLocaleDateString('es-PE'),
           convocation_code: selectedApplication.convocation_code || '',
@@ -69,9 +64,7 @@ export const EditApplication: React.FC = () => {
           sequential_number: selectedApplication.sequential_number || parseInt(selectedApplication.code?.split('-').pop() || '0')
         },
         
-        // ✅ Paso 1: Solicitante - SOLO datos básicos de contacto (simplificado)
         head_of_family: {
-          // ✅ CORREGIDO: Mapeo flexible de todos los campos posibles
           document_number: realHeadOfFamily?.document_number || realHeadOfFamily?.dni || '',
           dni: realHeadOfFamily?.document_number || realHeadOfFamily?.dni || '',
           first_name: realHeadOfFamily?.first_name || '',
@@ -79,7 +72,6 @@ export const EditApplication: React.FC = () => {
           maternal_surname: realHeadOfFamily?.maternal_surname || realHeadOfFamily?.apellido_materno || '',
           phone_number: realHeadOfFamily?.phone_number || realHeadOfFamily?.phone || '',
           email: realHeadOfFamily?.email || '',
-          // ✅ Campos completos para Paso 2 (ahora sí los incluimos para que estén disponibles)
           birth_date: realHeadOfFamily?.birth_date || '',
           civil_status: realHeadOfFamily?.civil_status || 'soltero',
           education_level: realHeadOfFamily?.education_level || 'secundaria_completa',
@@ -87,13 +79,18 @@ export const EditApplication: React.FC = () => {
           disability_type: realHeadOfFamily?.disability_type || 'ninguna'
         },
         
-        // ✅ Paso 2: Grupo Familiar
-        // Transformar household_members del backend al formato del frontend
         household_members: (() => {
           const allMembers: any[] = [];
           
-          // 1️⃣ PRIMERO: Agregar al jefe de familia (que NO viene en household_members del backend)
-          if (realHeadOfFamily) {
+          const membersFromBackend = getHouseholdMembers(selectedApplication);
+          
+          const headAlreadyInMembers = membersFromBackend?.some((member: any) => {
+            const memberDNI = member.document_number || member.dni;
+            const headDNI = realHeadOfFamily?.document_number || realHeadOfFamily?.dni;
+            return memberDNI === headDNI;
+          });
+          
+          if (realHeadOfFamily && !headAlreadyInMembers) {
             allMembers.push({
               dni: realHeadOfFamily.document_number || realHeadOfFamily.dni,
               first_name: realHeadOfFamily.first_name,
@@ -104,9 +101,8 @@ export const EditApplication: React.FC = () => {
               education_level: realHeadOfFamily.education_level,
               occupation: realHeadOfFamily.occupation,
               disability_type: realHeadOfFamily.disability_type,
-              member_type: 'HEAD_OF_FAMILY',  // ✅ Enum correcto
+              member_type: MemberType.HEAD_OF_FAMILY,
               relationship: 'jefe_familia',
-              // Info económica desde head_of_family_economic
               employment_situation: (selectedApplication as any).head_of_family_economic?.employment_situation || 
                                    (selectedApplication as any).main_applicant_economic?.employment_situation || 
                                    (selectedApplication as any).economic_info?.employment_situation || 
@@ -123,29 +119,30 @@ export const EditApplication: React.FC = () => {
                                    (selectedApplication as any).main_applicant_economic?.work_condition || 
                                    'FORMAL').toUpperCase() as any,
               family_bond: 'jefe_familia',
-              is_dependent: false  // Jefe de familia no es dependiente
+              is_dependent: false
             });
           }
           
-          // 2️⃣ SEGUNDO: Obtener y transformar household_members del backend
-          const membersFromBackend = getHouseholdMembers(selectedApplication);
-          
           if (membersFromBackend && membersFromBackend.length > 0) {
-            // Transformar cada miembro del formato backend al frontend
             const transformedMembers = membersFromBackend.map((member: any) => {
-              // ✅ PRIORIDAD 1: Si el backend ya tiene member_type válido, usarlo
               let memberType = member.member_type;
               
-              // ✅ PRIORIDAD 2: Si no hay member_type, derivarlo desde relationship
-              if (!memberType) {
+              const memberDNI = member.document_number || member.dni;
+              const headDNI = realHeadOfFamily?.document_number || realHeadOfFamily?.dni;
+              
+              if (memberDNI === headDNI) {
+                memberType = MemberType.HEAD_OF_FAMILY;
+              }
+              
+              if (!memberType || memberType === 'OTRO' || memberType === MemberType.OTHER) {
                 const rel = (member.relationship || '').toLowerCase();
                 
                 if (rel === 'jefe_familia' || rel === 'jefe de familia' || rel === 'head_of_family') {
-                  memberType = 'HEAD_OF_FAMILY';
+                  memberType = MemberType.HEAD_OF_FAMILY;
                 } else if (rel === 'conyuge' || rel === 'cónyuge' || rel === 'spouse') {
-                  memberType = 'SPOUSE';
+                  memberType = MemberType.SPOUSE;
                 } else if (rel === 'hijo' || rel === 'hija' || rel === 'dependiente') {
-                  memberType = 'FAMILY_DEPENDENT';
+                  memberType = MemberType.FAMILY_DEPENDENT;
                 } else if (rel === 'otro') {
                   // 🔍 Heurística mejorada para relationship='otro':
                   // PRIORIDAD 1: Edad (más confiable que is_dependent histórico)
@@ -157,18 +154,18 @@ export const EditApplication: React.FC = () => {
                     // Entre 18-24 con is_dependent=true → DEPENDENT
                     // 25 años o más → ADDITIONAL_FAMILY
                     if (age < 18) {
-                      memberType = 'FAMILY_DEPENDENT';
+                      memberType = MemberType.FAMILY_DEPENDENT;
                     } else if (age < 25 && member.is_dependent) {
-                      memberType = 'FAMILY_DEPENDENT';
+                      memberType = MemberType.FAMILY_DEPENDENT;
                     } else {
-                      memberType = 'ADDITIONAL_FAMILY';
+                      memberType = MemberType.ADDITIONAL_FAMILY;
                     }
                   } else {
                     // Si no hay edad, usar is_dependent
-                    memberType = member.is_dependent ? 'FAMILY_DEPENDENT' : 'ADDITIONAL_FAMILY';
+                    memberType = member.is_dependent ? MemberType.FAMILY_DEPENDENT : MemberType.ADDITIONAL_FAMILY;
                   }
                 } else {
-                  memberType = 'ADDITIONAL_FAMILY';
+                  memberType = MemberType.ADDITIONAL_FAMILY;
                 }
               }
               
@@ -190,7 +187,7 @@ export const EditApplication: React.FC = () => {
                 work_condition: member.work_condition || 'formal',
                 monthly_income: (() => {
                   // Solo HEAD_OF_FAMILY y SPOUSE tienen ingresos reales
-                  if (memberType === 'HEAD_OF_FAMILY' || memberType === 'SPOUSE') {
+                  if (memberType === MemberType.HEAD_OF_FAMILY || memberType === MemberType.SPOUSE) {
                     return parseFloat(String(member.monthly_income || 0));
                   }
                   // ADDITIONAL_FAMILY y FAMILY_DEPENDENT no tienen ingresos
@@ -202,19 +199,34 @@ export const EditApplication: React.FC = () => {
               };
             });
             
-            // Agregar miembros transformados al array
             allMembers.push(...transformedMembers);
           }
-          
-
           
           return allMembers;
         })() as any,
         
-        // ✅ Paso 3: Información del Predio
-        property_info: selectedApplication.property_info,
+        property_info: (() => {
+          const rawPropertyInfo = selectedApplication.property_info;
+          
+          const normalizedPropertyInfo = {
+            department: rawPropertyInfo?.department || '',
+            province: rawPropertyInfo?.province || '',
+            district: rawPropertyInfo?.district || '',
+            lote: rawPropertyInfo?.lote || '',
+            address: rawPropertyInfo?.address || '',
+            manzana: rawPropertyInfo?.manzana || '',
+            sub_lote: rawPropertyInfo?.sub_lote || '',
+            populated_center: rawPropertyInfo?.populated_center || '',
+            reference: rawPropertyInfo?.reference || '',
+            ubigeo_code: rawPropertyInfo?.ubigeo_code || '',
+            latitude: rawPropertyInfo?.latitude || undefined,
+            longitude: rawPropertyInfo?.longitude || undefined,
+            ubigeo_validated: rawPropertyInfo?.ubigeo_validated || false
+          };
+          
+          return normalizedPropertyInfo;
+        })(),
         
-        // Otros datos
         comments: selectedApplication.comments || ''
       };
       
@@ -235,13 +247,11 @@ export const EditApplication: React.FC = () => {
 
     switch (currentStep) {
       case 0:
-        // Paso 0: Información - validaciones básicas
         if (!formData.application_info || !formData.application_info.convocation_code) {
           stepErrors.push('Debe seleccionar una convocatoria');
         }
         break;
       case 1:
-        // Paso 1: Solicitante - VALIDACIÓN SIMPLIFICADA (solo datos básicos)
         if (!formData.head_of_family) {
           stepErrors.push('Debe completar los datos básicos del solicitante');
         } else {
@@ -260,8 +270,6 @@ export const EditApplication: React.FC = () => {
         }
         break;
       case 2:
-        // Paso 2: Grupo Familiar
-        // Validaciones opcionales del grupo familiar
         if (formData.household_members && formData.household_members.length > 0) {
           formData.household_members.forEach((member, idx) => {
             if (!member.dni || !member.first_name) {
@@ -271,7 +279,6 @@ export const EditApplication: React.FC = () => {
         }
         break;
       case 3:
-        // Paso 3: Predio
         if (!formData.property_info) {
           stepErrors.push('Debe completar los datos del predio');
         } else {
@@ -280,7 +287,6 @@ export const EditApplication: React.FC = () => {
         }
         break;
       case 4:
-        // Paso 4: Revisión Final
         if (!formData.head_of_family || !formData.property_info) {
           stepErrors.push('Faltan datos obligatorios en la solicitud');
         }
@@ -293,7 +299,7 @@ export const EditApplication: React.FC = () => {
 
   const handleNext = () => {
     if (validateCurrentStep()) {
-      if (currentStep < 4) {  // Último paso es 4
+      if (currentStep < 4) {
         setCurrentStep((prev) => prev + 1);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
@@ -301,7 +307,7 @@ export const EditApplication: React.FC = () => {
   };
 
   const handlePrevious = () => {
-    if (currentStep > 0) {  // Permitir retroceder hasta paso 0
+    if (currentStep > 0) {
       setCurrentStep((prev) => prev - 1);
       setErrors([]);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -313,25 +319,21 @@ export const EditApplication: React.FC = () => {
       return;
     }
 
-    // ✅ NUEVA VALIDACIÓN: Buscar jefe de familia en household_members primero (igual que NewApplication)
     const headOfFamilyMember = formData.household_members?.find(member =>
       member.first_name === formData.head_of_family?.first_name &&
       member.apellido_paterno === formData.head_of_family?.paternal_surname
     );
 
-    // ✅ VALIDACIÓN ROBUSTA: Verificar datos obligatorios
     if (!formData.head_of_family || !formData.property_info) {
       setErrors(['Faltan datos obligatorios en la solicitud']);
       return;
     }
 
-    // ✅ VALIDACIÓN ECONÓMICA: Asegurar que haya información económica en household_members
     if (!headOfFamilyMember || headOfFamilyMember.monthly_income === undefined) {
       setErrors(['Debe completar la información económica del jefe de familia en el Paso 2']);
       return;
     }
 
-    // ✅ CREAR user_data si no existe (desde head_of_family)
     const transformedUserData = formData.user_data || {
       dni: formData.head_of_family.dni || formData.head_of_family.document_number,
       names: formData.head_of_family.first_name,
@@ -342,7 +344,6 @@ export const EditApplication: React.FC = () => {
       notes: 'Datos actualizados desde formulario web - Edición solicitud Techo Propio'
     };
 
-    // ✅ TRANSFORMAR jefe de familia con datos completos
     const transformedHeadOfFamily = {
       document_type: 'dni',
       document_number: formData.head_of_family?.document_number || formData.head_of_family?.dni || '',
@@ -359,11 +360,17 @@ export const EditApplication: React.FC = () => {
       is_main_applicant: true
     };
 
-    // ✅ EXTRAER info económica desde household_members (igual que NewApplication)
     const transformedHeadOfFamilyEconomic = {
       employment_situation: headOfFamilyMember?.employment_situation || 'dependiente',
-      monthly_income: parseFloat(String(headOfFamilyMember?.monthly_income || 0)),  // ✅ Convertir a número
-      work_condition: headOfFamilyMember?.work_condition || (headOfFamilyMember?.employment_condition?.toLowerCase() as any) || 'formal',
+      monthly_income: parseFloat(String(headOfFamilyMember?.monthly_income || 0)),
+      work_condition: (() => {
+        const rawCondition = headOfFamilyMember?.work_condition || headOfFamilyMember?.employment_condition;
+        if (typeof rawCondition === 'string') {
+          const normalized = rawCondition.toLowerCase();
+          return (normalized === 'formal' || normalized === 'informal') ? normalized : 'formal';
+        }
+        return 'formal';
+      })() as 'formal' | 'informal',
       occupation_detail: headOfFamilyMember?.occupation || 'Trabajador',
       has_additional_income: false,
       additional_income_amount: undefined,
@@ -372,15 +379,24 @@ export const EditApplication: React.FC = () => {
       is_main_applicant: true
     };
 
-    // Buscar cónyuge en household_members (si existe)
     const spouseMember = formData.household_members?.find(member =>
-      member.member_type?.toString().includes('SPOUSE') || member.family_bond === 'conyuge'
+      member.member_type?.toString() === MemberType.SPOUSE || 
+      member.member_type?.toString() === 'CONYUGE' ||
+      member.family_bond === 'conyuge' ||
+      member.relationship === 'conyuge'
     );
 
     const transformedSpouseEconomic = spouseMember ? {
       employment_situation: spouseMember.employment_situation || 'dependiente',
-      monthly_income: parseFloat(String(spouseMember.monthly_income || 0)),  // ✅ Convertir a número
-      work_condition: spouseMember.work_condition || (spouseMember.employment_condition?.toLowerCase() as any) || 'formal',
+      monthly_income: parseFloat(String(spouseMember.monthly_income || 0)),
+      work_condition: (() => {
+        const rawCondition = spouseMember.work_condition || spouseMember.employment_condition;
+        if (typeof rawCondition === 'string') {
+          const normalized = rawCondition.toLowerCase();
+          return (normalized === 'formal' || normalized === 'informal') ? normalized : 'formal';
+        }
+        return 'formal';
+      })() as 'formal' | 'informal',
       occupation_detail: spouseMember.occupation || 'Trabajador',
       has_additional_income: false,
       additional_income_amount: undefined,
@@ -406,35 +422,31 @@ export const EditApplication: React.FC = () => {
       ubigeo_validated: formData.property_info?.ubigeo_validated || false
     };
 
-    // Filtrar household_members: excluir jefe de familia (va por separado) para evitar duplicación
     const transformedHouseholdMembers = (formData.household_members || [])
       .filter(member =>
-        // Filtrar el jefe de familia basado en DNI para evitar duplicación
         member.dni !== formData.head_of_family?.dni &&
         member.dni !== formData.head_of_family?.document_number
       )
       .map((member, idx) => {
         const normalized_birth_date = normalizeToISODate(member.birth_date);
 
-        // Mapear member_type a relationship
         let relationshipValue = 'otro';
-        const memberTypeStr = String(member.member_type || '').toUpperCase();
+        const memberTypeStr = String(member.member_type || '');
 
-        if (memberTypeStr.includes('HEAD') || memberTypeStr === 'JEFE_FAMILIA') {
+        if (memberTypeStr === MemberType.HEAD_OF_FAMILY || memberTypeStr === 'JEFE_FAMILIA') {
           relationshipValue = 'jefe_familia';
-        } else if (memberTypeStr.includes('SPOUSE') || memberTypeStr === 'CONYUGE') {
+        } else if (memberTypeStr === MemberType.SPOUSE || memberTypeStr === 'CONYUGE') {
           relationshipValue = 'conyuge';
-        } else if (memberTypeStr.includes('DEPENDENT') || memberTypeStr.includes('HIJO')) {
+        } else if (memberTypeStr === MemberType.FAMILY_DEPENDENT || memberTypeStr === 'CARGA_FAMILIAR') {
           relationshipValue = member.relationship || 'hijo';
-        } else if (memberTypeStr.includes('ADDITIONAL')) {
+        } else if (memberTypeStr === MemberType.ADDITIONAL_FAMILY || memberTypeStr === 'FAMILIA_ADICIONAL') {
           relationshipValue = 'otro';
         } else if (member.relationship) {
           relationshipValue = member.relationship;
         }
 
-        // Determinar is_dependent basado en member_type
-        const isDependentValue = memberTypeStr.includes('DEPENDENT') ||
-                                memberTypeStr.includes('HIJO');
+        const isDependentValue = memberTypeStr === MemberType.FAMILY_DEPENDENT || 
+                                memberTypeStr === 'CARGA_FAMILIAR';
 
         return {
           first_name: member.first_name,
@@ -447,7 +459,14 @@ export const EditApplication: React.FC = () => {
           education_level: member.education_level || 'secundaria_completa',
           occupation: member.occupation || 'No especificado',
           employment_situation: member.employment_situation || 'dependiente',
-          work_condition: member.work_condition || (member.employment_condition || 'FORMAL').toLowerCase(),
+          work_condition: (() => {
+            const rawCondition = member.work_condition || member.employment_condition;
+            if (typeof rawCondition === 'string') {
+              const normalized = rawCondition.toLowerCase();
+              return (normalized === 'formal' || normalized === 'informal') ? normalized : 'formal';
+            }
+            return 'formal';
+          })() as 'formal' | 'informal',
           monthly_income: member.monthly_income || 0,
           disability_type: member.disability_type || 'ninguna',
           relationship: relationshipValue,
@@ -472,10 +491,7 @@ export const EditApplication: React.FC = () => {
     const result = await updateApplication(id, requestData as any);
 
     if (result) {
-      // ✅ Mostrar mensaje de éxito
       alert(`✅ Solicitud actualizada exitosamente!\n\nID: ${result.id}\nCódigo: ${result.code || id}`);
-
-      // Navegar a la vista de detalle
       navigate(`/techo-propio/ver/${id}`);
     } else {
       setErrors(['Error al actualizar la solicitud. Por favor, intente nuevamente.']);
@@ -497,7 +513,6 @@ export const EditApplication: React.FC = () => {
 
     switch (currentStep) {
       case 0:
-        // Paso 0: Información de la Solicitud
         return (
           <ApplicationInfoStep
             data={{
@@ -511,7 +526,6 @@ export const EditApplication: React.FC = () => {
           />
         );
       case 1:
-        // Paso 1: Solicitante - SIMPLIFICADO (solo datos básicos de contacto)
         return (
           <ApplicantForm
             data={{
@@ -520,12 +534,10 @@ export const EditApplication: React.FC = () => {
               last_name: `${formData.head_of_family?.paternal_surname || ''} ${formData.head_of_family?.maternal_surname || ''}`.trim(),
               phone: formData.head_of_family?.phone_number || '',
               email: formData.head_of_family?.email || ''
-              // ✅ Campos eliminados (se capturan en Paso 2):
-              // birth_date, marital_status, current_address
             }}
             onChange={(applicant) => updateFormData({ 
               head_of_family: {
-                ...formData.head_of_family, // Preservar datos existentes
+                ...formData.head_of_family,
                 document_number: applicant.dni,
                 dni: applicant.dni,
                 first_name: applicant.first_name,
@@ -533,13 +545,11 @@ export const EditApplication: React.FC = () => {
                 maternal_surname: applicant.last_name?.split(' ')[1] || '',
                 phone_number: applicant.phone,
                 email: applicant.email
-                // ✅ No sobrescribir birth_date, civil_status que vienen del Paso 2
               }
             })}
           />
         );
       case 2:
-        // Paso 2: Grupo Familiar
         return (
           <HouseholdForm
             data={formData.household_members || []}
@@ -547,7 +557,6 @@ export const EditApplication: React.FC = () => {
           />
         );
       case 3:
-        // Paso 3: Información del Predio
         return (
           <PropertyForm
             data={formData.property_info || {}}
@@ -555,7 +564,6 @@ export const EditApplication: React.FC = () => {
           />
         );
       case 4:
-        // Paso 4: Revisión Final
         return (
           <ReviewStep
             data={formData}
