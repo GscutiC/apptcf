@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { authService, UserProfile } from '../services/authService';
 
@@ -8,16 +8,41 @@ export const useAuthProfile = () => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Referencias para evitar llamadas múltiples
+  const isLoadingRef = useRef(false);
+  const lastClerkIdRef = useRef<string | null>(null);
+  const hasLoadedRef = useRef(false);
 
   useEffect(() => {
     const loadUserProfile = async () => {
+      // Evitar ejecución si no está listo
       if (!isLoaded) return;
       
+      // Si no está autenticado, limpiar y salir
       if (!isSignedIn) {
         setUserProfile(null);
         setLoading(false);
+        hasLoadedRef.current = false;
+        lastClerkIdRef.current = null;
         return;
       }
+
+      // Evitar cargas duplicadas para el mismo usuario
+      const currentClerkId = clerkUser?.id;
+      if (!currentClerkId) return;
+      
+      // Si ya cargamos este usuario, no volver a cargar
+      if (hasLoadedRef.current && lastClerkIdRef.current === currentClerkId) {
+        return;
+      }
+      
+      // Evitar llamadas concurrentes
+      if (isLoadingRef.current) {
+        return;
+      }
+
+      isLoadingRef.current = true;
 
       try {
         setLoading(true);
@@ -26,8 +51,8 @@ export const useAuthProfile = () => {
         // Intentar sincronizar con el backend
         let profile = await authService.syncUserWithBackend(getToken);
         
-        // Si no funciona la sincronización normal, usar el método de debug
-        if (!profile && clerkUser) {
+        // Si no funciona la sincronización normal, usar el método de debug (solo una vez)
+        if (!profile && clerkUser && !hasLoadedRef.current) {
           // Intentar crear usuario con método alternativo
           const debugResult = await authService.debugCreateUser({
             clerk_id: clerkUser.id,
@@ -46,19 +71,27 @@ export const useAuthProfile = () => {
         }
         
         setUserProfile(profile);
+        hasLoadedRef.current = true;
+        lastClerkIdRef.current = currentClerkId;
+        
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error cargando perfil');
         console.error('Error cargando perfil de usuario:', err);
       } finally {
         setLoading(false);
+        isLoadingRef.current = false;
       }
     };
 
     loadUserProfile();
-  }, [isSignedIn, isLoaded, clerkUser]);
+  // Solo depender de isSignedIn e isLoaded para evitar bucles infinitos
+  // clerkUser.id se verifica internamente
+  }, [isSignedIn, isLoaded, clerkUser?.id]);
 
-  const refreshProfile = async () => {
-    if (!isSignedIn) return;
+  const refreshProfile = useCallback(async () => {
+    if (!isSignedIn || isLoadingRef.current) return;
+    
+    isLoadingRef.current = true;
     
     try {
       setLoading(true);
@@ -69,8 +102,9 @@ export const useAuthProfile = () => {
       setError(err instanceof Error ? err.message : 'Error actualizando perfil');
     } finally {
       setLoading(false);
+      isLoadingRef.current = false;
     }
-  };
+  }, [isSignedIn, getToken]);
 
   return {
     userProfile,
