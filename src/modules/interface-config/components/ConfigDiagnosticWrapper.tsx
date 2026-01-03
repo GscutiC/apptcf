@@ -122,37 +122,33 @@ function checkForObsoleteConfiguration(): boolean {
 
 /**
  * Verificar si un nombre de app es obsoleto
+ * NOTA: No incluir valores que puedan aparecer temporalmente durante la carga
  */
 function isObsoleteName(name: string): boolean {
   const obsoleteNames = [
     'WorkTecApp',
-    'Aplicación',
     'Sistema en Mantenimiento',
-    'Sistema',
-    'App',
     'WorkTec Solutions',
-    'Mi App Completa',
-    'Cargando...'
+    'Mi App Completa'
   ];
   
   return obsoleteNames.some(obsolete => 
-    name.toLowerCase().includes(obsolete.toLowerCase())
+    name.toLowerCase() === obsolete.toLowerCase()
   );
 }
 
 /**
  * Verificar si un tema es obsoleto
+ * NOTA: No incluir valores de emergencia que puedan aparecer temporalmente
  */
 function isObsoleteTheme(theme: string): boolean {
   const obsoleteThemes = [
     'Tema Corporativo',
-    'Tema por Defecto',
-    'Configuración por Defecto',
-    'Configuración de Emergencia'
+    'Tema por Defecto'
   ];
   
   return obsoleteThemes.some(obsolete => 
-    theme.toLowerCase().includes(obsolete.toLowerCase())
+    theme.toLowerCase() === obsolete.toLowerCase()
   );
 }
 

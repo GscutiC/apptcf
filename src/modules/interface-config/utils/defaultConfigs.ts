@@ -102,11 +102,11 @@ const EMERGENCY_CONFIG: InterfaceConfig = {
   branding: {
     appName: 'ScutiTec',
     appDescription: 'Soluciones empresariales sostenibles',
-    tagline: 'Conectando con servidor',
+    tagline: 'Sistema de gestion integral',
     companyName: 'ScutiTec',
-    welcomeMessage: 'Cargando...',
+    welcomeMessage: 'Bienvenido al sistema',
     loginPageTitle: 'Acceso ScutiTec',
-    loginPageDescription: 'Estableciendo conexión segura'
+    loginPageDescription: 'Ingrese sus credenciales para continuar'
   },
   customCSS: '',
   isActive: true

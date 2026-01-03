@@ -1,11 +1,12 @@
 /**
- * Hook principal simplificado para la gestión de configuración de interfaz
- * Usa los servicios especializados para una arquitectura más limpia
+ * Hook principal simplificado para la gestion de configuracion de interfaz
+ * Usa los servicios especializados para una arquitectura mas limpia
  * 
  * REFACTORIZADO: Usa dynamicConfigService en lugar de configuraciones hardcodeadas
+ * CORREGIDO: No bloquea cuando profile no esta disponible
  */
 
-import { useReducer, useEffect, useCallback, useState, useMemo } from 'react';
+import { useReducer, useEffect, useCallback, useState, useMemo, useRef } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { InterfaceConfig, PresetConfig } from '../types';
 import { ConfigStateService, ConfigState, ConfigAction } from '../services/configStateService';
@@ -44,7 +45,7 @@ export interface UseInterfaceConfigReturn {
 }
 
 /**
- * Hook principal para gestión de configuración de interfaz
+ * Hook principal para gestion de configuracion de interfaz
  */
 export function useInterfaceConfig(): UseInterfaceConfigReturn {
   const { isLoaded: authLoaded, getToken } = useAuth();
@@ -56,9 +57,10 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
     ConfigStateService.createInitialState()
   );
   
-  // Control de inicialización para evitar llamadas múltiples
+  // Control de inicializacion para evitar llamadas multiples
   const [isInitialized, setIsInitialized] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
+  const timeoutTriggeredRef = useRef(false);
   
   // Acciones del servicio (memoizadas para mantener referencia estable)
   const actions = useMemo(() => 
@@ -69,15 +71,44 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
   const selectors = ConfigStateService.createSelectors(state);
 
   /**
-   * Cargar configuración inicial (solo una vez)
+   * Cargar configuracion con timeout de emergencia
+   * Si profile no llega en 3 segundos, carga config de emergencia
+   */
+  useEffect(() => {
+    if (isInitialized || !authLoaded) return;
+    
+    const timeout = setTimeout(() => {
+      if (!isInitialized && !timeoutTriggeredRef.current) {
+        timeoutTriggeredRef.current = true;
+        logger.warn('Timeout: cargando config de emergencia...');
+        
+        const emergencyConfig = dynamicConfigService.getEmergencyConfig();
+        actions.setConfig(emergencyConfig);
+        DOMConfigService.applyConfigToDOM(emergencyConfig);
+        actions.setLoading(false);
+        setIsInitialized(true);
+      }
+    }, 3000);
+    
+    return () => clearTimeout(timeout);
+  }, [authLoaded, isInitialized, actions]);
+
+  /**
+   * Cargar configuracion inicial (solo una vez)
    */
   const loadInitialConfig = useCallback(async () => {
-    // Evitar múltiples llamadas simultáneas
-    if (isInitializing || isInitialized) {
+    // Evitar multiples llamadas simultaneas
+    if (isInitializing || isInitialized || timeoutTriggeredRef.current) {
       return;
     }
     
-    if (!authLoaded || profileLoading || !profile) {
+    // Esperar a que auth este listo
+    if (!authLoaded) {
+      return;
+    }
+    
+    // Si profile sigue cargando, esperar un poco mas
+    if (profileLoading) {
       return;
     }
 
@@ -87,53 +118,52 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
       actions.setLoading(true);
       actions.setError(null);
       
-      // Verificación de cache obsoleto
-      const localStorageConfig = localStorage.getItem('interface-config');
+      logger.info('Cargando configuracion inicial...');
       
-      if (localStorageConfig) {
+      // Si no hay perfil, intentar cargar config directamente con token
+      if (!profile) {
+        logger.warn('Perfil no disponible, cargando config con token...');
+        
         try {
-          const parsed = JSON.parse(localStorageConfig);
-          const appName = parsed.branding?.appName;
-          
-          // Detección de configuración obsoleta
-          const obsoleteNames = ['WorkTecApp', 'Aplicación', 'Sistema', 'App'];
-          const isObsolete = !appName || obsoleteNames.some(name => appName.includes(name));
-          
-          if (isObsolete) {
-            localStorage.removeItem('interface-config');
-            localStorage.removeItem('interface-config-timestamp');
-            localStorage.removeItem('config-cache');
-            
-            // Forzar recarga para aplicar configuración limpia
-            setTimeout(() => {
-              logger.warn('Recargando por configuración obsoleta detectada');
-              window.location.reload();
-            }, 100);
-            return;
+          const token = await getToken();
+          if (token) {
+            const fallbackConfig = await dynamicConfigService.getCurrentConfig(getToken);
+            if (fallbackConfig) {
+              actions.setConfig(fallbackConfig);
+              DOMConfigService.applyConfigToDOM(fallbackConfig);
+              setIsInitialized(true);
+              logger.info('Configuracion cargada sin perfil');
+              return;
+            }
           }
         } catch (e) {
-          localStorage.removeItem('interface-config');
+          logger.warn('Error cargando config sin perfil:', e);
         }
+        
+        // Usar config de emergencia si todo falla
+        const emergencyConfig = dynamicConfigService.getEmergencyConfig();
+        actions.setConfig(emergencyConfig);
+        DOMConfigService.applyConfigToDOM(emergencyConfig);
+        setIsInitialized(true);
+        logger.warn('Usando configuracion de emergencia');
+        return;
       }
-      
-      logger.info('�🔄 Cargando configuración inicial...');
       
       const user = adaptUserProfileToUser(profile);
       if (!user) {
-        throw new Error('Usuario no válido');
+        throw new Error('Usuario no valido');
       }
       
-      
-      // Asegurar que tenemos un token válido antes de proceder
+      // Asegurar que tenemos un token valido antes de proceder
       const token = await getToken();
       if (!token) {
-        throw new Error('No se pudo obtener token de autenticación');
+        throw new Error('No se pudo obtener token de autenticacion');
       }
       
       const configResponse = await interfaceConfigService.getConfigForUser(user.clerk_id, getToken);
       
       if (configResponse) {
-        logger.info(`Configuración cargada desde: ${configResponse.source}`);
+        logger.info(`Configuracion cargada desde: ${configResponse.source}`);
         
         // Actualizar estado contextual
         actions.setContextualData({
@@ -142,13 +172,13 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
           contextualData: null
         });
         
-        // Configurar la configuración (esto establece tanto config como savedConfig)
+        // Configurar la configuracion (esto establece tanto config como savedConfig)
         actions.setConfig(configResponse.config);
         
-        // 🆕 Cargar presets en paralelo
+        // Cargar presets en paralelo
         dynamicConfigService.getPresets(getToken).then(presets => {
           actions.setPresets(presets);
-          logger.info(`✅ Presets cargados: ${presets.length}`);
+          logger.info(`Presets cargados: ${presets.length}`);
         }).catch(error => {
           logger.error('Error cargando presets:', error);
           actions.setPresets([]);
@@ -161,39 +191,40 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
         setIsInitialized(true);
         
       } else {
-        throw new Error('No se pudo obtener configuración');
+        throw new Error('No se pudo obtener configuracion');
       }
       
     } catch (error) {
-      logger.error('Error cargando configuración inicial:', error);
-      actions.setError('Error cargando configuración');
+      logger.error('Error cargando configuracion inicial:', error);
+      actions.setError('Error cargando configuracion');
       
       // Fallback: intentar cargar desde dynamicConfigService nuevamente
       try {
         const fallbackConfig = await dynamicConfigService.getCurrentConfig(getToken);
         actions.setConfig(fallbackConfig);
         DOMConfigService.applyConfigToDOM(fallbackConfig);
-        logger.info('✅ Configuración cargada después de reintentar');
+        setIsInitialized(true);
+        logger.info('Configuracion cargada despues de reintentar');
       } catch (fallbackError) {
-        // Último recurso: configuración de emergencia
+        // Ultimo recurso: configuracion de emergencia
         const emergencyConfig = dynamicConfigService.getEmergencyConfig();
         actions.setConfig(emergencyConfig);
         DOMConfigService.applyConfigToDOM(emergencyConfig);
-        logger.warn('⚠️ Usando configuración de emergencia');
+        setIsInitialized(true);
+        logger.warn('Usando configuracion de emergencia');
       }
       
     } finally {
       actions.setLoading(false);
       setIsInitializing(false);
     }
-  // Solo depender de authLoaded y profileLoading para evitar loops
-  }, [authLoaded, profileLoading]);
+  }, [authLoaded, profileLoading, profile, getToken, actions]);
 
   /**
-   * Función inteligente para actualizar configuración
+   * Funcion inteligente para actualizar configuracion
    */
   const setConfig = useCallback((updates: Partial<InterfaceConfig> | InterfaceConfig) => {
-    // Si es una configuración completa (preset), reemplazar todo
+    // Si es una configuracion completa (preset), reemplazar todo
     if ('theme' in updates && 'logos' in updates && 'branding' in updates) {
       actions.replaceConfig(updates as InterfaceConfig);
     } else {
@@ -214,17 +245,17 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
       actions.setSaving(true);
       actions.setError(null);
       
-      logger.info('💾 Guardando configuración...');
+      logger.info('Guardando configuracion...');
       
       const user = adaptUserProfileToUser(profile);
       if (!user) {
-        throw new Error('Usuario no válido');
+        throw new Error('Usuario no valido');
       }
       
-      // Asegurar que tenemos un token válido antes de proceder
+      // Asegurar que tenemos un token valido antes de proceder
       const token = await getToken();
       if (!token) {
-        throw new Error('No se pudo obtener token de autenticación');
+        throw new Error('No se pudo obtener token de autenticacion');
       }
       
       const savedConfig = await interfaceConfigService.saveConfigForUser(
@@ -233,14 +264,14 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
         getToken
       );
       
-      // Actualizar la configuración guardada
+      // Actualizar la configuracion guardada
       actions.setSavedConfig(savedConfig);
       
-      logger.info('✅ Configuración guardada exitosamente');
+      logger.info('Configuracion guardada exitosamente');
       
     } catch (error) {
-      logger.error('Error guardando configuración:', error);
-      actions.setError('Error guardando configuración');
+      logger.error('Error guardando configuracion:', error);
+      actions.setError('Error guardando configuracion');
       throw error;
     } finally {
       actions.setSaving(false);
@@ -248,7 +279,7 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
   }, [profile, state.config, getToken, actions]);
 
   /**
-   * Aplicar configuración al DOM con debounce
+   * Aplicar configuracion al DOM con debounce
    */
   useEffect(() => {
     if (!state.config) return;
@@ -261,7 +292,7 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
   }, [state.config]);
 
   /**
-   * Forzar aplicación al DOM (sin debounce)
+   * Forzar aplicacion al DOM (sin debounce)
    */
   const forceApplyToDOM = useCallback(() => {
     if (state.config) {
@@ -271,10 +302,10 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
   }, [state.config]);
 
   /**
-   * Cargar configuración inicial al montar
+   * Cargar configuracion inicial al montar
    */
   useEffect(() => {
-    if (!isInitialized) {
+    if (!isInitialized && !timeoutTriggeredRef.current) {
       loadInitialConfig();
     }
   }, [loadInitialConfig, isInitialized]);
