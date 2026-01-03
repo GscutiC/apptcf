@@ -1,5 +1,6 @@
 /**
  * Dashboard principal con configuración dinámica
+ * SIMPLIFICADO: No bloquea el renderizado por configuración
  */
 
 import React from 'react';
@@ -12,30 +13,32 @@ import { useModuleAccess } from '../../../modules/techo-propio';
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { userProfile, loading } = useAuthProfile();
+  const { userProfile, loading: authLoading } = useAuthProfile();
   const currentUser = adaptUserProfileToUser(userProfile);
   const { isAdmin, isSuperAdmin } = useProtectedRoute();
   const hasTechoPropioAccess = useModuleAccess();
 
-  // 🆕 Integrar configuración dinámica
-  const { config, loading: configLoading, isReady } = useInterfaceConfig();
+  // Configuración dinámica - NO bloquea el renderizado
+  const { config, loading: configLoading } = useInterfaceConfig();
 
-  if (loading || configLoading || !isReady) {
+  // Solo esperar autenticación, NO la configuración
+  if (authLoading) {
     return (
-      <div className="p-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-300 rounded w-1/4 mb-4"></div>
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando perfil...</p>
         </div>
       </div>
     );
   }
 
-  // Obtener datos de configuración
-  const appName = config.branding?.appName || 'Mi Aplicación';
-  const appDescription = config.branding?.appDescription || 'Panel de control de la aplicación';
-  const welcomeMessage = config.branding?.welcomeMessage || `¡Bienvenido, ${currentUser?.first_name || 'Usuario'}!`;
-  const tagline = config.branding?.tagline || 'Tu panel de control está listo. Navega por los módulos del sistema para comenzar.';
-  const primaryColor = config.theme?.colors?.primary?.['500'] || '#3B82F6';
+  // Usar valores por defecto si la configuración no está lista
+  const appName = config?.branding?.appName || 'ScutiTec';
+  const appDescription = config?.branding?.appDescription || 'Panel de control';
+  const welcomeMessage = config?.branding?.welcomeMessage || `¡Bienvenido, ${currentUser?.first_name || 'Usuario'}!`;
+  const tagline = config?.branding?.tagline || 'Tu panel de control está listo.';
+  const primaryColor = config?.theme?.colors?.primary?.['500'] || '#10b981';
 
   return (
     <div className="p-6 space-y-6">
@@ -44,7 +47,7 @@ export const Dashboard: React.FC = () => {
         className="rounded-lg shadow-lg text-white p-8"
         style={{
           background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}CC 100%)`,
-          borderRadius: config.theme?.layout?.borderRadius?.lg || '0.5rem'
+          borderRadius: config?.theme?.layout?.borderRadius?.lg || '0.5rem'
         }}
       >
         <div className="text-center space-y-4">
@@ -71,7 +74,7 @@ export const Dashboard: React.FC = () => {
       <div 
         className="bg-white shadow-md p-6"
         style={{
-          borderRadius: config.theme?.layout?.borderRadius?.lg || '0.5rem'
+          borderRadius: config?.theme?.layout?.borderRadius?.lg || '0.5rem'
         }}
       >
         <div className="flex items-center justify-between">
@@ -96,7 +99,7 @@ export const Dashboard: React.FC = () => {
               style={{
                 backgroundColor: `${primaryColor}20`,
                 color: primaryColor,
-                borderRadius: config.theme?.layout?.borderRadius?.full || '9999px'
+                borderRadius: config?.theme?.layout?.borderRadius?.full || '9999px'
               }}
             >
               {currentUser?.role?.permissions.length || 0} permisos
@@ -115,7 +118,7 @@ export const Dashboard: React.FC = () => {
               onClick={() => navigate('/techo-propio')}
               className="bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-300 p-6 text-left group transform hover:-translate-y-1"
               style={{
-                borderRadius: config.theme?.layout?.borderRadius?.lg || '0.5rem'
+                borderRadius: config?.theme?.layout?.borderRadius?.lg || '0.5rem'
               }}
             >
               <div className="flex items-start justify-between mb-4">
@@ -149,7 +152,7 @@ export const Dashboard: React.FC = () => {
       <div
         className="bg-gray-50 p-6 text-center"
         style={{
-          borderRadius: config.theme?.layout?.borderRadius?.lg || '0.5rem'
+          borderRadius: config?.theme?.layout?.borderRadius?.lg || '0.5rem'
         }}
       >
         <div className="max-w-md mx-auto">
