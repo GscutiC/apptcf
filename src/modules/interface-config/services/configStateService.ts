@@ -285,7 +285,8 @@ export class ConfigStateService {
       hasUnsavedChanges: ConfigComparisonService.hasUnsavedChanges(state.config, state.savedConfig),
       changesSummary: ConfigComparisonService.getChangesSummary(state.config, state.savedConfig),
       canModifyConfig: state.isGlobalAdmin || state.configSource === 'user',
-      isReady: !state.loading && !!state.config && !!state.savedConfig,
+      // isReady: solo necesitamos config y que no esté cargando
+      isReady: !state.loading && !!state.config,
     };
   }
 }
