@@ -90,10 +90,8 @@ const ConvocationManagement: React.FC = () => {
     if (!formData.start_date) errors.start_date = 'Fecha de inicio requerida';
     if (!formData.end_date) errors.end_date = 'Fecha de fin requerida';
 
-    // Validar formato de código
-    if (formData.code && !formData.code.match(/^CONV-\d{4}-\d{2}$/)) {
-      errors.code = 'Formato debe ser CONV-YYYY-XX (ej: CONV-2025-01)';
-    }
+    // Código es libre - acepta cualquier combinación de caracteres, números y símbolos
+    // La unicidad se valida a nivel de usuario en el backend
 
     // Validar fechas
     if (formData.start_date && formData.end_date) {
