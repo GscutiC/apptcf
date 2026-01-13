@@ -1,9 +1,10 @@
 /**
  * Contexto principal para configuración de interfaz
  * Implementa nueva arquitectura modular con servicios especializados
+ * OPTIMIZADO: Memoización del valor del contexto para evitar re-renders
  */
 
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode, useMemo } from 'react';
 import { useInterfaceConfig, UseInterfaceConfigReturn } from '../hooks/useInterfaceConfig';
 
 // Crear contexto
@@ -16,13 +17,26 @@ interface InterfaceConfigProviderProps {
 
 /**
  * Provider del contexto de configuración de interfaz
- * Ahora es mucho más simple gracias a la arquitectura modular
+ * OPTIMIZADO: Memoiza el valor para evitar re-renders innecesarios
  */
 export const InterfaceConfigProvider: React.FC<InterfaceConfigProviderProps> = ({ children }) => {
   const configValue = useInterfaceConfig();
 
+  // OPTIMIZADO: Memoizar el valor del contexto basado en valores primitivos estables
+  const memoizedValue = useMemo(() => configValue, [
+    configValue.config?.id,
+    configValue.loading,
+    configValue.error,
+    configValue.isDirty,
+    configValue.isSaving,
+    configValue.isGlobalAdmin,
+    configValue.configSource,
+    configValue.isReady,
+    // Las funciones ya están memoizadas en useInterfaceConfig
+  ]);
+
   return (
-    <InterfaceConfigContext.Provider value={configValue}>
+    <InterfaceConfigContext.Provider value={memoizedValue}>
       {children}
     </InterfaceConfigContext.Provider>
   );

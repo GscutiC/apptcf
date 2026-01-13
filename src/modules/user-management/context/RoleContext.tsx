@@ -146,7 +146,8 @@ interface RoleContextType {
   resetState: () => void;
   
   // Operaciones asíncronas
-  loadRoles: (getToken: () => Promise<string | null>) => Promise<void>;
+  // loadRoles ahora usa getTokenRef internamente, el parámetro es opcional
+  loadRoles: (getToken?: () => Promise<string | null>) => Promise<void>;
   createRole: (getToken: () => Promise<string | null>, roleData: CreateRoleRequest) => Promise<UserRole | null>;
   updateRole: (getToken: () => Promise<string | null>, roleId: string, roleData: UpdateRoleRequest) => Promise<UserRole | null>;
   deleteRole: (getToken: () => Promise<string | null>, roleId: string) => Promise<boolean>;
@@ -170,8 +171,16 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
   const { getToken } = useAuth();
 
   // Referencias para evitar loops infinitos
-  const loadRolesRef = React.useRef<((getToken: () => Promise<string | null>) => Promise<void>) | null>(null);
+  const loadRolesRef = React.useRef<((getToken?: () => Promise<string | null>) => Promise<void>) | null>(null);
   const hasInitializedRef = React.useRef(false);
+  const isLoadingRef = React.useRef(false);
+  // CRÍTICO: Guardar getToken en ref para evitar re-renders por cambio de referencia
+  const getTokenRef = React.useRef(getToken);
+  
+  // Actualizar ref sin causar re-renders
+  React.useEffect(() => {
+    getTokenRef.current = getToken;
+  }, [getToken]);
 
   // Acciones básicas
   const setSelectedRole = useCallback((role: UserRole | null) => {
@@ -186,18 +195,23 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
     dispatch({ type: 'RESET_STATE' });
   }, []);
 
-  // Operaciones asíncronas
-  const loadRoles = useCallback(async (getToken: () => Promise<string | null>) => {
-    // Evitar cargar si ya estamos cargando o tenemos datos recientes
-    if (state.operations.list.loading) {
+  // Operaciones asíncronas - CRÍTICO: Sin dependencias de state para evitar recreación
+  const loadRoles = useCallback(async (getTokenFn?: () => Promise<string | null>) => {
+    // Evitar cargar si ya estamos cargando usando ref (más estable que state)
+    if (isLoadingRef.current || hasInitializedRef.current) {
       return;
     }
 
+    // Usar el token pasado o el del ref
+    const tokenFn = getTokenFn || getTokenRef.current;
+    if (!tokenFn) return;
+
+    isLoadingRef.current = true;
     dispatch({ type: 'SET_LOADING', operation: 'list', loading: true });
     dispatch({ type: 'SET_ERROR', operation: 'list', error: null });
 
     try {
-      const roles = await roleService.getRoles(getToken);
+      const roles = await roleService.getRoles(tokenFn);
       dispatch({ type: 'SET_ROLES', roles });
       dispatch({ type: 'SET_SUCCESS', operation: 'list', success: true });
       hasInitializedRef.current = true;
@@ -207,39 +221,37 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
         console.error('RoleContext: Error loading roles:', error);
       }
       dispatch({ type: 'SET_ERROR', operation: 'list', error: error instanceof Error ? error.message : 'Error desconocido' });
+    } finally {
+      isLoadingRef.current = false;
     }
-  }, [state.operations.list.loading]);
+  }, []); // CRÍTICO: Sin dependencias - usa refs para estado mutable
 
   // Asignar la referencia para el listener
   loadRolesRef.current = loadRoles;
 
-  // Cargar roles automáticamente al inicializar el contexto (solo una vez)
-  useEffect(() => {
-    // CRÍTICO: Solo cargar si no hemos inicializado aún
-    if (hasInitializedRef.current) {
-      return;
-    }
-
-    // Solo cargar si no hay roles y no se está cargando
-    // NOTA: NO incluimos state.operations.list.error en las dependencias
-    // porque causa loops infinitos al cambiar durante la carga
-    if (getToken && state.roles.length === 0 && !state.operations.list.loading) {
-      loadRoles(getToken);
-    }
-  }, [getToken, state.roles.length, state.operations.list.loading]);
-  // CRÍTICO: NO incluir error ni loadRoles para evitar loops infinitos
+  // DESHABILITADO: React Query (useRoles hook) maneja la carga de roles
+  // Esto evita llamadas duplicadas a /auth/roles/detailed
+  // useEffect(() => {
+  //   if (hasInitializedRef.current || isLoadingRef.current) {
+  //     return;
+  //   }
+  //   loadRoles(getTokenRef.current);
+  // }, [loadRoles]);
 
   // Efecto para escuchar cambios de roles desde otras páginas
   useEffect(() => {
     const handleRolesUpdated = () => {
-      if (loadRolesRef.current && getToken) {
-        loadRolesRef.current(getToken);
+      // Permitir recarga cuando se dispara el evento manualmente
+      hasInitializedRef.current = false;
+      isLoadingRef.current = false;
+      if (loadRolesRef.current) {
+        loadRolesRef.current(getTokenRef.current);
       }
     };
 
     window.addEventListener('rolesUpdated', handleRolesUpdated);
     return () => window.removeEventListener('rolesUpdated', handleRolesUpdated);
-  }, [getToken]);
+  }, []); // Sin dependencias - solo se ejecuta al montar
 
   const createRole = useCallback(async (getToken: () => Promise<string | null>, roleData: CreateRoleRequest): Promise<UserRole | null> => {
     dispatch({ type: 'SET_LOADING', operation: 'create', loading: true });

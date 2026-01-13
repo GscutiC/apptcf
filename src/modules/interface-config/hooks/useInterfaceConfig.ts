@@ -67,6 +67,12 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
   const lastUserIdRef = useRef<string | null>(null);
   const profileLoadingRef = useRef(profileLoading);
   const profileRef = useRef(profile);
+  
+  // CRÍTICO: Guardar getToken en ref para evitar re-renders por cambio de referencia
+  const getTokenRef = useRef(getToken);
+  useEffect(() => {
+    getTokenRef.current = getToken;
+  }, [getToken]);
 
   // Acciones del servicio (memoizadas para mantener referencia estable)
   const actions = useMemo(() =>
@@ -185,9 +191,9 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
         if (!profileLoadingRef.current) {
           setTimeout(async () => {
             try {
-              const token = await getToken();
+              const token = await getTokenRef.current();
               if (token) {
-                const freshConfig = await dynamicConfigService.getCurrentConfig(getToken);
+                const freshConfig = await dynamicConfigService.getCurrentConfig(getTokenRef.current);
                 if (freshConfig) {
                   ConfigCacheService.setCache(freshConfig);
                   // Solo actualizar si hay diferencias significativas
@@ -224,9 +230,9 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
         logger.warn('Perfil no disponible, cargando config con token...');
 
         try {
-          const token = await getToken();
+          const token = await getTokenRef.current();
           if (token) {
-            const fallbackConfig = await dynamicConfigService.getCurrentConfig(getToken);
+            const fallbackConfig = await dynamicConfigService.getCurrentConfig(getTokenRef.current);
             if (fallbackConfig) {
               actionsRef.current.setConfig(fallbackConfig);
               DOMConfigService.applyConfigToDOM(fallbackConfig);
@@ -255,12 +261,12 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
       }
 
       // Asegurar que tenemos un token valido antes de proceder
-      const token = await getToken();
+      const token = await getTokenRef.current();
       if (!token) {
         throw new Error('No se pudo obtener token de autenticacion');
       }
 
-      const configResponse = await interfaceConfigService.getConfigForUser(user.clerk_id, getToken);
+      const configResponse = await interfaceConfigService.getConfigForUser(user.clerk_id, getTokenRef.current);
       
       if (configResponse) {
         logger.info(`Configuracion cargada desde: ${configResponse.source}`);
@@ -276,7 +282,7 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
         actionsRef.current.setConfig(configResponse.config);
 
         // Cargar presets en paralelo
-        dynamicConfigService.getPresets(getToken).then(presets => {
+        dynamicConfigService.getPresets(getTokenRef.current).then(presets => {
           actionsRef.current.setPresets(presets);
           logger.info(`Presets cargados: ${presets.length}`);
         }).catch(error => {
@@ -304,7 +310,7 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
 
       // Fallback: intentar cargar desde dynamicConfigService nuevamente
       try {
-        const fallbackConfig = await dynamicConfigService.getCurrentConfig(getToken);
+        const fallbackConfig = await dynamicConfigService.getCurrentConfig(getTokenRef.current);
         actionsRef.current.setConfig(fallbackConfig);
         DOMConfigService.applyConfigToDOM(fallbackConfig);
         isInitializedRef.current = true;
@@ -322,7 +328,7 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
       actionsRef.current.setLoading(false);
       isInitializingRef.current = false;
     }
-  }, [authLoaded, getToken]); // CRÍTICO: NO incluir actions - causa loops infinitos
+  }, [authLoaded]); // OPTIMIZADO: Removido getToken - usamos getTokenRef.current
 
   /**
    * Funcion inteligente para actualizar configuracion
@@ -357,7 +363,7 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
       }
 
       // Asegurar que tenemos un token valido antes de proceder
-      const token = await getToken();
+      const token = await getTokenRef.current();
       if (!token) {
         throw new Error('No se pudo obtener token de autenticacion');
       }
@@ -365,7 +371,7 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
       const savedConfig = await interfaceConfigService.saveConfigForUser(
         user.clerk_id,
         state.config,
-        getToken
+        getTokenRef.current
       );
 
       // Actualizar la configuracion guardada
@@ -383,20 +389,33 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
     } finally {
       actionsRef.current.setSaving(false);
     }
-  }, [profile, state.config, getToken]); // Sin actions en dependencias
+  }, [profile, state.config]); // OPTIMIZADO: Removido getToken - usamos getTokenRef.current
 
   /**
    * Aplicar configuracion al DOM con debounce
+   * OPTIMIZADO: Usar ref para comparar y evitar aplicaciones duplicadas
    */
+  const lastAppliedConfigRef = useRef<string | null>(null);
+  
   useEffect(() => {
     if (!state.config) return;
 
+    // Crear hash simple del config para comparar
+    const configHash = state.config.id || JSON.stringify(state.config.theme?.colors?.primary?.['500'] || '');
+    
+    // Si ya aplicamos esta configuración, no volver a aplicar
+    if (lastAppliedConfigRef.current === configHash) {
+      return;
+    }
+
     const timeoutId = setTimeout(() => {
       DOMConfigService.applyConfigToDOM(state.config);
+      lastAppliedConfigRef.current = configHash;
     }, 150); // Debounce de 150ms
 
     return () => clearTimeout(timeoutId);
-  }, [state.config]);
+  }, [state.config?.id, state.config?.theme?.colors?.primary?.['500']]); 
+  // OPTIMIZADO: Solo dependencias específicas, no todo el objeto config
 
   /**
    * Forzar aplicacion al DOM (sin debounce)

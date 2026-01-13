@@ -28,33 +28,49 @@ export const UserList: React.FC<UserListProps> = ({
 }) => {
   const { getToken } = useAuth();
   const { state, loadUsers, setFilters, setPagination, updateUserRole } = useUserContext();
-  const { state: roleState, loadRoles } = useRoleContext();
+  const { state: roleState } = useRoleContext();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoadingAction, setIsLoadingAction] = useState<string | null>(null);
 
-  // Cargar usuarios al montar el componente
-  useEffect(() => {
-    loadUsers(getToken);
-  }, [loadUsers, getToken, state.filters, state.pagination.page]);
+  // Refs para evitar cargas duplicadas y loops
+  const hasLoadedUsersRef = React.useRef(false);
+  const getTokenRef = React.useRef(getToken);
+  const loadUsersRef = React.useRef(loadUsers);
 
-  // Cargar roles al montar el componente
+  // Actualizar refs sin causar re-renders
+  React.useEffect(() => {
+    getTokenRef.current = getToken;
+    loadUsersRef.current = loadUsers;
+  }, [getToken, loadUsers]);
+
+  // Cargar usuarios al montar el componente (solo una vez)
   useEffect(() => {
-    if (roleState.roles.length === 0 && !roleState.operations.list.loading) {
-      loadRoles(getToken);
-    }
-  }, [loadRoles, getToken, roleState.roles.length, roleState.operations.list.loading]);
+    if (hasLoadedUsersRef.current) return;
+    hasLoadedUsersRef.current = true;
+    loadUsersRef.current(getTokenRef.current);
+  }, []); // Sin dependencias - solo carga una vez al montar
+
+  // Los roles ya se cargan en RoleContext automáticamente, no necesitamos cargarlos aquí
 
   // Manejar cambios en filtros
   const handleFilterChange = (newFilters: Partial<UserListFilters>) => {
     setFilters(newFilters);
     setPagination({ page: 1 }); // Resetear a la primera página
+    // Cargar con nuevos filtros
+    loadUsersRef.current(getTokenRef.current);
   };
 
   // Manejar búsqueda con debounce
   useEffect(() => {
     const timer = setTimeout(() => {
-      handleFilterChange({ search: searchTerm });
+      if (searchTerm !== state.filters.search) {
+        setFilters({ search: searchTerm });
+        setPagination({ page: 1 });
+        if (hasLoadedUsersRef.current) {
+          loadUsersRef.current(getTokenRef.current);
+        }
+      }
     }, 300);
 
     return () => clearTimeout(timer);
@@ -66,7 +82,7 @@ export const UserList: React.FC<UserListProps> = ({
     
     setIsLoadingAction(user.id);
     try {
-      await updateUserRole(getToken, user.clerk_id, newRole);
+      await updateUserRole(getTokenRef.current, user.clerk_id, newRole);
     } catch (error) {
       console.error('Error actualizando rol:', error);
     } finally {

@@ -81,7 +81,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     authService.clearUserProfileCache();
   }, []);
 
+  // OPTIMIZADO: Memoizar clerkUserId para evitar re-renders por cambio de referencia de clerkUser
+  const clerkUserId = clerkUser?.id;
+
   // CRÍTICO: Memoizar el valor para evitar re-renders innecesarios
+  // NOTA: NO incluir clerkUser en dependencias - causa loops infinitos porque cambia de referencia
   const value: AuthContextValue = React.useMemo(() => ({
     userProfile,
     loading,
@@ -90,8 +94,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isLoaded: isLoaded || false,
     refreshProfile,
     clearCache,
-    clerkUser
-  }), [userProfile, loading, error, isSignedIn, isLoaded, refreshProfile, clearCache, clerkUser]);
+    clerkUser  // Se actualiza solo cuando clerkUserId cambia
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [userProfile, loading, error, isSignedIn, isLoaded, refreshProfile, clearCache, clerkUserId]);
+  // CRÍTICO: Usamos clerkUserId (string) en lugar de clerkUser (object) para evitar re-renders
 
   // ✅ CRÍTICO: NO bloquear el renderizado
   // El loading debe ser manejado por cada componente que lo necesite

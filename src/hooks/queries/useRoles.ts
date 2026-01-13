@@ -1,31 +1,43 @@
 /**
  * React Query hooks para gestión de roles
  * Reemplaza las llamadas directas a authService y roleService
+ * OPTIMIZADO: Usa refs para evitar re-renders por cambio de getToken
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@clerk/clerk-react';
+import { useRef, useEffect } from 'react';
 import { authService } from '../../services/authService';
 
 /**
  * Hook para obtener lista de roles
  * Cache: 10 minutos (roles cambian menos frecuentemente que usuarios)
+ * OPTIMIZADO: Solo hace UNA llamada gracias a staleTime y refetchOnMount: false
  *
  * Uso:
  * const { data: roles, isLoading, error } = useRoles();
  */
 export const useRoles = () => {
-  const { getToken } = useAuth();
+  const { getToken, isSignedIn, isLoaded } = useAuth();
+  
+  // CRÍTICO: Guardar getToken en ref para evitar re-renders
+  const getTokenRef = useRef(getToken);
+  useEffect(() => {
+    getTokenRef.current = getToken;
+  }, [getToken]);
 
   return useQuery({
     queryKey: ['roles'],
     queryFn: async () => {
-      const roles = await authService.getAllRoles(getToken);
+      const roles = await authService.getAllRoles(getTokenRef.current);
       return roles;
     },
     staleTime: 10 * 60 * 1000,  // 10 minutos (roles son más estables)
     gcTime: 15 * 60 * 1000,     // 15 minutos
-    enabled: !!getToken,
+    // CRÍTICO: Usar isSignedIn (boolean estable) en lugar de !!getToken (función siempre truthy)
+    enabled: isLoaded && isSignedIn,
+    refetchOnMount: false,      // No refetch si hay cache válido
+    refetchOnWindowFocus: false, // No refetch al cambiar de pestaña
   });
 };
 
@@ -45,6 +57,12 @@ export const useRoles = () => {
 export const useCreateRole = () => {
   const { getToken } = useAuth();
   const queryClient = useQueryClient();
+  
+  // CRÍTICO: Guardar getToken en ref para evitar re-renders
+  const getTokenRef = useRef(getToken);
+  useEffect(() => {
+    getTokenRef.current = getToken;
+  }, [getToken]);
 
   return useMutation({
     mutationFn: async (roleData: {
@@ -53,7 +71,7 @@ export const useCreateRole = () => {
       description: string;
       permissions: string[];
     }) => {
-      const newRole = await authService.createRole(getToken, roleData);
+      const newRole = await authService.createRole(getTokenRef.current, roleData);
 
       if (!newRole) {
         throw new Error('Error al crear el rol');
@@ -88,6 +106,12 @@ export const useCreateRole = () => {
 export const useUpdateRole = () => {
   const { getToken } = useAuth();
   const queryClient = useQueryClient();
+  
+  // CRÍTICO: Guardar getToken en ref para evitar re-renders
+  const getTokenRef = useRef(getToken);
+  useEffect(() => {
+    getTokenRef.current = getToken;
+  }, [getToken]);
 
   return useMutation({
     mutationFn: async ({
@@ -101,7 +125,7 @@ export const useUpdateRole = () => {
         permissions?: string[];
       };
     }) => {
-      const updatedRole = await authService.updateRole(getToken, roleId, roleData);
+      const updatedRole = await authService.updateRole(getTokenRef.current, roleId, roleData);
 
       if (!updatedRole) {
         throw new Error('Error al actualizar el rol');
@@ -148,7 +172,7 @@ export const useRefreshRoles = () => {
 export const useRolesEventListener = () => {
   const queryClient = useQueryClient();
 
-  React.useEffect(() => {
+  useEffect(() => {
     const handleRolesUpdated = () => {
       queryClient.invalidateQueries({ queryKey: ['roles'] });
     };
@@ -160,6 +184,3 @@ export const useRolesEventListener = () => {
     };
   }, [queryClient]);
 };
-
-// Importar React para el useEffect
-import React from 'react';

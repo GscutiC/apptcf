@@ -25,6 +25,11 @@
     <!-- Pre-carga de configuración ANTES de React -->
     <script>
       (function() {
+        // Evitar aplicación duplicada de configuración
+        if (window.__CONFIG_APPLIED__) {
+          return;
+        }
+        
         const API_URL = 'http://localhost:8000';
         const CONFIG_CACHE_KEY = 'interface-config-cache';
         const CONFIG_TIMESTAMP_KEY = 'interface-config-timestamp';
@@ -33,6 +38,11 @@
         // Función para aplicar configuración al DOM inmediatamente
         function applyConfigToDOM(config) {
           try {
+            // Evitar re-aplicación si ya se aplicó
+            if (window.__CONFIG_APPLIED__) {
+              return;
+            }
+            
             if (!config || !config.theme) return;
             
             const root = document.documentElement;
@@ -95,6 +105,8 @@
               }
             }
             
+            // Marcar como aplicada
+            window.__CONFIG_APPLIED__ = true;
             console.log('✅ Configuración aplicada al DOM antes de React');
           } catch (error) {
             console.warn('⚠️ Error aplicando config al DOM:', error);
@@ -113,7 +125,10 @@
               const config = JSON.parse(cachedConfig);
               window.__INITIAL_CONFIG__ = config;
               applyConfigToDOM(config);
-              document.body.classList.add('config-loaded');
+              // Verificar que body existe antes de acceder a classList
+              if (document.body) {
+                document.body.classList.add('config-loaded');
+              }
               console.log('⚡ Config cargada desde localStorage (cache)');
               return; // Salir si la cache es válida
             } else {
@@ -145,8 +160,10 @@
             // Aplicar al DOM inmediatamente
             applyConfigToDOM(config);
             
-            // Marcar como cargado
-            document.body.classList.add('config-loaded');
+            // Marcar como cargado (verificar que body existe)
+            if (document.body) {
+              document.body.classList.add('config-loaded');
+            }
             
             console.log('✅ Config cargada desde backend y aplicada');
           })
@@ -225,7 +242,10 @@
             
             window.__INITIAL_CONFIG__ = emergencyConfig;
             applyConfigToDOM(emergencyConfig);
-            document.body.classList.add('config-loaded');
+            // Verificar que body existe antes de acceder a classList
+            if (document.body) {
+              document.body.classList.add('config-loaded');
+            }
             
             console.log('🚫 Usando configuración de emergencia');
           });

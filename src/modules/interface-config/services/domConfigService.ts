@@ -6,6 +6,15 @@
 import { InterfaceConfig } from '../types';
 import { logger } from '../../../shared/utils/logger';
 
+// Declarar tipo para window con nuestra propiedad personalizada
+declare global {
+  interface Window {
+    __CONFIG_APPLIED__?: boolean;
+    __INITIAL_CONFIG__?: InterfaceConfig;
+    __LAST_CONFIG_ID__?: string;
+  }
+}
+
 export class DOMConfigService {
   private static readonly CSS_VARIABLES_PREFIX = '--color-';
   private static readonly FAVICON_SELECTOR = 'link[rel="icon"]';
@@ -13,20 +22,32 @@ export class DOMConfigService {
 
   /**
    * Aplica toda la configuración al DOM
+   * OPTIMIZADO: Evita re-aplicaciones innecesarias si la config no cambió
    */
   static applyConfigToDOM(config: InterfaceConfig): void {
     try {
-      logger.debug('🎨 Aplicando configuración al DOM:', config.id);
-      
       if (!config || !config.theme) {
         logger.warn('Configuración inválida, omitiendo aplicación al DOM');
         return;
       }
 
+      // Evitar re-aplicación si es la misma configuración
+      const configId = config.id || JSON.stringify(config.theme?.colors?.primary?.['500'] || '');
+      if (window.__LAST_CONFIG_ID__ === configId && window.__CONFIG_APPLIED__) {
+        logger.debug('⏭️ Config ya aplicada, omitiendo');
+        return;
+      }
+
+      logger.debug('🎨 Aplicando configuración al DOM:', config.id);
+
       // Aplicar en orden específico para evitar conflictos
       this.applyThemeVariables(config);
       this.applyBrandingToDocument(config);
       this.applyFavicon(config);
+      
+      // Marcar como aplicada
+      window.__CONFIG_APPLIED__ = true;
+      window.__LAST_CONFIG_ID__ = configId;
       
       logger.debug('✅ Configuración aplicada exitosamente al DOM');
       

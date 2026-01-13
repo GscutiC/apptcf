@@ -1,12 +1,13 @@
 /**
  * Página principal de gestión de usuarios
  * Integra todos los componentes de usuario en una interfaz completa
+ * NOTA: RoleProvider ya está en App.tsx, no duplicar aquí
  */
 
 import React, { useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { UserProvider } from '../context/UserContext';
-import { RoleProvider } from '../context/RoleContext';
+// RoleProvider removido - ya está en App.tsx
 import { UserList } from '../components/UserList';
 import { UserForm } from '../components/UserForm';
 import { User } from '../types/user.types';
@@ -191,13 +192,12 @@ export const UsersPage: React.FC = () => {
 
   return (
     <UserProvider>
-      <RoleProvider>
-        <div className="min-h-screen bg-gray-50 py-8">
-          <div className="container mx-auto px-4">
-            <div className="max-w-7xl mx-auto">
-              {/* Header */}
-              <div className="bg-white rounded-lg shadow p-6 mb-6">
-                <div className="flex justify-between items-center">
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="container mx-auto px-4">
+          <div className="max-w-7xl mx-auto">
+            {/* Header */}
+            <div className="bg-white rounded-lg shadow p-6 mb-6">
+              <div className="flex justify-between items-center">
                   <div>
                     <h1 className="text-2xl font-bold text-gray-800">
                       {viewMode === 'create' && 'Crear Usuario'}
@@ -260,7 +260,6 @@ export const UsersPage: React.FC = () => {
             </div>
           </div>
         </div>
-      </RoleProvider>
     </UserProvider>
   );
 };
