@@ -1,9 +1,9 @@
 import React from 'react';
 import { SignOutButton } from '@clerk/clerk-react';
-import { useAuthProfile } from '../hooks/useAuthProfile';
+import { useAuthContext } from '../context/AuthContext';
 
 const UserProfile: React.FC = () => {
-  const { userProfile, loading, error, clerkUser } = useAuthProfile();
+  const { userProfile, loading, error, clerkUser } = useAuthContext();
 
   if (loading) {
     return (

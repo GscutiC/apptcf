@@ -8,7 +8,7 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
-import { useAuthProfile } from '../hooks/useAuthProfile';
+import { useAuthContext } from '../context/AuthContext';
 import { adaptUserProfileToUser } from '../shared/utils/userAdapter';
 import { useProtectedRoute } from '../hooks/useProtectedRoute';
 import { PERMISSION_GROUPS, getRoleDisplayName, getRoleColor } from '../modules/user-management/utils/permissions.utils';
@@ -22,7 +22,7 @@ import { useUsers, useRoles, useCreateRole, useUpdateRole } from '../hooks/queri
 
 export const RolesPage: React.FC = () => {
   const { getToken } = useAuth();
-  const { userProfile, loading: userLoading } = useAuthProfile();
+  const { userProfile, loading: userLoading } = useAuthContext();
   const currentUser = adaptUserProfileToUser(userProfile);
   const { isSuperAdmin, isAdmin } = useProtectedRoute();
 

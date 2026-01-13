@@ -1,6 +1,6 @@
 /**
- * Servicio para subir archivos al backend
- * Conecta con /api/files del backend FastAPI
+ * Servicio para subir archivos usando Cloudinary
+ * Reemplaza el sistema de archivos locales del backend
  */
 
 import { logger } from '../../../shared/utils/logger';
@@ -8,29 +8,34 @@ import { logger } from '../../../shared/utils/logger';
 // Usar la misma configuración que otros servicios
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
-// Coincide con FileUploadResponseDTO del backend
-export interface UploadResponse {
-  id: string;
-  original_filename: string;
-  file_size: number;
-  mime_type: string;
-  public_url: string;
-  message?: string;
+// Respuesta de Cloudinary desde el backend
+export interface CloudinaryUploadResponse {
+  success: boolean;
+  message: string;
+  data: {
+    public_id: string;
+    url: string;
+    secure_url: string;
+    format: string;
+    width: number;
+    height: number;
+    bytes: number;
+  };
 }
 
 export interface LogoData {
-  fileId: string;
-  url: string;
+  fileId: string;  // Ahora será el public_id de Cloudinary
+  url: string;     // URL segura de Cloudinary
   filename: string;
 }
 
 export class FileUploadService {
   /**
-   * Subir logo al servidor
+   * Subir logo a Cloudinary a través del backend
    * @param file - Archivo a subir
-   * @param getToken - Función opcional para obtener token de autenticación
+   * @param getToken - Función para obtener token de autenticación (REQUERIDO)
    */
-  static async uploadLogo(file: File, getToken?: () => Promise<string | null>): Promise<LogoData> {
+  static async uploadLogo(file: File, getToken: () => Promise<string | null>): Promise<LogoData> {
     try {
       // Validaciones
       if (!file.type.startsWith('image/')) {
@@ -41,112 +46,96 @@ export class FileUploadService {
         throw new Error('El archivo no debe superar 2MB');
       }
 
+      // Obtener token de autenticación
+      const token = await getToken();
+      if (!token) {
+        throw new Error('Se requiere autenticación para subir archivos');
+      }
+
       // Crear FormData
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('category', 'logo');
-      formData.append('description', `Logo: ${file.name}`);
+      formData.append('logo_type', 'primary');
 
-      logger.info(`📤 [FileUploadService] Uploading file: ${file.name} (${file.size} bytes)`);
-      logger.info(`📡 [FileUploadService] Upload URL: ${API_BASE_URL}/api/files/upload`);
+      logger.info(`📤 [CloudinaryService] Uploading file to Cloudinary: ${file.name} (${file.size} bytes)`);
 
-      // ✅ Preparar headers con token si está disponible
-      const headers: HeadersInit = {};
-      if (getToken) {
-        try {
-          const token = await getToken();
-          if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-            logger.info(`🔑 [FileUploadService] Token de autenticación incluido`);
-          }
-        } catch (error) {
-          logger.warn('⚠️ [FileUploadService] No se pudo obtener token, continuando sin autenticación');
-        }
-      }
-
-      // Upload al backend
-      const response = await fetch(`${API_BASE_URL}/api/files/upload`, {
+      // Upload a Cloudinary a través del backend
+      const response = await fetch(`${API_BASE_URL}/api/cloudinary/upload-logo`, {
         method: 'POST',
-        headers,
-        body: formData,
-        // No incluir Content-Type header, FormData lo maneja automáticamente
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
       });
 
-      logger.info(`📡 [FileUploadService] Response status: ${response.status} ${response.statusText}`);
+      logger.info(`📡 [CloudinaryService] Response status: ${response.status} ${response.statusText}`);
 
       if (!response.ok) {
         const errorText = await response.text();
-        logger.error('❌ [FileUploadService] Error response:', errorText);
-        
+        logger.error('❌ [CloudinaryService] Error response:', errorText);
+
         let errorData;
         try {
           errorData = JSON.parse(errorText);
         } catch {
           errorData = { detail: errorText || 'Error desconocido en el servidor' };
         }
-        
+
         throw new Error(errorData.detail || `Error HTTP ${response.status}`);
       }
 
-      const data: UploadResponse = await response.json();
-      
-      logger.info(`✅ [FileUploadService] Upload response:`, data);
+      const responseData: CloudinaryUploadResponse = await response.json();
 
-      // Construir URL completa si es relativa
-      const fullUrl = data.public_url.startsWith('http') 
-        ? data.public_url 
-        : `${window.location.origin}${data.public_url}`;
+      logger.info(`✅ [CloudinaryService] Upload response:`, responseData);
 
-      const result = {
-        fileId: data.id,
-        url: fullUrl,
-        filename: data.original_filename
+      if (!responseData.success) {
+        throw new Error(responseData.message || 'Error al subir imagen a Cloudinary');
+      }
+
+      const result: LogoData = {
+        fileId: responseData.data.public_id,
+        url: responseData.data.secure_url,
+        filename: file.name
       };
 
-      logger.info(`🎯 [FileUploadService] Returning LogoData:`, result);
+      logger.info(`🎯 [CloudinaryService] Returning LogoData:`, result);
 
       return result;
 
     } catch (error: any) {
-      logger.error('❌ [FileUploadService] Error uploading logo:', error);
-      logger.error('❌ [FileUploadService] Error stack:', error.stack);
-      throw error; // Re-throw el error original, no crear uno nuevo
+      logger.error('❌ [CloudinaryService] Error uploading logo:', error);
+      throw error;
     }
   }
 
   /**
-   * Eliminar logo del servidor
-   * @param fileId - ID del archivo a eliminar
-   * @param getToken - Función opcional para obtener token de autenticación
+   * Eliminar logo de Cloudinary
+   * @param publicId - Public ID de Cloudinary (ej: "apptc/logos/primary/primary_logo")
+   * @param getToken - Función para obtener token de autenticación
    */
-  static async deleteLogo(fileId: string, getToken?: () => Promise<string | null>): Promise<boolean> {
+  static async deleteLogo(publicId: string, getToken: () => Promise<string | null>): Promise<boolean> {
     try {
-      logger.info(`🗑️ Eliminando logo: ${fileId}`);
+      logger.info(`🗑️ Eliminando logo de Cloudinary: ${publicId}`);
 
-      // ✅ Preparar headers con token si está disponible
-      const headers: HeadersInit = {};
-      if (getToken) {
-        try {
-          const token = await getToken();
-          if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-          }
-        } catch (error) {
-          logger.warn('⚠️ No se pudo obtener token para eliminación');
-        }
+      const token = await getToken();
+      if (!token) {
+        logger.warn('⚠️ No se pudo obtener token para eliminación');
+        return false;
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/files/${fileId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/cloudinary/delete/${encodeURIComponent(publicId)}`, {
         method: 'DELETE',
-        headers
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
 
       if (response.ok) {
-        logger.info(`✅ Logo eliminado: ${fileId}`);
+        logger.info(`✅ Logo eliminado de Cloudinary: ${publicId}`);
         return true;
       }
 
-      logger.warn(`⚠️ No se pudo eliminar logo: ${fileId}`);
+      logger.warn(`⚠️ No se pudo eliminar logo: ${publicId}`);
       return false;
 
     } catch (error) {
@@ -156,35 +145,22 @@ export class FileUploadService {
   }
 
   /**
-   * Obtener URL pública del logo
+   * Obtener URL pública del logo desde Cloudinary
+   * NOTA: Las URLs de Cloudinary ya son públicas y seguras
    */
-  static getPublicUrl(fileId: string): string {
-    return `${API_BASE_URL}/api/files/${fileId}`;
+  static getPublicUrl(publicId: string): string {
+    // Las URLs de Cloudinary ya son completas
+    // Este método se mantiene por compatibilidad
+    return publicId;
   }
 
   /**
    * Listar logos subidos
+   * DEPRECADO: Cloudinary no tiene endpoint de listado en este servicio
+   * Los logos se gestionan individualmente
    */
   static async listLogos(): Promise<LogoData[]> {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/files?category=logo`);
-      
-      if (!response.ok) {
-        throw new Error('Error al listar logos');
-      }
-
-      const data = await response.json();
-      
-      // Adaptar respuesta del backend al formato esperado
-      return (data.files || []).map((file: any) => ({
-        fileId: file.id,
-        url: file.public_url || this.getPublicUrl(file.id),
-        filename: file.original_filename || 'Logo'
-      }));
-
-    } catch (error) {
-      logger.error('❌ Error listando logos:', error);
-      return [];
-    }
+    logger.warn('⚠️ listLogos() está deprecado con Cloudinary');
+    return [];
   }
 }

@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/clerk-react';
-import { useAuthProfile } from '../../../hooks/useAuthProfile';
+import { useAuthContext } from '../../../context/AuthContext';
 import { techoPropioApi } from '../services';
 import {
   TechoPropioApplication,
@@ -17,7 +17,7 @@ import { SUCCESS_MESSAGES, logger } from '../utils';
 
 export const useTechoPropioApplications = () => {
   const { getToken } = useAuth();
-  const { userProfile } = useAuthProfile();
+  const { userProfile } = useAuthContext();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);

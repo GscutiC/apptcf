@@ -3,76 +3,42 @@
 @tailwind utilities;
 
 /* Prevenir FOUC (Flash of Unstyled Content) */
+/* OPTIMIZADO: Sin transition inicial para evitar parpadeo visible */
 body {
   opacity: 0;
-  transition: opacity 0.3s ease-in-out;
+  /* NO transition aquí - se agrega después de la carga inicial */
 }
 
+/* Clase aplicada cuando la config está lista */
 body.config-loaded {
   opacity: 1;
+  /* Agregar transition SOLO después de la carga inicial */
+  transition: opacity 0.15s ease-in;
+}
+
+/* Clase para habilitar transitions en cambios posteriores */
+body.config-transitions-enabled {
+  transition: all 0.2s ease-in-out;
 }
 
 /* Variables CSS personalizables para el sistema de temas */
+/* OPTIMIZADO: Sin valores por defecto para evitar flash de colores incorrectos */
+/* Las variables se aplican desde el script de precarga en index.html */
 :root {
-  /* Colores primarios por defecto */
-  --color-primary-50: #eff6ff;
-  --color-primary-100: #dbeafe;
-  --color-primary-200: #bfdbfe;
-  --color-primary-300: #93c5fd;
-  --color-primary-400: #60a5fa;
-  --color-primary-500: #3b82f6;
-  --color-primary-600: #2563eb;
-  --color-primary-700: #1d4ed8;
-  --color-primary-800: #1e40af;
-  --color-primary-900: #1e3a8a;
+  /* Colores primarios - establecidos dinámicamente */
+  /* --color-primary-50 a --color-primary-900 */
 
-  /* Colores secundarios por defecto */
-  --color-secondary-50: #faf5ff;
-  --color-secondary-100: #f3e8ff;
-  --color-secondary-200: #e9d5ff;
-  --color-secondary-300: #d8b4fe;
-  --color-secondary-400: #c084fc;
-  --color-secondary-500: #a855f7;
-  --color-secondary-600: #9333ea;
-  --color-secondary-700: #7c3aed;
-  --color-secondary-800: #6b21a8;
-  --color-secondary-900: #581c87;
+  /* Colores secundarios - establecidos dinámicamente */
+  /* --color-secondary-50 a --color-secondary-900 */
 
-  /* Colores de acento por defecto */
-  --color-accent-50: #ecfdf5;
-  --color-accent-100: #d1fae5;
-  --color-accent-200: #a7f3d0;
-  --color-accent-300: #6ee7b7;
-  --color-accent-400: #34d399;
-  --color-accent-500: #10b981;
-  --color-accent-600: #059669;
-  --color-accent-700: #047857;
-  --color-accent-800: #065f46;
-  --color-accent-900: #064e3b;
+  /* Colores de acento - establecidos dinámicamente */
+  /* --color-accent-50 a --color-accent-900 */
 
-  /* Colores neutrales por defecto */
-  --color-neutral-50: #f9fafb;
-  --color-neutral-100: #f3f4f6;
-  --color-neutral-200: #e5e7eb;
-  --color-neutral-300: #d1d5db;
-  --color-neutral-400: #9ca3af;
-  --color-neutral-500: #6b7280;
-  --color-neutral-600: #4b5563;
-  --color-neutral-700: #374151;
-  --color-neutral-800: #1f2937;
-  --color-neutral-900: #111827;
+  /* Colores neutrales - establecidos dinámicamente */
+  /* --color-neutral-50 a --color-neutral-900 */
 
-  /* Success Colors */
-  --color-success-50: #f0fdf4;
-  --color-success-100: #dcfce7;
-  --color-success-200: #bbf7d0;
-  --color-success-300: #86efac;
-  --color-success-400: #4ade80;
-  --color-success-500: #22c55e;
-  --color-success-600: #16a34a;
-  --color-success-700: #15803d;
-  --color-success-800: #166534;
-  --color-success-900: #14532d;
+  /* Success Colors - establecidos dinámicamente */
+  /* --color-success-50 a --color-success-900 */
 
   /* Tipografía */
   --font-family-primary: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;

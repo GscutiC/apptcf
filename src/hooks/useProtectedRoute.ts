@@ -1,9 +1,11 @@
 /**
  * Hook personalizado para manejo de rutas protegidas y permisos
  * Simplifica la verificación de acceso en componentes
+ *
+ * OPTIMIZADO: Usa useAuthContext en lugar de useAuthProfile para evitar múltiples llamadas
  */
 
-import { useAuthProfile } from './useAuthProfile';
+import { useAuthContext } from '../context/AuthContext';
 import { adaptUserProfileToUser } from '../shared/utils/userAdapter';
 import { RoleName, Permission } from '../modules/user-management/types/user.types';
 import { 
@@ -47,9 +49,9 @@ export interface UseProtectedRouteResult {
 }
 
 export const useProtectedRoute = (options: UseProtectedRouteOptions = {}): UseProtectedRouteResult => {
-  const { userProfile, loading } = useAuthProfile();
+  const { userProfile, loading } = useAuthContext();
   const user = adaptUserProfileToUser(userProfile);
-  
+
   const isAuthenticated = !!user;
   const isLoading = loading;
   

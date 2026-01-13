@@ -5,12 +5,12 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthProfile } from '../hooks/useAuthProfile';
+import { useAuthContext } from '../context/AuthContext';
 import { adaptUserProfileToUser } from '../shared/utils/userAdapter';
 
 export const UnauthorizedPage: React.FC = () => {
   const navigate = useNavigate();
-  const { userProfile } = useAuthProfile();
+  const { userProfile } = useAuthContext();
   const currentUser = adaptUserProfileToUser(userProfile);
 
   const handleGoBack = () => {

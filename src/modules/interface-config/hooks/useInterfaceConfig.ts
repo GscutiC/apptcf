@@ -1,7 +1,8 @@
 /**
  * Hook principal simplificado para la gestion de configuracion de interfaz
  * Usa los servicios especializados para una arquitectura mas limpia
- * 
+ *
+ * OPTIMIZADO: Usa useAuthContext en lugar de useAuthProfile para evitar múltiples llamadas
  * REFACTORIZADO: Usa dynamicConfigService en lugar de configuraciones hardcodeadas
  * CORREGIDO: No bloquea cuando profile no esta disponible
  */
@@ -14,7 +15,8 @@ import { ConfigComparisonService } from '../services/configComparisonService';
 import { DOMConfigService } from '../services/domConfigService';
 import { interfaceConfigService } from '../services/interfaceConfigService';
 import { dynamicConfigService } from '../services/dynamicConfigService';
-import { useAuthProfile } from '../../../hooks/useAuthProfile';
+import { ConfigCacheService } from '../services/configCacheService';
+import { useAuthContext } from '../../../context/AuthContext';
 import { adaptUserProfileToUser } from '../../../shared/utils/userAdapter';
 import { logger } from '../../../shared/utils/logger';
 
@@ -49,7 +51,7 @@ export interface UseInterfaceConfigReturn {
  */
 export function useInterfaceConfig(): UseInterfaceConfigReturn {
   const { isLoaded: authLoaded, getToken } = useAuth();
-  const { userProfile: profile, loading: profileLoading } = useAuthProfile();
+  const { userProfile: profile, loading: profileLoading } = useAuthContext();
   
   // Estado principal usando el servicio especializado
   const [state, dispatch] = useReducer(
@@ -58,80 +60,178 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
   );
   
   // Control de inicializacion para evitar llamadas multiples
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(false);
+  // CRÍTICO: Usar refs en lugar de state para evitar re-renders que causen loops
+  const isInitializedRef = useRef(false);
+  const isInitializingRef = useRef(false);
   const timeoutTriggeredRef = useRef(false);
-  
+  const lastUserIdRef = useRef<string | null>(null);
+  const profileLoadingRef = useRef(profileLoading);
+  const profileRef = useRef(profile);
+
   // Acciones del servicio (memoizadas para mantener referencia estable)
-  const actions = useMemo(() => 
-    ConfigStateService.createActions(dispatch), 
+  const actions = useMemo(() =>
+    ConfigStateService.createActions(dispatch),
     [dispatch]
   );
-  
+
+  // Ref para actions para evitar dependencias cambiantes en useCallback
+  const actionsRef = useRef(actions);
+  useEffect(() => {
+    actionsRef.current = actions;
+  }, [actions]);
+
   const selectors = ConfigStateService.createSelectors(state);
+
+  // Actualizar refs sin causar re-renders
+  useEffect(() => {
+    profileLoadingRef.current = profileLoading;
+    profileRef.current = profile;
+  }, [profileLoading, profile]);
+
+  /**
+   * Invalidar caché si cambia el usuario
+   */
+  useEffect(() => {
+    const currentUserId = profile?.clerk_id || null;
+
+    if (lastUserIdRef.current && currentUserId && lastUserIdRef.current !== currentUserId) {
+      logger.info('👤 Usuario cambió, invalidando caché...');
+      ConfigCacheService.clearCache();
+      isInitializedRef.current = false;
+      timeoutTriggeredRef.current = false;
+    }
+
+    lastUserIdRef.current = currentUserId;
+  }, [profile?.clerk_id]);
 
   /**
    * Cargar configuracion con timeout de emergencia
    * Si profile no llega en 3 segundos, carga config de emergencia
    */
   useEffect(() => {
-    if (isInitialized || !authLoaded) return;
-    
+    if (isInitializedRef.current || !authLoaded) return;
+
     const timeout = setTimeout(() => {
-      if (!isInitialized && !timeoutTriggeredRef.current) {
+      if (!isInitializedRef.current && !timeoutTriggeredRef.current) {
         timeoutTriggeredRef.current = true;
         logger.warn('Timeout: cargando config de emergencia...');
-        
+
         const emergencyConfig = dynamicConfigService.getEmergencyConfig();
-        actions.setConfig(emergencyConfig);
+        actionsRef.current.setConfig(emergencyConfig);
         DOMConfigService.applyConfigToDOM(emergencyConfig);
-        actions.setLoading(false);
-        setIsInitialized(true);
+        actionsRef.current.setLoading(false);
+        isInitializedRef.current = true;
       }
     }, 3000);
-    
+
     return () => clearTimeout(timeout);
-  }, [authLoaded, isInitialized, actions]);
+  }, [authLoaded]); // CRÍTICO: NO incluir actions - causa loops infinitos
 
   /**
    * Cargar configuracion inicial (solo una vez)
+   * OPTIMIZADO: Usa caché para evitar llamadas innecesarias al backend
+   * CRÍTICO: Usa actionsRef.current en lugar de actions para evitar dependencias
    */
   const loadInitialConfig = useCallback(async () => {
     // Evitar multiples llamadas simultaneas
-    if (isInitializing || isInitialized || timeoutTriggeredRef.current) {
+    if (isInitializingRef.current || isInitializedRef.current || timeoutTriggeredRef.current) {
       return;
     }
-    
+
     // Esperar a que auth este listo
     if (!authLoaded) {
       return;
     }
-    
-    // Si profile sigue cargando, esperar un poco mas
-    if (profileLoading) {
-      return;
-    }
 
-    setIsInitializing(true);
+    isInitializingRef.current = true;
 
     try {
-      actions.setLoading(true);
-      actions.setError(null);
-      
+      actionsRef.current.setLoading(true);
+      actionsRef.current.setError(null);
+
       logger.info('Cargando configuracion inicial...');
-      
+
+      // ============================================
+      // PASO 1: Intentar obtener desde preload (index.html)
+      // ============================================
+      const preloadedConfig = ConfigCacheService.getPreloadedConfig();
+      if (preloadedConfig) {
+        logger.info('⚡ Usando config desde preload de index.html');
+        actionsRef.current.setConfig(preloadedConfig);
+        DOMConfigService.applyConfigToDOM(preloadedConfig);
+        // Guardar en cache para futuras recargas
+        ConfigCacheService.setCache(preloadedConfig);
+        isInitializedRef.current = true;
+        actionsRef.current.setLoading(false);
+        isInitializingRef.current = false;
+        return;
+      }
+
+      // ============================================
+      // PASO 2: Intentar obtener desde caché localStorage
+      // ============================================
+      // NO ESPERAR profileLoading - el caché es independiente del usuario
+      const cachedConfig = ConfigCacheService.getCache();
+      if (cachedConfig) {
+        logger.info('⚡ Usando config desde cache localStorage');
+        actionsRef.current.setConfig(cachedConfig);
+        DOMConfigService.applyConfigToDOM(cachedConfig);
+        isInitializedRef.current = true;
+        actionsRef.current.setLoading(false);
+        isInitializingRef.current = false;
+
+        // Refrescar caché en background (sin bloquear UI)
+        // SOLO si profile ya está disponible
+        if (!profileLoadingRef.current) {
+          setTimeout(async () => {
+            try {
+              const token = await getToken();
+              if (token) {
+                const freshConfig = await dynamicConfigService.getCurrentConfig(getToken);
+                if (freshConfig) {
+                  ConfigCacheService.setCache(freshConfig);
+                  // Solo actualizar si hay diferencias significativas
+                  const hasChanges = JSON.stringify(freshConfig) !== JSON.stringify(cachedConfig);
+                  if (hasChanges) {
+                    logger.info('🔄 Config actualizada en background');
+                    actionsRef.current.setConfig(freshConfig);
+                    DOMConfigService.applyConfigToDOM(freshConfig);
+                  }
+                }
+              }
+            } catch (e) {
+              logger.warn('Error refrescando config en background:', e);
+            }
+          }, 100);
+        }
+
+        return;
+      }
+
+      // ============================================
+      // PASO 3: Cargar desde backend (sin caché)
+      // ============================================
+      // AQUÍ SÍ esperar a que profile esté listo
+      if (profileLoadingRef.current) {
+        // Esperar a que profile termine de cargar antes de hacer request al backend
+        actionsRef.current.setLoading(false);
+        isInitializingRef.current = false;
+        return;
+      }
+
       // Si no hay perfil, intentar cargar config directamente con token
-      if (!profile) {
+      if (!profileRef.current) {
         logger.warn('Perfil no disponible, cargando config con token...');
-        
+
         try {
           const token = await getToken();
           if (token) {
             const fallbackConfig = await dynamicConfigService.getCurrentConfig(getToken);
             if (fallbackConfig) {
-              actions.setConfig(fallbackConfig);
+              actionsRef.current.setConfig(fallbackConfig);
               DOMConfigService.applyConfigToDOM(fallbackConfig);
-              setIsInitialized(true);
+              ConfigCacheService.setCache(fallbackConfig);
+              isInitializedRef.current = true;
               logger.info('Configuracion cargada sin perfil');
               return;
             }
@@ -139,86 +239,90 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
         } catch (e) {
           logger.warn('Error cargando config sin perfil:', e);
         }
-        
+
         // Usar config de emergencia si todo falla
         const emergencyConfig = dynamicConfigService.getEmergencyConfig();
-        actions.setConfig(emergencyConfig);
+        actionsRef.current.setConfig(emergencyConfig);
         DOMConfigService.applyConfigToDOM(emergencyConfig);
-        setIsInitialized(true);
+        isInitializedRef.current = true;
         logger.warn('Usando configuracion de emergencia');
         return;
       }
-      
-      const user = adaptUserProfileToUser(profile);
+
+      const user = adaptUserProfileToUser(profileRef.current);
       if (!user) {
         throw new Error('Usuario no valido');
       }
-      
+
       // Asegurar que tenemos un token valido antes de proceder
       const token = await getToken();
       if (!token) {
         throw new Error('No se pudo obtener token de autenticacion');
       }
-      
+
       const configResponse = await interfaceConfigService.getConfigForUser(user.clerk_id, getToken);
       
       if (configResponse) {
         logger.info(`Configuracion cargada desde: ${configResponse.source}`);
-        
+
         // Actualizar estado contextual
-        actions.setContextualData({
+        actionsRef.current.setContextualData({
           isGlobalAdmin: configResponse.isGlobalAdmin,
           configSource: configResponse.source,
           contextualData: null
         });
-        
+
         // Configurar la configuracion (esto establece tanto config como savedConfig)
-        actions.setConfig(configResponse.config);
-        
+        actionsRef.current.setConfig(configResponse.config);
+
         // Cargar presets en paralelo
         dynamicConfigService.getPresets(getToken).then(presets => {
-          actions.setPresets(presets);
+          actionsRef.current.setPresets(presets);
           logger.info(`Presets cargados: ${presets.length}`);
         }).catch(error => {
           logger.error('Error cargando presets:', error);
-          actions.setPresets([]);
+          actionsRef.current.setPresets([]);
         });
         
         // Aplicar al DOM inmediatamente
         DOMConfigService.applyConfigToDOM(configResponse.config);
         
+        // Guardar en caché para futuras recargas
+        ConfigCacheService.setCache(configResponse.config);
+        logger.info('💾 Config guardada en caché');
+
         // Marcar como inicializado exitosamente
-        setIsInitialized(true);
-        
+        isInitializedRef.current = true;
+
       } else {
         throw new Error('No se pudo obtener configuracion');
       }
-      
+
     } catch (error) {
       logger.error('Error cargando configuracion inicial:', error);
-      actions.setError('Error cargando configuracion');
-      
+      actionsRef.current.setError('Error cargando configuracion');
+
       // Fallback: intentar cargar desde dynamicConfigService nuevamente
       try {
         const fallbackConfig = await dynamicConfigService.getCurrentConfig(getToken);
-        actions.setConfig(fallbackConfig);
+        actionsRef.current.setConfig(fallbackConfig);
         DOMConfigService.applyConfigToDOM(fallbackConfig);
-        setIsInitialized(true);
+        isInitializedRef.current = true;
         logger.info('Configuracion cargada despues de reintentar');
       } catch (fallbackError) {
         // Ultimo recurso: configuracion de emergencia
         const emergencyConfig = dynamicConfigService.getEmergencyConfig();
-        actions.setConfig(emergencyConfig);
+        actionsRef.current.setConfig(emergencyConfig);
         DOMConfigService.applyConfigToDOM(emergencyConfig);
-        setIsInitialized(true);
+        isInitializedRef.current = true;
         logger.warn('Usando configuracion de emergencia');
       }
-      
+
     } finally {
-      actions.setLoading(false);
-      setIsInitializing(false);
+      actionsRef.current.setLoading(false);
+      isInitializingRef.current = false;
     }
-  }, [authLoaded, profileLoading, profile, getToken, actions]);
+  }, [authLoaded, getToken]); // CRÍTICO: NO incluir actions - causa loops infinitos
 
   /**
    * Funcion inteligente para actualizar configuracion
@@ -226,12 +330,12 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
   const setConfig = useCallback((updates: Partial<InterfaceConfig> | InterfaceConfig) => {
     // Si es una configuracion completa (preset), reemplazar todo
     if ('theme' in updates && 'logos' in updates && 'branding' in updates) {
-      actions.replaceConfig(updates as InterfaceConfig);
+      actionsRef.current.replaceConfig(updates as InterfaceConfig);
     } else {
       // Si son actualizaciones parciales, hacer merge
-      actions.updateConfig(updates);
+      actionsRef.current.updateConfig(updates);
     }
-  }, [actions]);
+  }, []); // Sin dependencias - usa actionsRef.current
 
   /**
    * Guardar cambios
@@ -242,41 +346,44 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
     }
 
     try {
-      actions.setSaving(true);
-      actions.setError(null);
-      
+      actionsRef.current.setSaving(true);
+      actionsRef.current.setError(null);
+
       logger.info('Guardando configuracion...');
-      
+
       const user = adaptUserProfileToUser(profile);
       if (!user) {
         throw new Error('Usuario no valido');
       }
-      
+
       // Asegurar que tenemos un token valido antes de proceder
       const token = await getToken();
       if (!token) {
         throw new Error('No se pudo obtener token de autenticacion');
       }
-      
+
       const savedConfig = await interfaceConfigService.saveConfigForUser(
-        user.clerk_id, 
-        state.config, 
+        user.clerk_id,
+        state.config,
         getToken
       );
-      
+
       // Actualizar la configuracion guardada
-      actions.setSavedConfig(savedConfig);
-      
+      actionsRef.current.setSavedConfig(savedConfig);
+
+      // Actualizar caché con la nueva configuración
+      ConfigCacheService.setCache(savedConfig);
+
       logger.info('Configuracion guardada exitosamente');
-      
+
     } catch (error) {
       logger.error('Error guardando configuracion:', error);
-      actions.setError('Error guardando configuracion');
+      actionsRef.current.setError('Error guardando configuracion');
       throw error;
     } finally {
-      actions.setSaving(false);
+      actionsRef.current.setSaving(false);
     }
-  }, [profile, state.config, getToken, actions]);
+  }, [profile, state.config, getToken]); // Sin actions en dependencias
 
   /**
    * Aplicar configuracion al DOM con debounce
@@ -305,10 +412,10 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
    * Cargar configuracion inicial al montar
    */
   useEffect(() => {
-    if (!isInitialized && !timeoutTriggeredRef.current) {
+    if (!isInitializedRef.current && !timeoutTriggeredRef.current) {
       loadInitialConfig();
     }
-  }, [loadInitialConfig, isInitialized]);
+  }, [loadInitialConfig]); // REMOVIDO: isInitialized (ahora es ref)
 
   // Retorno del hook
   return {

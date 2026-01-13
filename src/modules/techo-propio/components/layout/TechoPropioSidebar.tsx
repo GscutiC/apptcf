@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { UserButton } from '@clerk/clerk-react';
-import { useAuthProfile } from '../../../../hooks/useAuthProfile';
+import { useAuthContext } from '../../../../context/AuthContext';
 import { adaptUserProfileToUser } from '../../../../shared/utils/userAdapter';
 import { MODULE_CONFIG } from '../../config/moduleConfig';
 import { useTechoPropioConfigContext } from '../../config/context/TechoPropioConfigContext';
@@ -115,7 +115,7 @@ export const TechoPropioSidebar: React.FC<TechoPropioSidebarProps> = ({
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { userProfile } = useAuthProfile();
+  const { userProfile } = useAuthContext();
   const currentUser = adaptUserProfileToUser(userProfile);
 
   // Obtener configuración personalizada

@@ -6,6 +6,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { queryClient } from './lib/queryClient';
 import { RoleProvider } from './modules/user-management/context/RoleContext';
 import { NotificationProvider } from './shared/components/ui/Notifications';
+import { AuthProvider } from './context/AuthContext';
 import { InterfaceConfigProvider, OptimizedConfigLoader } from './modules/interface-config';
 import { ConfigDiagnosticWrapper } from './modules/interface-config/components/ConfigDiagnosticWrapper';
 import { Layout } from './shared/components/layout';
@@ -59,18 +60,21 @@ const LayoutWrapper = React.memo(() => {
 LayoutWrapper.displayName = 'LayoutWrapper';
 
 function App() {
-  const { user, isSignedIn } = useUser();
+  const { user, isSignedIn, isLoaded } = useUser();
   const { getToken } = useAuth();
 
   // ============================================
   // CONFIGURAR TOKEN PARA API SERVICE
   // ============================================
   // Configurar la función getToken para que apiService la use
+  // NOTA: Solo depende de isSignedIn, no de getToken, para evitar loops infinitos
+  // getToken es una referencia nueva en cada render de ClerkProvider
   React.useEffect(() => {
     if (isSignedIn && getToken) {
       setAuthToken(getToken);
     }
-  }, [isSignedIn, getToken]);
+  }, [isSignedIn]);
+  // CRÍTICO: NO incluir getToken en dependencias - causa re-renders infinitos
 
   // ============================================
   // PREFETCH DE RUTAS CRÍTICAS
@@ -92,6 +96,21 @@ function App() {
     return () => clearTimeout(timer);
   }, []);
 
+  // CRÍTICO: Esperar a que Clerk termine de cargar antes de decidir qué mostrar
+  // Esto evita renders innecesarios del LoginPage cuando el usuario ya está autenticado
+  if (!isLoaded) {
+    return (
+      <div 
+        className="min-h-screen flex items-center justify-center"
+        style={{
+          background: 'linear-gradient(to bottom right, var(--color-neutral-50, #FAFAFA), var(--color-neutral-100, #F5F5F5))'
+        }}
+      >
+        <Loading message="Verificando sesión..." />
+      </div>
+    );
+  }
+
   // Si no hay usuario autenticado, mostrar página de login dinámica
   if (!isSignedIn) {
     return <LoginPage />;
@@ -105,20 +124,22 @@ function App() {
       
       <QueryClientProvider client={queryClient}>
         <ConfigDiagnosticWrapper>
-          <InterfaceConfigProvider>
-            {/* Router ANTES de ConfigLoader para carga no bloqueante */}
-            <Router
-              future={{
-                v7_startTransition: true,
-                v7_relativeSplatPath: true
-              }}
-            >
-              <OptimizedConfigLoader timeout={1000}>
-                <ErrorBoundary name="Providers">
-                  <NotificationProvider>
-                    <RoleProvider>
-                      <div className="min-h-screen bg-gray-50">
-                        <Routes>
+          {/* Router ANTES de ConfigLoader para carga no bloqueante */}
+          <Router
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true
+            }}
+          >
+            {/* AuthProvider debe estar ANTES de InterfaceConfigProvider */}
+            <AuthProvider>
+              <InterfaceConfigProvider>
+                <OptimizedConfigLoader timeout={1000}>
+                  <ErrorBoundary name="Providers">
+                    <NotificationProvider>
+                      <RoleProvider>
+                        <div className="min-h-screen" style={{ backgroundColor: 'var(--color-neutral-50, transparent)' }}>
+                          <Routes>
                       {/* Ruta principal - redirige a dashboard */}
                       <Route path="/" element={<Navigate to="/dashboard" replace />} />
                       
@@ -251,8 +272,9 @@ function App() {
                   </NotificationProvider>
                 </ErrorBoundary>
               </OptimizedConfigLoader>
-            </Router>
-          </InterfaceConfigProvider>
+            </InterfaceConfigProvider>
+          </AuthProvider>
+        </Router>
         </ConfigDiagnosticWrapper>
         {/* React Query Devtools - solo visible en desarrollo */}
         <ReactQueryDevtools initialIsOpen={false} />

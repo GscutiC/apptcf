@@ -11,13 +11,13 @@ import { UserList } from '../components/UserList';
 import { UserForm } from '../components/UserForm';
 import { User } from '../types/user.types';
 import { PermissionGuard } from '../../../shared/components/guards/PermissionGuard';
-import { useAuthProfile } from '../../../hooks/useAuthProfile';
+import { useAuthContext } from '../../../context/AuthContext';
 import { adaptUserProfileToUser } from '../../../shared/utils/userAdapter';
 
 type ViewMode = 'list' | 'create' | 'edit' | 'detail';
 
 export const UsersPage: React.FC = () => {
-  const { userProfile } = useAuthProfile();
+  const { userProfile } = useAuthContext();
   const currentUser = adaptUserProfileToUser(userProfile);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);

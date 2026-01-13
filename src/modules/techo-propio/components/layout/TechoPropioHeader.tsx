@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { UserButton } from '@clerk/clerk-react';
-import { useAuthProfile } from '../../../../hooks/useAuthProfile';
+import { useAuthContext } from '../../../../context/AuthContext';
 import { adaptUserProfileToUser } from '../../../../shared/utils/userAdapter';
 import { useTechoPropioConfigContext } from '../../config/context/TechoPropioConfigContext';
 import { getLogoToDisplay } from '../../config/types/config.types';
@@ -28,7 +28,7 @@ export const TechoPropioHeader: React.FC<TechoPropioHeaderProps> = ({
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { userProfile } = useAuthProfile();
+  const { userProfile } = useAuthContext();
   const currentUser = adaptUserProfileToUser(userProfile);
   const [searchQuery, setSearchQuery] = useState('');
   

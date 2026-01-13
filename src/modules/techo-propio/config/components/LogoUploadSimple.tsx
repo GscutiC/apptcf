@@ -27,6 +27,7 @@ export const LogoUploadSimple: React.FC<LogoUploadSimpleProps> = ({
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [imageError, setImageError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const handleFileSelect = async (file: File) => {
@@ -50,11 +51,15 @@ export const LogoUploadSimple: React.FC<LogoUploadSimpleProps> = ({
     }
   };
   
-  // Determinar si el valor actual es una imagen o emoji/texto
-  const isImageUrl = currentValue?.startsWith('/api/files/') || 
-                     currentValue?.startsWith('http://') || 
-                     currentValue?.startsWith('https://');
-  
+  // Determinar si el valor actual es una imagen válida o emoji/texto
+  // CRÍTICO: Solo mostrar <img> si:
+  // 1. No hubo error previo
+  // 2. La URL es válida (empieza con http/https)
+  // 3. NO mostrar <img> si es una URL de /api/files/ sin fileId válido
+  const hasValidFileId = currentFileId && currentFileId.length > 0;
+  const isExternalImage = currentValue?.startsWith('http://') || currentValue?.startsWith('https://');
+  const isImageUrl = !imageError && (isExternalImage || (currentValue?.startsWith('/api/files/') && hasValidFileId));
+
   return (
     <div className="space-y-2">
       <div>
@@ -63,20 +68,20 @@ export const LogoUploadSimple: React.FC<LogoUploadSimpleProps> = ({
           <p className="text-xs text-gray-500 mt-1">{description}</p>
         )}
       </div>
-      
+
       {/* Vista previa compacta */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
         <div className="flex items-center gap-3">
           {/* Preview más pequeño */}
           <div className="w-12 h-12 bg-white border rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
             {isImageUrl ? (
-              <img 
-                src={currentValue} 
-                alt={label} 
+              <img
+                src={currentValue}
+                alt={label}
                 className="max-w-full max-h-full object-contain rounded"
-                onError={(e) => {
-                  console.error('Error cargando imagen:', currentValue);
-                  (e.target as HTMLImageElement).style.display = 'none';
+                onError={() => {
+                  // Silenciar error de imagen y mostrar fallback
+                  setImageError(true);
                 }}
               />
             ) : (

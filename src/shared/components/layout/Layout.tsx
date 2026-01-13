@@ -1,14 +1,16 @@
 /**
  * Layout principal - OPTIMIZADO con React.memo y useMemo
  * ✅ Reducción de re-renders en ~40%
+ * ✅ Usa useAuthContext para evitar múltiples llamadas a /auth/me
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { UserButton } from '@clerk/clerk-react';
-import { useAuthProfile } from '../../../hooks/useAuthProfile';
+import { useAuthContext } from '../../../context/AuthContext';
 import { adaptUserProfileToUser } from '../../utils/userAdapter';
-import { useInterfaceConfig, ConfigSyncMonitor } from '../../../modules/interface-config';
+import { useInterfaceConfigContext } from '../../../modules/interface-config/context/InterfaceConfigContext';
+import { ConfigSyncMonitor } from '../../../modules/interface-config';
 
 // ✅ OPTIMIZADO: Componente memoizado para logo con fallback automático
 interface LogoWithFallbackProps {
@@ -162,10 +164,10 @@ const MENU_ITEMS: MenuItem[] = [
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const { userProfile, loading } = useAuthProfile();
+  const { userProfile, loading } = useAuthContext();
   const currentUser = adaptUserProfileToUser(userProfile);
   const navigate = useNavigate();
-  const { config } = useInterfaceConfig();
+  const { config } = useInterfaceConfigContext(); // USA EL CONTEXTO para evitar llamadas duplicadas
   const location = useLocation();
 
   // ✅ CRÍTICO: Todos los hooks DEBEN estar ANTES de cualquier return
@@ -207,28 +209,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     appName: config?.branding?.appName || 'App'
   }), [config?.logos?.sidebarLogo, config?.logos?.mainLogo, config?.branding?.appName]);
 
-  // Validación defensiva para configuración - DESPUÉS de todos los hooks
-  if (!config || !config.logos || !config.logos.sidebarLogo || !config.branding) {
-    return (
-      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span className="ml-2 text-neutral-600">Cargando configuración...</span>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span className="ml-2 text-neutral-600">Cargando aplicación...</span>
-      </div>
-    );
-  }
+  // ✅ REMOVIDO: Loading screen redundante
+  // App.tsx ya maneja el loading de Clerk (isLoaded)
+  // AuthProvider maneja el loading de userProfile en segundo plano
+  // Layout debe renderizar inmediatamente con valores por defecto si es necesario
 
   return (
     <ConfigSyncMonitor>
-      <div className="flex h-screen bg-neutral-50">
+      <div className="flex h-screen" style={{ backgroundColor: 'var(--color-neutral-50, #f9fafb)' }}>
       {/* Sidebar Optimizado */}
       <div className={`${sidebarCollapsed ? 'w-20' : 'w-64'} bg-white shadow-lg border-r border-neutral-200 flex flex-col transition-all duration-300 flex-shrink-0`}>
 
@@ -362,7 +350,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Contenido Principal */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Área de Contenido */}
-        <main className="flex-1 overflow-auto bg-neutral-50">
+        <main className="flex-1 overflow-auto" style={{ backgroundColor: 'var(--color-neutral-50, #f9fafb)' }}>
           <div className="h-full">
             {children}
           </div>

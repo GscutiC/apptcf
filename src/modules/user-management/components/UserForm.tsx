@@ -45,33 +45,23 @@ export const UserForm: React.FC<UserFormProps> = ({
 
   const isEditing = !!user;
 
-  // Cargar roles al montar el componente
-  useEffect(() => {
-    if (roleState.roles.length === 0 && !roleState.operations.list.loading) {
-      loadRoles(getToken);
-    }
-  }, []);
+  // Ref para evitar cargas múltiples de roles
+  const hasLoadedRolesRef = React.useRef(false);
 
-  // Forzar recarga de roles cuando se abre el modal de edición si no hay roles
+  // Cargar roles solo UNA VEZ al montar el componente (si no hay roles)
   useEffect(() => {
-    if (isEditing && user && roleState.roles.length === 0) {
+    // Solo cargar si:
+    // 1. No hemos cargado antes
+    // 2. No hay roles disponibles
+    // 3. No se está cargando actualmente
+    if (!hasLoadedRolesRef.current && roleState.roles.length === 0 && !roleState.operations.list.loading) {
+      hasLoadedRolesRef.current = true;
       loadRoles(getToken);
     }
-  }, [isEditing, user, roleState.roles.length, loadRoles, getToken]);
+  }, [roleState.roles.length, roleState.operations.list.loading]);
 
-  // Asegurar que siempre tengamos roles disponibles y forzar recarga cuando se abre el componente
-  useEffect(() => {
-    if (roleState.roles.length === 0 && !roleState.operations.list.loading && !roleState.operations.list.error) {
-      loadRoles(getToken);
-    }
-  }, [roleState.roles.length, roleState.operations.list.loading, roleState.operations.list.error, loadRoles, getToken]);
-
-  // Forzar recarga inicial para obtener todos los roles incluyendo los nuevos
-  useEffect(() => {
-    if (user || !user) { // Siempre forzar recarga
-      loadRoles(getToken);
-    }
-  }, [loadRoles, getToken]);
+  // NOTA: loadRoles y getToken NO están en las dependencias intencionalmente
+  // para evitar re-cargas cuando cambian las referencias de estas funciones
 
   // Inicializar formulario con datos del usuario si es edición
   useEffect(() => {

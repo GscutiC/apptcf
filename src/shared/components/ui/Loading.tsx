@@ -18,9 +18,15 @@ const Loading: React.FC<LoadingProps> = ({
   return (
     <div className="flex flex-col items-center justify-center min-h-[200px] space-y-4">
       <div className={`${sizeClasses[size]} animate-spin`}>
-        <div className="w-full h-full border-4 border-gray-200 border-t-blue-600 rounded-full"></div>
+        <div 
+          className="w-full h-full border-4 rounded-full"
+          style={{ 
+            borderColor: 'var(--color-neutral-200, #e5e7eb)',
+            borderTopColor: 'var(--color-primary-600, #2563eb)'
+          }}
+        ></div>
       </div>
-      <p className="text-gray-600 text-sm font-medium">{message}</p>
+      <p className="text-sm font-medium" style={{ color: 'var(--color-neutral-600, #4b5563)' }}>{message}</p>
     </div>
   );
 };

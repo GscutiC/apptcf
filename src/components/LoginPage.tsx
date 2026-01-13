@@ -1,376 +1,361 @@
-/**
- * Página de Login con configuración dinámica
- * Funciona para usuarios no autenticados obteniendo configuración pública
- */
-
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { SignInButton, SignUpButton } from '@clerk/clerk-react';
 import { InterfaceConfig } from '../modules/interface-config/types';
-import { logger } from '../shared/utils/logger';
+import { ConfigCacheService } from '../modules/interface-config/services/configCacheService';
 
-// Componente para logo con imagen real en página de login
-interface LoginLogoWithImageProps {
-  config: InterfaceConfig | null;
-  appInitials: string;
-  primaryColor: string;
-  borderRadius: any;
-}
+// URL base de la API
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
-const LoginLogoWithImage: React.FC<LoginLogoWithImageProps> = ({ 
+// DEFAULT CONFIG - Definido fuera del componente para evitar re-creación
+const DEFAULT_CONFIG: InterfaceConfig = {
+  isActive: true,
+  branding: {
+    appName: 'SistemTec',
+    appDescription: 'Sistema de Gestión Integral',
+    loginPageTitle: '¡Bienvenido!',
+    loginPageDescription: 'Inicia sesión o regístrate para acceder a todas las funcionalidades de la aplicación.',
+    welcomeMessage: '¡Bienvenido a SistemTec!'
+  },
+  logos: {
+    mainLogo: {
+      text: 'SistemTec',
+      showText: true,
+      showImage: false
+    },
+    favicon: {},
+    sidebarLogo: {
+      text: 'SistemTec',
+      showText: true,
+      showImage: false,
+      collapsedText: 'ST'
+    }
+  },
+  theme: {
+    mode: 'light' as const,
+    name: 'Default',
+    colors: {
+      primary: {
+        '50': '#EFF6FF',
+        '100': '#DBEAFE',
+        '200': '#BFDBFE',
+        '300': '#93C5FD',
+        '400': '#60A5FA',
+        '500': '#3B82F6',
+        '600': '#2563EB',
+        '700': '#1D4ED8',
+        '800': '#1E40AF',
+        '900': '#1E3A8A',
+        '950': '#172554'
+      },
+      secondary: {
+        '50': '#F8FAFC',
+        '100': '#F1F5F9',
+        '200': '#E2E8F0',
+        '300': '#CBD5E1',
+        '400': '#94A3B8',
+        '500': '#64748B',
+        '600': '#475569',
+        '700': '#334155',
+        '800': '#1E293B',
+        '900': '#0F172A',
+        '950': '#020617'
+      },
+      accent: {
+        '50': '#FDF4FF',
+        '100': '#FAE8FF',
+        '200': '#F5D0FE',
+        '300': '#F0ABFC',
+        '400': '#E879F9',
+        '500': '#D946EF',
+        '600': '#C026D3',
+        '700': '#A21CAF',
+        '800': '#86198F',
+        '900': '#701A75',
+        '950': '#4A044E'
+      },
+      neutral: {
+        '50': '#FAFAFA',
+        '100': '#F5F5F5',
+        '200': '#E5E5E5',
+        '300': '#D4D4D4',
+        '400': '#A3A3A3',
+        '500': '#737373',
+        '600': '#525252',
+        '700': '#404040',
+        '800': '#262626',
+        '900': '#171717',
+        '950': '#0A0A0A'
+      }
+    },
+    typography: {
+      fontFamily: {
+        primary: 'Inter, system-ui, sans-serif',
+        secondary: 'Georgia, serif',
+        mono: 'Fira Code, monospace'
+      },
+      fontSize: {
+        xs: '0.75rem',
+        sm: '0.875rem',
+        base: '1rem',
+        lg: '1.125rem',
+        xl: '1.25rem',
+        '2xl': '1.5rem',
+        '3xl': '1.875rem',
+        '4xl': '2.25rem',
+        '5xl': '3rem'
+      },
+      fontWeight: {
+        light: 300,
+        normal: 400,
+        medium: 500,
+        semibold: 600,
+        bold: 700
+      }
+    },
+    layout: {
+      borderRadius: {
+        sm: '0.125rem',
+        base: '0.25rem',
+        md: '0.375rem',
+        lg: '0.5rem',
+        xl: '0.75rem',
+        '2xl': '1rem',
+        full: '9999px'
+      },
+      spacing: {
+        xs: '0.25rem',
+        sm: '0.5rem',
+        base: '1rem',
+        md: '1.5rem',
+        lg: '2rem',
+        xl: '3rem',
+        '2xl': '4rem'
+      },
+      shadows: {
+        sm: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+        base: '0 1px 3px 0 rgb(0 0 0 / 0.1)',
+        md: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+        lg: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+        xl: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
+        '2xl': '0 25px 50px -12px rgb(0 0 0 / 0.25)'
+      }
+    }
+  }
+};
+
+// Componente de Logo separado y memoizado
+const LoginLogoWithImage = React.memo(({ 
   config, 
   appInitials, 
   primaryColor, 
   borderRadius 
+}: {
+  config: InterfaceConfig | null;
+  appInitials: string;
+  primaryColor: string;
+  borderRadius: any;
 }) => {
+  const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const [imageLoading, setImageLoading] = useState(true);
 
-  // Obtener configuración de logo
-  const logoConfig = config?.logos?.mainLogo;
-  const shouldShowImage = logoConfig?.showImage && logoConfig?.imageUrl;
+  const logoUrl = config?.logos?.mainLogo?.imageUrl;
+  const showImage = config?.logos?.mainLogo?.showImage && logoUrl;
 
-  const handleImageError = () => {
-    setImageError(true);
-    setImageLoading(false);
-  };
-
-  const handleImageLoad = () => {
-    setImageError(false);
-    setImageLoading(false);
-  };
-
-  // Si debe mostrar imagen y no hay error, intentar cargar imagen
-  if (shouldShowImage && !imageError) {
-    return (
-      <div className="w-16 h-16 mx-auto mb-6 relative">
-        {imageLoading && (
-          <div 
-            className="w-16 h-16 flex items-center justify-center animate-pulse"
-            style={{
-              background: `linear-gradient(135deg, ${primaryColor}, ${primaryColor}CC)`,
-              borderRadius: borderRadius?.full || '50%'
-            }}
-          >
-            <span className="text-white text-xs">...</span>
-          </div>
-        )}
-        <img 
-          src={logoConfig.imageUrl}
-          alt="Logo" 
-          className={`w-16 h-16 object-cover shadow-lg ${imageLoading ? 'hidden' : 'block'}`}
-          style={{
-            borderRadius: borderRadius?.full || '50%'
-          }}
-          onError={handleImageError}
-          onLoad={handleImageLoad}
-        />
-      </div>
-    );
-  }
-
-  // Fallback: mostrar iniciales
   return (
-    <div 
-      className="w-16 h-16 flex items-center justify-center mx-auto mb-6"
-      style={{
-        background: `linear-gradient(135deg, ${primaryColor}, ${primaryColor}CC)`,
-        borderRadius: borderRadius?.full || '50%'
-      }}
-    >
-      <span className="text-white font-bold text-xl">
-        {appInitials}
-      </span>
+    <div className="mb-8">
+      {showImage && !imageError ? (
+        <div className="relative w-24 h-24 mx-auto">
+          {!imageLoaded && (
+            <div 
+              className="absolute inset-0 animate-pulse"
+              style={{
+                backgroundColor: 'var(--color-neutral-200, #E5E5E5)',
+                borderRadius: borderRadius?.full || '9999px'
+              }}
+            />
+          )}
+          <img
+            src={logoUrl}
+            alt="Logo"
+            className={`w-24 h-24 mx-auto object-contain transition-opacity duration-300 ${
+              imageLoaded ? 'opacity-100' : 'opacity-0'
+            }`}
+            style={{
+              borderRadius: borderRadius?.full || '9999px'
+            }}
+            onLoad={() => setImageLoaded(true)}
+            onError={() => {
+              setImageError(true);
+              setImageLoaded(false);
+            }}
+          />
+        </div>
+      ) : (
+        <div 
+          className="w-24 h-24 mx-auto flex items-center justify-center text-white text-2xl font-bold"
+          style={{
+            backgroundColor: primaryColor,
+            borderRadius: borderRadius?.full || '9999px'
+          }}
+        >
+          {appInitials}
+        </div>
+      )}
     </div>
   );
-};
+});
 
-interface LoginPageProps {}
+LoginLogoWithImage.displayName = 'LoginLogoWithImage';
 
-export const LoginPage: React.FC<LoginPageProps> = () => {
+const LoginPage: React.FC = () => {
   const [config, setConfig] = useState<InterfaceConfig | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Valores extraídos con useMemo para evitar re-cálculos
+  // IMPORTANTE: Debe estar ANTES de cualquier return condicional
+  const configValues = useMemo(() => {
+    const appName = config?.branding?.appName || 'Mi Aplicación';
+    const loginTitle = config?.branding?.loginPageTitle || '¡Bienvenido!';
+    const loginDescription = config?.branding?.loginPageDescription || 
+      'Inicia sesión o regístrate para acceder a todas las funcionalidades de la aplicación.';
+    const primaryColor = config?.theme?.colors?.primary?.['500'] || '#3B82F6';
+    const borderRadius = config?.theme?.layout?.borderRadius;
+
+    // Crear iniciales dinámicas del app name
+    const getAppInitials = (name: string): string => {
+      const words = name.split(' ').filter(word => word.length > 0);
+      
+      if (words.length >= 2) {
+        return words[0][0].toUpperCase() + words[1][0].toUpperCase();
+      } else if (words.length === 1) {
+        return words[0].substring(0, 2).toUpperCase();
+      }
+      return 'AP';
+    };
+
+    const appInitials = getAppInitials(appName);
+    const appDescription = config?.branding?.appDescription || appName;
+
+    return {
+      appName,
+      loginTitle,
+      loginDescription,
+      primaryColor,
+      borderRadius,
+      appInitials,
+      appDescription
+    };
+  }, [config]);
+
   useEffect(() => {
+    const loadPublicConfig = async () => {
+      try {
+        // 1. Intentar usar preload de index.html
+        const preloadedConfig = ConfigCacheService.getPreloadedConfig();
+        if (preloadedConfig) {
+          setConfig(preloadedConfig);
+          setLoading(false);
+          return;
+        }
+
+        // 2. Intentar usar caché de localStorage
+        const cachedConfig = ConfigCacheService.getCache();
+        if (cachedConfig) {
+          setConfig(cachedConfig);
+          setLoading(false);
+          return;
+        }
+
+        // 3. Última opción: fetch directo
+        const response = await fetch(`${API_BASE_URL}/api/interface-config/current/safe`);
+        if (response.ok) {
+          const data = await response.json();
+          setConfig(data);
+          ConfigCacheService.setCache(data);
+        } else {
+          console.warn('No se pudo cargar configuración pública, usando defaults');
+          setConfig(DEFAULT_CONFIG);
+        }
+      } catch (error) {
+        console.error('Error cargando configuración pública:', error);
+        setConfig(DEFAULT_CONFIG);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     loadPublicConfig();
   }, []);
 
-  const loadPublicConfig = async () => {
-    try {
-      setLoading(true);
-
-      // Usar variable de entorno para la URL de la API
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
-
-      // Intentar obtener configuración pública/segura sin autenticación
-      const response = await fetch(`${apiUrl}/api/interface-config/current/safe`);
-      
-      if (response.ok) {
-        const configData = await response.json();
-        setConfig(configData);
-        
-        logger.info('✅ Configuración pública cargada para login:', configData.branding?.appName);
-        
-        // Aplicar branding básico al documento inmediatamente
-        if (configData.branding?.appName) {
-          document.title = configData.branding.appName;
-        }
-        
-        // ✅ NUEVO: Aplicar favicon dinámicamente con fallback al logo principal
-        try {
-          // Importar dinámicamente el servicio DOM
-          import('../modules/interface-config/services/domConfigService').then(({ DOMConfigService }) => {
-            DOMConfigService.applyFaviconOnly(configData);
-          });
-        } catch (error) {
-          console.warn('No se pudo aplicar favicon en login:', error);
-        }
-      } else {
-        logger.warn('⚠️ No se pudo obtener configuración pública, usando valores por defecto');
-        useDefaultConfig();
-      }
-    } catch (error) {
-      logger.error('❌ Error cargando configuración pública:', error);
-      useDefaultConfig();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const useDefaultConfig = () => {
-    // Configuración por defecto completa que cumple con los tipos
-    setConfig({
-      id: 'default',
-      isActive: true,
-      branding: {
-        appName: 'ScutiTec',
-        appDescription: 'Soluciones empresariales sostenibles',
-        welcomeMessage: '¡Bienvenido!',
-        loginPageTitle: '¡Bienvenido!',
-        loginPageDescription: 'Inicia sesión o regístrate para acceder a todas las funcionalidades de la aplicación.',
-        tagline: 'Accede a tu cuenta'
-      },
-      logos: {
-        mainLogo: {
-          imageUrl: '',
-          fileId: '',
-          text: 'ScutiTec',
-          showText: true,
-          showImage: false
-        },
-        favicon: {
-          imageUrl: '',
-          fileId: ''
-        },
-        sidebarLogo: {
-          imageUrl: '',
-          fileId: '',
-          text: 'ST',
-          showText: true,
-          showImage: false,
-          collapsedText: 'ST'
-        }
-      },
-      theme: {
-        name: 'Tema Verde Corporativo',
-        mode: 'light',
-        colors: {
-          primary: {
-            '50': '#ECFDF5',
-            '100': '#D1FAE5',
-            '200': '#A7F3D0',
-            '300': '#6EE7B7',
-            '400': '#34D399',
-            '500': '#10B981',
-            '600': '#059669',
-            '700': '#047857',
-            '800': '#065F46',
-            '900': '#064E3B'
-          },
-          secondary: {
-            '50': '#F8FAFC',
-            '100': '#F1F5F9',
-            '200': '#E2E8F0',
-            '300': '#CBD5E1',
-            '400': '#94A3B8',
-            '500': '#64748B',
-            '600': '#475569',
-            '700': '#334155',
-            '800': '#1E293B',
-            '900': '#0F172A'
-          },
-          accent: {
-            '50': '#FEF7FF',
-            '100': '#FCEEFF',
-            '200': '#F8D4FE',
-            '300': '#F3B1FC',
-            '400': '#E879F9',
-            '500': '#D946EF',
-            '600': '#C026D3',
-            '700': '#A21CAF',
-            '800': '#86198F',
-            '900': '#701A75'
-          },
-          neutral: {
-            '50': '#FAFAFA',
-            '100': '#F4F4F5',
-            '200': '#E4E4E7',
-            '300': '#D4D4D8',
-            '400': '#A1A1AA',
-            '500': '#71717A',
-            '600': '#52525B',
-            '700': '#3F3F46',
-            '800': '#27272A',
-            '900': '#18181B'
-          }
-        },
-        layout: {
-          borderRadius: {
-            sm: '0.125rem',
-            base: '0.25rem',
-            md: '0.375rem',
-            lg: '0.5rem',
-            xl: '0.75rem',
-            '2xl': '1rem',
-            full: '9999px'
-          },
-          spacing: {
-            xs: '0.5rem',
-            sm: '0.75rem',
-            base: '1rem',
-            md: '1.5rem',
-            lg: '2rem',
-            xl: '3rem',
-            '2xl': '4rem'
-          },
-          shadows: {
-            sm: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-            base: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-            md: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-            lg: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-            xl: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-            '2xl': '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
-          }
-        },
-        typography: {
-          fontFamily: {
-            primary: 'system-ui, -apple-system, sans-serif',
-            secondary: 'Georgia, serif',
-            mono: 'Menlo, Monaco, monospace'
-          },
-          fontSize: {
-            xs: '0.75rem',
-            sm: '0.875rem',
-            base: '1rem',
-            lg: '1.125rem',
-            xl: '1.25rem',
-            '2xl': '1.5rem',
-            '3xl': '1.875rem',
-            '4xl': '2.25rem',
-            '5xl': '3rem'
-          },
-          fontWeight: {
-            light: 300,
-            normal: 400,
-            medium: 500,
-            semibold: 600,
-            bold: 700
-          }
-        }
-      }
-    });
-    
-    // ✅ NUEVO: Aplicar favicon también en configuración por defecto
-    try {
-      import('../modules/interface-config/services/domConfigService').then(({ DOMConfigService }) => {
-        DOMConfigService.applyFaviconOnly({
-          logos: {
-            mainLogo: {
-              imageUrl: '',
-              fileId: '',
-              text: 'ScutiTec',
-              showText: true,
-              showImage: false
-            },
-            favicon: { imageUrl: '', fileId: '' },
-            sidebarLogo: {
-              imageUrl: '',
-              fileId: '',
-              text: 'ST',
-              showText: true,
-              showImage: false,
-              collapsedText: 'ST'
-            }
-          }
-        } as any);
-      });
-    } catch (error) {
-      console.warn('No se pudo aplicar favicon por defecto:', error);
-    }
-  };
-
+  // Loading state optimizado sin colores hardcodeados
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+      <div 
+        className="min-h-screen flex items-center justify-center"
+        style={{
+          background: 'linear-gradient(to bottom right, var(--color-neutral-50, #FAFAFA), var(--color-neutral-100, #F5F5F5))'
+        }}
+      >
         <div className="animate-pulse">
-          <div className="w-16 h-16 bg-gray-300 rounded-full mx-auto mb-4"></div>
-          <div className="h-4 bg-gray-300 rounded w-32 mx-auto"></div>
+          <div 
+            className="w-16 h-16 rounded-full mx-auto mb-4"
+            style={{
+              backgroundColor: 'var(--color-neutral-300, #D4D4D4)'
+            }}
+          />
+          <div 
+            className="h-4 rounded w-32 mx-auto"
+            style={{
+              backgroundColor: 'var(--color-neutral-300, #D4D4D4)'
+            }}
+          />
         </div>
       </div>
     );
   }
-
-  // Extraer configuración
-  const appName = config?.branding?.appName || 'Mi Aplicación';
-  const loginTitle = config?.branding?.loginPageTitle || '¡Bienvenido!';
-  const loginDescription = config?.branding?.loginPageDescription || 'Inicia sesión o regístrate para acceder a todas las funcionalidades de la aplicación.';
-  const primaryColor = config?.theme?.colors?.primary?.['500'] || '#3B82F6';
-  const borderRadius = config?.theme?.layout?.borderRadius;
-
-  // Crear iniciales dinámicas del app name
-  const getAppInitials = (name: string): string => {
-    const words = name.split(' ').filter(word => word.length > 0);
-    
-    if (words.length >= 2) {
-      return words[0][0].toUpperCase() + words[1][0].toUpperCase();
-    } else if (words.length === 1) {
-      return words[0].substring(0, 2).toUpperCase();
-    }
-    return 'AP';
-  };
-
-  const appInitials = getAppInitials(appName);
 
   return (
     <div className="App">
       <div 
         className="min-h-screen flex items-center justify-center"
         style={{
-          background: `linear-gradient(to bottom right, ${primaryColor}10, ${primaryColor}05)`
+          background: `linear-gradient(to bottom right, ${configValues.primaryColor}10, ${configValues.primaryColor}05)`
         }}
       >
         <div className="max-w-md w-full mx-4">
           <div 
-            className="bg-white shadow-xl p-8 text-center"
+            className="shadow-xl p-8 text-center"
             style={{
-              borderRadius: borderRadius?.['2xl'] || '1rem'
+              backgroundColor: 'var(--color-white, #FFFFFF)',
+              borderRadius: configValues.borderRadius?.['2xl'] || '1rem'
             }}
           >
             {/* Logo dinámico con imagen real */}
             <LoginLogoWithImage 
               config={config}
-              appInitials={appInitials}
-              primaryColor={primaryColor}
-              borderRadius={borderRadius}
+              appInitials={configValues.appInitials}
+              primaryColor={configValues.primaryColor}
+              borderRadius={configValues.borderRadius}
             />
 
             {/* Título dinámico */}
-            <h1 className="text-3xl font-bold text-gray-800 mb-4">
-              {loginTitle}
+            <h1 
+              className="text-3xl font-bold mb-4"
+              style={{
+                color: 'var(--color-neutral-800, #262626)'
+              }}
+            >
+              {configValues.loginTitle}
             </h1>
 
             {/* Descripción dinámica */}
-            <p className="text-gray-600 mb-8">
-              {loginDescription}
+            <p 
+              className="mb-8"
+              style={{
+                color: 'var(--color-neutral-600, #525252)'
+              }}
+            >
+              {configValues.loginDescription}
             </p>
 
             {/* Botones con tema dinámico */}
@@ -379,8 +364,8 @@ export const LoginPage: React.FC<LoginPageProps> = () => {
                 <button 
                   className="w-full py-3 px-6 text-white font-medium transition-all duration-200 hover:opacity-90"
                   style={{
-                    backgroundColor: primaryColor,
-                    borderRadius: borderRadius?.lg || '0.5rem'
+                    backgroundColor: configValues.primaryColor,
+                    borderRadius: configValues.borderRadius?.lg || '0.5rem'
                   }}
                 >
                   Iniciar Sesión
@@ -391,13 +376,13 @@ export const LoginPage: React.FC<LoginPageProps> = () => {
                 <button 
                   className="w-full py-3 px-6 font-medium transition-all duration-200 hover:bg-opacity-10"
                   style={{
-                    border: `2px solid ${primaryColor}`,
-                    color: primaryColor,
+                    border: `2px solid ${configValues.primaryColor}`,
+                    color: configValues.primaryColor,
                     backgroundColor: 'transparent',
-                    borderRadius: borderRadius?.lg || '0.5rem'
+                    borderRadius: configValues.borderRadius?.lg || '0.5rem'
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = `${primaryColor}10`;
+                    e.currentTarget.style.backgroundColor = `${configValues.primaryColor}10`;
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.backgroundColor = 'transparent';
@@ -409,9 +394,19 @@ export const LoginPage: React.FC<LoginPageProps> = () => {
             </div>
 
             {/* Branding footer */}
-            <div className="mt-6 pt-4 border-t border-gray-100">
-              <p className="text-sm text-gray-500">
-                {config?.branding?.appDescription || appName}
+            <div 
+              className="mt-6 pt-4"
+              style={{
+                borderTop: '1px solid var(--color-neutral-100, #F5F5F5)'
+              }}
+            >
+              <p 
+                className="text-sm"
+                style={{
+                  color: 'var(--color-neutral-500, #737373)'
+                }}
+              >
+                {configValues.appDescription}
               </p>
             </div>
           </div>

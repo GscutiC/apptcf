@@ -6,7 +6,7 @@
 import React, { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
-import { useAuthProfile } from '../hooks/useAuthProfile';
+import { useAuthContext } from '../context/AuthContext';
 import { adaptUserProfileToUser } from '../shared/utils/userAdapter';
 import { useProtectedRoute } from '../hooks/useProtectedRoute';
 import { hasPermission } from '../modules/user-management/utils/permissions.utils';
@@ -131,7 +131,7 @@ const RoleManagementCard: React.FC<{
 export const UserManagementDashboard: React.FC = () => {
   // Todos los hooks deben estar al principio, antes de cualquier condicional
   const navigate = useNavigate();
-  const { userProfile, loading: userLoading } = useAuthProfile();
+  const { userProfile, loading: userLoading } = useAuthContext();
   const { isAdmin, isSuperAdmin } = useProtectedRoute();
   
   // Funciones de navegación optimizadas con useCallback para evitar re-renders

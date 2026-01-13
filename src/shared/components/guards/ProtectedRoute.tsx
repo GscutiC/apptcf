@@ -1,12 +1,13 @@
 /**
  * Componente ProtectedRoute para proteger rutas completas
  * Combina autenticación, roles y permisos en una sola solución
+ * OPTIMIZADO: Usa useAuthContext para evitar múltiples llamadas a /auth/me
  */
 
 import React, { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
-import { useAuthProfile } from '../../../hooks/useAuthProfile';
+import { useAuthContext } from '../../../context/AuthContext';
 import { adaptUserProfileToUser } from '../../utils/userAdapter';
 import { RoleName, Permission } from '../../../modules/user-management/types/user.types';
 import { hasRole, hasAnyRole, hasPermission, hasAnyPermission, hasAllPermissions } from '../../../modules/user-management/utils/permissions.utils';
@@ -38,7 +39,7 @@ interface ProtectedRouteProps {
   loading?: boolean;
 }
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = React.memo(({
   children,
   requireAuth = true,
   role,
@@ -53,7 +54,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   loading = false
 }) => {
   const { isSignedIn, isLoaded } = useAuth();
-  const { userProfile, loading: profileLoading } = useAuthProfile();
+  const { userProfile, loading: profileLoading } = useAuthContext();
   const currentUser = adaptUserProfileToUser(userProfile);
   const location = useLocation();
 
@@ -145,6 +146,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // Si pasa todas las verificaciones, mostrar el contenido
   return <>{children}</>;
-};
+});
+
+ProtectedRoute.displayName = 'ProtectedRoute';
 
 export default ProtectedRoute;

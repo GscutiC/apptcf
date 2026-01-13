@@ -169,8 +169,9 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(roleReducer, initialState);
   const { getToken } = useAuth();
 
-  // Referencias para los listeners
+  // Referencias para evitar loops infinitos
   const loadRolesRef = React.useRef<((getToken: () => Promise<string | null>) => Promise<void>) | null>(null);
+  const hasInitializedRef = React.useRef(false);
 
   // Acciones básicas
   const setSelectedRole = useCallback((role: UserRole | null) => {
@@ -199,6 +200,7 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
       const roles = await roleService.getRoles(getToken);
       dispatch({ type: 'SET_ROLES', roles });
       dispatch({ type: 'SET_SUCCESS', operation: 'list', success: true });
+      hasInitializedRef.current = true;
     } catch (error) {
       // Log error solo en modo debug
       if (process.env.REACT_APP_DEBUG) {
@@ -211,12 +213,21 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
   // Asignar la referencia para el listener
   loadRolesRef.current = loadRoles;
 
-  // Cargar roles automáticamente al inicializar el contexto
+  // Cargar roles automáticamente al inicializar el contexto (solo una vez)
   useEffect(() => {
-    if (getToken && state.roles.length === 0 && !state.operations.list.loading && !state.operations.list.error) {
+    // CRÍTICO: Solo cargar si no hemos inicializado aún
+    if (hasInitializedRef.current) {
+      return;
+    }
+
+    // Solo cargar si no hay roles y no se está cargando
+    // NOTA: NO incluimos state.operations.list.error en las dependencias
+    // porque causa loops infinitos al cambiar durante la carga
+    if (getToken && state.roles.length === 0 && !state.operations.list.loading) {
       loadRoles(getToken);
     }
-  }, [getToken, state.roles.length, state.operations.list.loading, state.operations.list.error, loadRoles]);
+  }, [getToken, state.roles.length, state.operations.list.loading]);
+  // CRÍTICO: NO incluir error ni loadRoles para evitar loops infinitos
 
   // Efecto para escuchar cambios de roles desde otras páginas
   useEffect(() => {

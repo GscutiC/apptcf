@@ -9,7 +9,7 @@ import React, { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { Button } from './Button';
-import { useAuthProfile } from '../../../../hooks/useAuthProfile';
+import { useAuthContext } from '../../../../context/AuthContext';
 import { adaptUserProfileToUser } from '../../../../shared/utils/userAdapter';
 import { hasPermission } from '../../../user-management/utils/permissions.utils';
 
@@ -36,7 +36,7 @@ export const ModuleAccessGuard: React.FC<ModuleAccessGuardProps> = ({
   fallback
 }) => {
   const { isSignedIn, isLoaded } = useAuth();
-  const { userProfile, loading: profileLoading } = useAuthProfile();
+  const { userProfile, loading: profileLoading } = useAuthContext();
   const currentUser = adaptUserProfileToUser(userProfile);
   const navigate = useNavigate();
 
@@ -145,10 +145,11 @@ export function withModuleAccess<P extends object>(
 
 /**
  * Hook para verificar acceso al módulo en componentes
+ * OPTIMIZADO: Usa useAuthContext para evitar múltiples llamadas a /auth/me
  */
 export const useModuleAccess = (): boolean => {
   const { isSignedIn, isLoaded } = useAuth();
-  const { userProfile, loading: profileLoading } = useAuthProfile();
+  const { userProfile, loading: profileLoading } = useAuthContext();
   const currentUser = adaptUserProfileToUser(userProfile);
 
   if (!isLoaded || profileLoading || !isSignedIn || !currentUser) {

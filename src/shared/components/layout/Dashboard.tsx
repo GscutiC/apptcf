@@ -1,37 +1,28 @@
 /**
  * Dashboard principal con configuración dinámica
- * SIMPLIFICADO: No bloquea el renderizado por configuración
+ * OPTIMIZADO: Usa useAuthContext para evitar múltiples llamadas a /auth/me
  */
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthProfile } from '../../../hooks/useAuthProfile';
+import { useAuthContext } from '../../../context/AuthContext';
 import { useProtectedRoute } from '../../../hooks/useProtectedRoute';
 import { adaptUserProfileToUser } from '../../utils/userAdapter';
-import { useInterfaceConfig } from '../../../modules/interface-config/hooks/useInterfaceConfig';
+import { useInterfaceConfigContext } from '../../../modules/interface-config/context/InterfaceConfigContext';
 import { useModuleAccess } from '../../../modules/techo-propio';
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { userProfile, loading: authLoading } = useAuthProfile();
+  const { userProfile } = useAuthContext();
   const currentUser = adaptUserProfileToUser(userProfile);
   const { isAdmin, isSuperAdmin } = useProtectedRoute();
   const hasTechoPropioAccess = useModuleAccess();
 
-  // Configuración dinámica - NO bloquea el renderizado
-  const { config, loading: configLoading } = useInterfaceConfig();
+  // Configuración dinámica - USA EL CONTEXTO para evitar llamadas duplicadas
+  const { config } = useInterfaceConfigContext();
 
-  // Solo esperar autenticación, NO la configuración
-  if (authLoading) {
-    return (
-      <div className="p-6 flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando perfil...</p>
-        </div>
-      </div>
-    );
-  }
+  // OPTIMIZADO: No hay loading aquí - App.tsx y Layout.tsx ya lo manejan
+  // El Dashboard siempre renderiza porque authLoading ya fue manejado arriba en la jerarquía
 
   // Usar valores por defecto si la configuración no está lista
   const appName = config?.branding?.appName || 'ScutiTec';
