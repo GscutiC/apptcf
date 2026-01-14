@@ -12,7 +12,8 @@ import {
   HouseholdMember,
   EconomicInfo,
   PropertyInfo,
-  ApplicationFormData
+  ApplicationFormData,
+  MemberType
 } from '../types';
 
 // ✅ NUEVO: Importar schemas de Zod
@@ -307,11 +308,13 @@ export const validateApplicationForm = (formData: ApplicationFormData): { isVali
 
   // Step 3: Economic info - Validar que el jefe de familia tenga info económica en household_members
   if (formData.household_members && formData.head_of_family) {
-    const headOfFamilyMember = formData.household_members.find(member => 
-      member.first_name === formData.head_of_family?.first_name && 
-      member.apellido_paterno === formData.head_of_family?.paternal_surname
+    // ✅ FIX: Buscar por member_type correcto o por nombre/apellido
+    const headOfFamilyMember = formData.household_members.find(member =>
+      member.member_type === MemberType.HEAD_OF_FAMILY ||
+      (member.first_name === formData.head_of_family?.first_name &&
+       member.apellido_paterno === formData.head_of_family?.paternal_surname)
     );
-    
+
     if (!headOfFamilyMember || !headOfFamilyMember.monthly_income || headOfFamilyMember.monthly_income <= 0) {
       errors.head_of_family_economic = { _form: 'Debe completar la información económica del jefe de familia en el Paso 2 (Grupo Familiar)' };
     }

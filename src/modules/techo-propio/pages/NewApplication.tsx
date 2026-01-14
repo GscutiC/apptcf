@@ -226,9 +226,11 @@ export const NewApplication: React.FC = () => {
           stepErrors.push('Faltan datos obligatorios en la solicitud');
         }
         // Validar que haya al menos el jefe de familia con info económica
-        const headOfFamily = formData.household_members?.find(member => 
-          member.member_type?.toString().includes('HEAD') || 
-          member.first_name === formData.head_of_family?.first_name
+        // ✅ FIX: Buscar por member_type correcto o por nombre/apellido
+        const headOfFamily = formData.household_members?.find(member =>
+          member.member_type === MemberType.HEAD_OF_FAMILY ||
+          (member.first_name === formData.head_of_family?.first_name &&
+           member.apellido_paterno === formData.head_of_family?.paternal_surname)
         );
         if (!headOfFamily || headOfFamily.monthly_income === undefined) {
           stepErrors.push('Debe completar la información económica del jefe de familia');
@@ -262,9 +264,11 @@ export const NewApplication: React.FC = () => {
       return;
     }
 
+    // ✅ FIX: Buscar por member_type correcto o por nombre/apellido
     const headOfFamilyMember = formData.household_members?.find(member =>
-      member.first_name === formData.head_of_family?.first_name &&
-      member.apellido_paterno === formData.head_of_family?.paternal_surname
+      member.member_type === MemberType.HEAD_OF_FAMILY ||
+      (member.first_name === formData.head_of_family?.first_name &&
+       member.apellido_paterno === formData.head_of_family?.paternal_surname)
     );
 
     if (!formData.head_of_family || !formData.property_info) {
@@ -361,40 +365,47 @@ export const NewApplication: React.FC = () => {
     // Transformar household_members: EXCLUIR jefe de familia Y cónyuge (van por separado) para evitar DNI duplicado
     const transformedHouseholdMembers = (formData.household_members || [])
       .filter(member => {
-        // Filtrar el jefe de familia basado en DNI para evitar duplicación
-        const isHeadOfFamily = member.dni === formData.head_of_family?.dni ||
+        // ✅ FIX: Filtrar el jefe de familia por member_type O por DNI
+        const isHeadOfFamily = member.member_type === MemberType.HEAD_OF_FAMILY ||
+                               member.dni === formData.head_of_family?.dni ||
                                member.dni === formData.head_of_family?.document_number;
 
         // ✅ FIX: También filtrar el cónyuge si ya se envía como objeto separado
         const isSpouse = spouseMember && (
           member.dni === spouseMember.dni ||
-          member.member_type === MemberType.SPOUSE ||
-          member.member_type?.toString() === 'CONYUGE'
+          member.member_type === MemberType.SPOUSE
         );
 
         return !isHeadOfFamily && !isSpouse;
       })
       .map((member, idx) => {
         const normalized_birth_date = normalizeToISODate(member.birth_date);
-
-        // ✅ Mapear member_type a relationship correctamente
-        let relationshipValue = 'otro';
         const memberTypeStr = String(member.member_type || '').toUpperCase();
-        
-        if (memberTypeStr.includes('HEAD') || memberTypeStr === 'JEFE_FAMILIA') {
-          relationshipValue = 'jefe_familia';
-        } else if (memberTypeStr.includes('SPOUSE') || memberTypeStr === 'CONYUGE') {
-          relationshipValue = 'conyuge';
-        } else if (memberTypeStr.includes('DEPENDENT') || memberTypeStr.includes('HIJO')) {
-          relationshipValue = member.relationship || 'hijo';
-        } else if (memberTypeStr.includes('ADDITIONAL')) {
-          relationshipValue = 'otro';
-        } else if (member.relationship) {
-          relationshipValue = member.relationship;
+
+        // ✅ FIX: Mapear relationship correctamente usando family_bond o member_type
+        // NOTA: Jefe de familia y cónyuge ya fueron filtrados, solo quedan ADDITIONAL_FAMILY y FAMILY_DEPENDENT
+        let relationshipValue: string;
+
+        // Prioridad 1: Usar family_bond si está definido y es válido
+        const validRelationships = ['conyuge', 'conviviente', 'hijo', 'padre', 'hermano', 'abuelo', 'nieto', 'otro'];
+        if (member.family_bond && validRelationships.includes(member.family_bond)) {
+          relationshipValue = member.family_bond;
         }
-        
-        const isDependentValue = memberTypeStr.includes('DEPENDENT') || 
-                                memberTypeStr.includes('HIJO');
+        // Prioridad 2: Usar relationship si está definido y es válido
+        else if (member.relationship && validRelationships.includes(String(member.relationship))) {
+          relationshipValue = String(member.relationship);
+        }
+        // Prioridad 3: Inferir de member_type
+        else if (memberTypeStr.includes('DEPENDENT') || memberTypeStr === 'CARGA_FAMILIAR') {
+          relationshipValue = 'hijo'; // Por defecto para cargas familiares
+        }
+        // Default: otro
+        else {
+          relationshipValue = 'otro';
+        }
+
+        const isDependentValue = memberTypeStr.includes('DEPENDENT') ||
+                                memberTypeStr === 'CARGA_FAMILIAR';
 
         return {
           first_name: member.first_name,

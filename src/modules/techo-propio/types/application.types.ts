@@ -208,6 +208,8 @@ export interface HouseholdMember {
   payment_method?: PaymentMethod; // solo para jefe de familia
   // Campos específicos para familia adicional
   family_bond?: string; // vínculo familiar (para ADDITIONAL_FAMILY)
+  // ✅ NUEVO: Indicador de ingreso manual (cuando RENIEC no encuentra el DNI)
+  is_manual_entry?: boolean; // true si los datos fueron ingresados manualmente sin validación RENIEC
 }
 
 // ⚠️ LEGACY: Mantenido para retrocompatibilidad

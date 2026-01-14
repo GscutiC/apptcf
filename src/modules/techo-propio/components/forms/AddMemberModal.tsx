@@ -48,7 +48,12 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
   );
   const [activeTab, setActiveTab] = useState<'personal' | 'economic' | 'additional' | 'familyDependent'>('personal');
   const [errors, setErrors] = useState<Record<string, string>>({});
-  
+
+  // ✅ NUEVO: Estado para modo manual (cuando RENIEC no encuentra el DNI)
+  const [manualMode, setManualMode] = useState(false);
+  const [manualDataConfirmed, setManualDataConfirmed] = useState(false);
+  const [dniValidatedWithReniec, setDniValidatedWithReniec] = useState(false);
+
   // ✅ Determinar el tipo efectivo del miembro (prioridad: editingMember.member_type > prop memberType)
   const effectiveMemberType = (editingMember?.member_type || currentMember.member_type || memberType) as MemberType;
 
@@ -58,6 +63,11 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
       setCurrentMember(editingMember || { member_type: effectiveMemberType });
       setActiveTab('personal');
       setErrors({});
+      // ✅ NUEVO: Resetear estados de modo manual
+      setManualMode(false);
+      setManualDataConfirmed(false);
+      // Si estamos editando, verificar si fue ingresado manualmente
+      setDniValidatedWithReniec(editingMember?.is_manual_entry ? false : !!editingMember?.dni);
     }
   }, [isOpen, editingMember, memberType]);
 
@@ -76,6 +86,11 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
     }
     if (!currentMember.apellido_materno?.trim()) {
       newErrors.apellido_materno = 'Apellido materno es requerido';
+    }
+
+    // ✅ NUEVO: Validar confirmación en modo manual
+    if (manualMode && !manualDataConfirmed) {
+      newErrors.manual_confirmation = 'Debe confirmar que los datos ingresados son correctos';
     }
 
     // Validaciones para Carga Familiar (solo datos básicos)
@@ -136,6 +151,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
         ...currentMember,
         id: editingMember?.id || Date.now().toString(),
         member_type: memberType,
+        is_manual_entry: manualMode || currentMember.is_manual_entry || false, // ✅ NUEVO: Guardar si fue entrada manual
       } as HouseholdMember;
 
       onSave(memberData);
@@ -157,7 +173,42 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
       dni: reniecData.dni,
       first_name: reniecData.first_name,
       apellido_paterno,
-      apellido_materno
+      apellido_materno,
+      is_manual_entry: false // ✅ NUEVO: Marcar que fue validado con RENIEC
+    });
+    setDniValidatedWithReniec(true); // ✅ NUEVO: Marcar validación exitosa
+  };
+
+  // ✅ NUEVO: Handler para toggle de modo manual
+  const handleManualModeToggle = () => {
+    const newManualMode = !manualMode;
+    setManualMode(newManualMode);
+
+    if (newManualMode) {
+      // Al activar modo manual, limpiar validación RENIEC
+      setDniValidatedWithReniec(false);
+      setManualDataConfirmed(false);
+    } else {
+      // Al desactivar modo manual, limpiar datos si no fueron validados
+      if (!dniValidatedWithReniec) {
+        setCurrentMember({
+          ...currentMember,
+          first_name: '',
+          apellido_paterno: '',
+          apellido_materno: '',
+          is_manual_entry: false
+        });
+      }
+    }
+  };
+
+  // ✅ NUEVO: Handler para cambio manual de DNI
+  const handleManualDniChange = (value: string) => {
+    const cleanValue = value.replace(/\D/g, '').slice(0, 8);
+    setCurrentMember({
+      ...currentMember,
+      dni: cleanValue,
+      is_manual_entry: true // Marcar como entrada manual
     });
   };
 
@@ -224,14 +275,17 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
       currentMember.apellido_materno?.trim()
     );
 
+    // ✅ NUEVO: Si está en modo manual, debe confirmar los datos
+    const manualModeValid = !manualMode || (manualMode && manualDataConfirmed);
+
     // Para carga familiar, necesita datos básicos + fecha de nacimiento
     if (effectiveMemberType === MemberType.FAMILY_DEPENDENT) {
-      return basicPersonal && currentMember.birth_date;
+      return basicPersonal && currentMember.birth_date && manualModeValid;
     }
 
     // Para familia adicional, solo necesita datos básicos
     if (effectiveMemberType === MemberType.ADDITIONAL_FAMILY) {
-      return basicPersonal;
+      return basicPersonal && manualModeValid;
     }
 
     // Para otros tipos, necesita todos los campos
@@ -240,7 +294,8 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
       currentMember.birth_date &&
       currentMember.marital_status &&
       currentMember.education_level &&
-      currentMember.occupation?.trim()
+      currentMember.occupation?.trim() &&
+      manualModeValid
     );
   };
 
@@ -457,19 +512,87 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
               Información Personal
             </h3>
 
-            {/* DNI con validación RENIEC */}
-            <DniValidator
-              value={currentMember.dni || ''}
-              onChange={(value) => setCurrentMember({ ...currentMember, dni: value })}
-              onValidated={handleDniValidated}
-              label="DNI"
-              required
-            />
-            {errors.dni && (
-              <p className="text-sm text-red-600 mt-1">{errors.dni}</p>
+            {/* ✅ NUEVO: Toggle para Modo Manual */}
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-start">
+                  <svg className="w-5 h-5 text-amber-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  <div>
+                    <p className="text-sm font-medium text-amber-800">Modo de Ingreso Manual</p>
+                    <p className="text-xs text-amber-700 mt-0.5">
+                      Active esta opción si el DNI no se encuentra en RENIEC (DNI nuevo o no registrado)
+                    </p>
+                  </div>
+                </div>
+                {/* Toggle Switch */}
+                <button
+                  type="button"
+                  onClick={handleManualModeToggle}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 ${
+                    manualMode ? 'bg-amber-600' : 'bg-gray-200'
+                  }`}
+                  role="switch"
+                  aria-checked={manualMode}
+                  aria-label="Activar modo manual"
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      manualMode ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+              {manualMode && (
+                <div className="mt-3 pt-3 border-t border-amber-200">
+                  <p className="text-xs text-amber-800 font-medium">
+                    ⚠️ En modo manual, deberá ingresar todos los datos manualmente y confirmar su veracidad.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* DNI - Condicional según modo */}
+            {!manualMode ? (
+              <>
+                {/* DNI con validación RENIEC (modo normal) */}
+                <DniValidator
+                  value={currentMember.dni || ''}
+                  onChange={(value) => setCurrentMember({ ...currentMember, dni: value })}
+                  onValidated={handleDniValidated}
+                  label="DNI"
+                  required
+                />
+                {errors.dni && (
+                  <p className="text-sm text-red-600 mt-1">{errors.dni}</p>
+                )}
+              </>
+            ) : (
+              <>
+                {/* DNI manual (sin validación RENIEC) */}
+                <FormInput
+                  label="DNI"
+                  required
+                  value={currentMember.dni || ''}
+                  onChange={(e) => handleManualDniChange(e.target.value)}
+                  placeholder="12345678"
+                  maxLength={8}
+                  error={errors.dni}
+                  hint="Ingrese el DNI de 8 dígitos (modo manual)"
+                />
+                {currentMember.dni?.length === 8 && (
+                  <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                    <span>DNI ingresado manualmente - No validado con RENIEC</span>
+                  </div>
+                )}
+              </>
             )}
 
-            {/* Nombres completos */}
+            {/* Nombres completos - Editables según modo */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <FormInput
                 label="Nombre(s)"
@@ -478,6 +601,8 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
                 onChange={(e) => setCurrentMember({ ...currentMember, first_name: e.target.value })}
                 placeholder="María"
                 error={errors.first_name}
+                disabled={!manualMode && dniValidatedWithReniec}
+                hint={!manualMode && dniValidatedWithReniec ? "Validado con RENIEC" : undefined}
               />
 
               <FormInput
@@ -487,6 +612,8 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
                 onChange={(e) => setCurrentMember({ ...currentMember, apellido_paterno: e.target.value })}
                 placeholder="García"
                 error={errors.apellido_paterno}
+                disabled={!manualMode && dniValidatedWithReniec}
+                hint={!manualMode && dniValidatedWithReniec ? "Validado con RENIEC" : undefined}
               />
 
               <FormInput
@@ -496,8 +623,34 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
                 onChange={(e) => setCurrentMember({ ...currentMember, apellido_materno: e.target.value })}
                 placeholder="López"
                 error={errors.apellido_materno}
+                disabled={!manualMode && dniValidatedWithReniec}
+                hint={!manualMode && dniValidatedWithReniec ? "Validado con RENIEC" : undefined}
               />
             </div>
+
+            {/* ✅ NUEVO: Checkbox de confirmación para modo manual */}
+            {manualMode && currentMember.dni?.length === 8 && currentMember.first_name?.trim() && currentMember.apellido_paterno?.trim() && currentMember.apellido_materno?.trim() && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <label className="flex items-start cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={manualDataConfirmed}
+                    onChange={(e) => setManualDataConfirmed(e.target.checked)}
+                    className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-0.5"
+                  />
+                  <span className="ml-3 text-sm text-blue-800">
+                    <span className="font-medium">Confirmo que los datos ingresados son correctos</span>
+                    <span className="block text-xs text-blue-600 mt-1">
+                      Al marcar esta casilla, declaro que he verificado que el DNI y los nombres corresponden
+                      a la persona que estoy registrando y que los datos son verídicos.
+                    </span>
+                  </span>
+                </label>
+                {errors.manual_confirmation && (
+                  <p className="text-sm text-red-600 mt-2 ml-8">{errors.manual_confirmation}</p>
+                )}
+              </div>
+            )}
 
             {/* Campos condicionales según el tipo de miembro */}
             
@@ -676,7 +829,20 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
               <h4 className="font-medium text-gray-900 mb-2">Resumen</h4>
               <div className="text-sm text-gray-600 space-y-1">
                 <p><strong>Nombre:</strong> {currentMember.first_name} {currentMember.apellido_paterno} {currentMember.apellido_materno}</p>
-                <p><strong>DNI:</strong> {currentMember.dni}</p>
+                <p>
+                  <strong>DNI:</strong> {currentMember.dni}
+                  {/* ✅ NUEVO: Indicador de entrada manual */}
+                  {(manualMode || currentMember.is_manual_entry) && (
+                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                      Ingreso Manual
+                    </span>
+                  )}
+                  {!manualMode && dniValidatedWithReniec && (
+                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                      Validado RENIEC
+                    </span>
+                  )}
+                </p>
                 <p><strong>Ocupación:</strong> {currentMember.occupation}</p>
               </div>
             </div>
@@ -720,7 +886,20 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
               <h4 className="font-medium text-gray-900 mb-2">Resumen del Miembro Adicional</h4>
               <div className="text-sm text-gray-600 space-y-1">
                 <p><strong>Nombre:</strong> {currentMember.first_name} {currentMember.apellido_paterno} {currentMember.apellido_materno}</p>
-                <p><strong>DNI:</strong> {currentMember.dni}</p>
+                <p>
+                  <strong>DNI:</strong> {currentMember.dni}
+                  {/* ✅ NUEVO: Indicador de entrada manual */}
+                  {(manualMode || currentMember.is_manual_entry) && (
+                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                      Ingreso Manual
+                    </span>
+                  )}
+                  {!manualMode && dniValidatedWithReniec && (
+                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                      Validado RENIEC
+                    </span>
+                  )}
+                </p>
                 <p><strong>Vínculo:</strong> {FAMILY_BOND_OPTIONS.find(b => b.value === currentMember.family_bond)?.label || 'Sin especificar'}</p>
               </div>
               <p className="text-xs text-blue-600 mt-2">
@@ -847,7 +1026,20 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
               <h4 className="font-medium text-gray-900 mb-2">Resumen de Carga Familiar</h4>
               <div className="text-sm text-gray-600 space-y-1">
                 <p><strong>Nombre:</strong> {currentMember.first_name} {currentMember.apellido_paterno} {currentMember.apellido_materno}</p>
-                <p><strong>DNI:</strong> {currentMember.dni}</p>
+                <p>
+                  <strong>DNI:</strong> {currentMember.dni}
+                  {/* ✅ NUEVO: Indicador de entrada manual */}
+                  {(manualMode || currentMember.is_manual_entry) && (
+                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                      Ingreso Manual
+                    </span>
+                  )}
+                  {!manualMode && dniValidatedWithReniec && (
+                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                      Validado RENIEC
+                    </span>
+                  )}
+                </p>
                 <p><strong>Fecha de Nacimiento:</strong> {currentMember.birth_date ? new Date(currentMember.birth_date).toLocaleDateString('es-PE') : 'No especificada'}</p>
                 <p><strong>Vínculo:</strong> {FAMILY_BOND_OPTIONS.find(b => b.value === currentMember.family_bond)?.label || 'Sin especificar'}</p>
                 <p><strong>Educación:</strong> {EDUCATION_LEVEL_OPTIONS.find(e => e.value === currentMember.education_level)?.label || 'Sin especificar'}</p>
