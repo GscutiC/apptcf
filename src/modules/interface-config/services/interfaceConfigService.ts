@@ -260,10 +260,9 @@ class InterfaceConfigService {
         return null;
       }
       
-      // 🆕 VALIDACIÓN DE CONTENIDO: Si tiene appName obsoleto, es inválida
-      const appName = parsed.branding?.appName;
-      if (!appName || appName === 'WorkTecApp' || appName === 'Aplicación' || appName.includes('Sistema')) {
-        logger.warn('🗑️ Configuración obsoleta detectada en localStorage, limpiando');
+      // Validar que tenga estructura mínima válida
+      if (!parsed.branding?.appName || !parsed.theme) {
+        logger.warn('🗑️ Configuración incompleta en localStorage, limpiando');
         localStorage.removeItem(this.STORAGE_KEY);
         return null;
       }
@@ -425,157 +424,37 @@ class InterfaceConfigService {
   }
 
   /**
-   * 🆕 LIMPIEZA AUTOMÁTICA AGRESIVA DE CACHE OBSOLETO
+   * Limpieza simple de cache corrupto (sin reloads automáticos)
    * Se ejecuta automáticamente al instanciar el servicio
    */
   private performAutomaticCacheCleanup(): void {
-    if (this.hasRunCacheCleanup) return; // Solo ejecutar una vez
-    
+    if (this.hasRunCacheCleanup) return;
+
     try {
-      logger.info('🧹 Iniciando limpieza automática de cache obsoleto...');
-      
-      // Lista de claves que pueden contener configuración obsoleta
-      const obsoleteKeys = [
-        'interface-config',
-        'interface-config-timestamp',
-        'config-cache',
-        'user-preferences',
-        'permissions-cache-timestamp',
-        'user-permissions',
-        'theme-config',
-        'app-config'
-      ];
-      
-      let itemsRemoved = 0;
-      
-      // Verificar cada clave y eliminar si contiene datos obsoletos
-      obsoleteKeys.forEach(key => {
+      // Solo limpiar cache que esté corrupto (no parseable)
+      const cacheKeys = ['interface-config', 'config-cache'];
+
+      cacheKeys.forEach(key => {
         const stored = localStorage.getItem(key);
         if (stored) {
           try {
-            // Intentar parsear y verificar si es configuración obsoleta
             const parsed = JSON.parse(stored);
-            
-            // Detectar configuraciones obsoletas por contenido
-            const isObsolete = this.isConfigurationObsolete(parsed);
-            
-            if (isObsolete) {
+            // Solo eliminar si no tiene estructura válida
+            if (!parsed.branding?.appName || !parsed.theme) {
               localStorage.removeItem(key);
-              itemsRemoved++;
-              logger.warn(`🗑️ Eliminada configuración obsoleta: ${key}`);
+              logger.debug(`🗑️ Cache incompleto eliminado: ${key}`);
             }
-          } catch (e) {
-            // Si no se puede parsear, también eliminar
+          } catch {
+            // JSON corrupto, eliminar
             localStorage.removeItem(key);
-            itemsRemoved++;
-            logger.warn(`🗑️ Eliminado cache corrupto: ${key}`);
+            logger.debug(`🗑️ Cache corrupto eliminado: ${key}`);
           }
         }
       });
-      
-      // Limpieza adicional: eliminar cualquier clave que contenga nombres obsoletos
-      this.cleanupObsoleteLocalStorageKeys();
-      
-      if (itemsRemoved > 0) {
-        logger.info(`✅ Limpieza completada: ${itemsRemoved} elementos obsoletos eliminados`);
-        
-        // 🆕 FORZAR RECARGA SI SE ELIMINÓ CACHE CRÍTICO
-        const wasUsingObsoleteConfig = itemsRemoved > 0;
-        if (wasUsingObsoleteConfig) {
-          logger.info('🔄 Configuración obsoleta detectada, preparando recarga...');
-          
-          // Pequeño delay para que se vean los logs
-          setTimeout(() => {
-            logger.info('🔄 Recargando para aplicar configuración actualizada...');
-            window.location.reload();
-          }, 1000);
-        }
-      } else {
-        logger.debug('✅ No se encontró cache obsoleto');
-      }
-      
+
       this.hasRunCacheCleanup = true;
-      
     } catch (error) {
-      logger.error('❌ Error durante limpieza automática:', error);
-    }
-  }
-
-  /**
-   * 🆕 DETECTAR SI UNA CONFIGURACIÓN ES OBSOLETA
-   */
-  private isConfigurationObsolete(config: any): boolean {
-    if (!config || typeof config !== 'object') return true;
-    
-    // Detectar por nombre de app obsoleto
-    const appName = config.branding?.appName || config.appName;
-    const obsoleteNames = [
-      'WorkTecApp',
-      'Aplicación',
-      'Sistema en Mantenimiento',
-      'Sistema',
-      'App',
-      'WorkTec Solutions',
-      'Mi App Completa'
-    ];
-    
-    if (appName && obsoleteNames.some(name => appName.includes(name))) {
-      logger.warn(`🚨 Configuración obsoleta detectada por appName: "${appName}"`);
-      return true;
-    }
-    
-    // Detectar por tema obsoleto
-    const themeName = config.theme?.name;
-    const obsoleteThemes = [
-      'Tema Corporativo',
-      'Tema por Defecto',
-      'Configuración por Defecto',
-      'Configuración de Emergencia'
-    ];
-    
-    if (themeName && obsoleteThemes.some(theme => themeName.includes(theme))) {
-      logger.warn(`🚨 Configuración obsoleta detectada por tema: "${themeName}"`);
-      return true;
-    }
-    
-    // Detectar por edad (más de 24 horas)
-    if (config.updatedAt) {
-      const configAge = Date.now() - new Date(config.updatedAt).getTime();
-      const MAX_AGE = 24 * 60 * 60 * 1000; // 24 horas
-      
-      if (configAge > MAX_AGE) {
-        logger.warn(`🚨 Configuración obsoleta por edad: ${Math.round(configAge / (60 * 60 * 1000))} horas`);
-        return true;
-      }
-    }
-    
-    return false;
-  }
-
-  /**
-   * 🆕 LIMPIAR CLAVES OBSOLETAS DE LOCALSTORAGE
-   */
-  private cleanupObsoleteLocalStorageKeys(): void {
-    try {
-      const keysToCheck = Object.keys(localStorage);
-      const obsoletePatterns = [
-        /worktec/i,
-        /work-tec/i,
-        /aplicacion/i,
-        /app-config/i,
-        /old-config/i,
-        /backup-config/i
-      ];
-      
-      keysToCheck.forEach(key => {
-        const isObsolete = obsoletePatterns.some(pattern => pattern.test(key));
-        if (isObsolete) {
-          localStorage.removeItem(key);
-          logger.warn(`🗑️ Eliminada clave obsoleta: ${key}`);
-        }
-      });
-    } catch (error) {
-      logger.error('Error limpiando claves obsoletas:', error);
+      logger.error('Error en limpieza de cache:', error);
     }
   }
 

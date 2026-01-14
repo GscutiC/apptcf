@@ -3,21 +3,23 @@
  * Encapsula la lógica de negocio para cambios de estado de solicitudes
  */
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTechoPropio } from '../context';
 import { useTechoPropioApplications } from './useTechoPropioApplications';
-import { ApplicationStatus } from '../types';
+import { ApplicationStatus, TechoPropioApplication } from '../types';
 import { ModalType, ModalState } from '../components/application/ConfirmationModals';
+import { printApplicationPDF, downloadApplicationPDF } from '../services/pdfService';
 
 export const useApplicationActions = (applicationId?: string) => {
   const navigate = useNavigate();
-  const { fetchApplication, refreshApplications, deleteApplication } = useTechoPropio();
+  const { fetchApplication, refreshApplications, deleteApplication, selectedApplication } = useTechoPropio();
   const { submitApplication, changeStatus, error: apiError, success: apiSuccess } = useTechoPropioApplications();
   
   const [showModal, setShowModal] = useState<ModalState>({ type: null });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   // Abrir modal
   const openModal = (type: ModalType) => {
@@ -151,7 +153,56 @@ export const useApplicationActions = (applicationId?: string) => {
     reactivate: () => openModal('reactivate'),
     delete: () => openModal('delete'),
     
-    print: () => {
+    /**
+     * Genera e imprime el formulario PDF oficial con los datos de la solicitud
+     */
+    print: async () => {
+      if (!selectedApplication) {
+        setError('No hay solicitud seleccionada para imprimir');
+        return;
+      }
+      
+      setIsPrinting(true);
+      setError(null);
+      
+      try {
+        await printApplicationPDF(selectedApplication);
+      } catch (err) {
+        console.error('Error al generar PDF:', err);
+        setError(err instanceof Error ? err.message : 'Error al generar el formulario PDF');
+        // Fallback: imprimir la página actual si falla la generación de PDF
+        window.print();
+      } finally {
+        setIsPrinting(false);
+      }
+    },
+    
+    /**
+     * Descarga el formulario PDF oficial con los datos de la solicitud
+     */
+    download: async () => {
+      if (!selectedApplication) {
+        setError('No hay solicitud seleccionada para descargar');
+        return;
+      }
+      
+      setIsPrinting(true);
+      setError(null);
+      
+      try {
+        await downloadApplicationPDF(selectedApplication);
+      } catch (err) {
+        console.error('Error al descargar PDF:', err);
+        setError(err instanceof Error ? err.message : 'Error al generar el formulario PDF');
+      } finally {
+        setIsPrinting(false);
+      }
+    },
+    
+    /**
+     * Imprimir versión simple (página HTML actual) - Fallback
+     */
+    printSimple: () => {
       window.print();
     }
   };
@@ -162,6 +213,7 @@ export const useApplicationActions = (applicationId?: string) => {
     closeModal,
     handleConfirm,
     isLoading,
+    isPrinting,
     error
   };
 };

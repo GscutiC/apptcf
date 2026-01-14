@@ -6,13 +6,15 @@ import React from 'react';
 import { ApplicationFormData } from '../../types';
 import { Card } from '../common';
 import { formatDate, formatCurrency, formatDNI, formatPhone, formatShortAddress } from '../../utils';
-import { 
-  CIVIL_STATUS_OPTIONS, 
-  GENDER_OPTIONS, 
+import {
+  CIVIL_STATUS_OPTIONS,
+  GENDER_OPTIONS,
   FAMILY_RELATIONSHIP_OPTIONS,
   EDUCATION_LEVEL_OPTIONS,
-  DISABILITY_TYPE_OPTIONS 
+  DISABILITY_TYPE_OPTIONS
 } from '../../utils';
+import { formatDisabilityWithCharacteristics } from '../../utils/pdfFieldMapping';
+import { DisabilityType } from '../../types';
 
 interface ReviewStepProps {
   data: ApplicationFormData;
@@ -157,7 +159,16 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ data, onEdit }) => {
             <div><span className="text-gray-600">Ocupación:</span> <span className="font-medium">{realHeadOfFamily?.occupation || '-'}</span></div>
             <div><span className="text-gray-600">Situación Laboral:</span> <span className="font-medium">{realHeadOfFamily?.employment_situation || '-'}</span></div>
             <div><span className="text-gray-600">Ingreso Mensual:</span> <span className="font-medium text-green-700">{formatCurrency(realHeadOfFamily?.monthly_income || 0)}</span></div>
-            <div><span className="text-gray-600">Discapacidad:</span> <span className="font-medium">{realHeadOfFamily?.disability_type || 'Ninguna'}</span></div>
+            <div>
+              <span className="text-gray-600">Discapacidad:</span>{' '}
+              <span className="font-medium">
+                {formatDisabilityWithCharacteristics(
+                  realHeadOfFamily?.disability_type,
+                  realHeadOfFamily?.disability_is_permanent,
+                  realHeadOfFamily?.disability_is_severe
+                )}
+              </span>
+            </div>
           </div>
         ) : (
           <div className="text-center py-4">
@@ -191,7 +202,16 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ data, onEdit }) => {
               <div><span className="text-gray-600">Situación Laboral:</span> <span className="font-medium">{spouseMember.employment_situation || '-'}</span></div>
               <div><span className="text-gray-600">Condición:</span> <span className="font-medium">{spouseMember.work_condition || '-'}</span></div>
               <div><span className="text-gray-600">Ingreso Mensual:</span> <span className="font-medium text-green-700">{formatCurrency(spouseMember.monthly_income || 0)}</span></div>
-              <div><span className="text-gray-600">Discapacidad:</span> <span className="font-medium">{spouseMember.disability_type || 'Ninguna'}</span></div>
+              <div>
+                <span className="text-gray-600">Discapacidad:</span>{' '}
+                <span className="font-medium">
+                  {formatDisabilityWithCharacteristics(
+                    spouseMember.disability_type,
+                    spouseMember.disability_is_permanent,
+                    spouseMember.disability_is_severe
+                  )}
+                </span>
+              </div>
             </div>
           </Card>
         );
@@ -222,7 +242,13 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ data, onEdit }) => {
                   </div>
                   <div className="grid grid-cols-2 gap-2 mt-1 text-sm text-gray-600">
                     <span>Educación: {EDUCATION_LEVEL_OPTIONS.find(e => e.value === member.education_level)?.label || 'N/A'}</span>
-                    <span>Discapacidad: {DISABILITY_TYPE_OPTIONS.find(d => d.value === member.disability_type)?.label || 'Ninguna'}</span>
+                    <span>
+                      Discapacidad: {formatDisabilityWithCharacteristics(
+                        member.disability_type,
+                        member.disability_is_permanent,
+                        member.disability_is_severe
+                      )}
+                    </span>
                   </div>
                   <div className="mt-2 text-xs text-orange-600 italic">
                     🏠 Carga familiar - Datos básicos + educación y discapacidad

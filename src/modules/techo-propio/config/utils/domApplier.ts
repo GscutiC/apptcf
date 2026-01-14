@@ -30,14 +30,6 @@ export function applyConfigToDOM(config: TechoPropioConfig): void {
     root.setAttribute('data-tp-accent', config.colors.accent);
     root.setAttribute('data-tp-sidebar-icon', config.logos.sidebar_icon);
     root.setAttribute('data-tp-module-title', config.branding.module_title);
-
-    console.log('✅ Configuración aplicada al DOM:', {
-      primary: config.colors.primary,
-      secondary: config.colors.secondary,
-      accent: config.colors.accent,
-      sidebar_icon: config.logos.sidebar_icon,
-      module_title: config.branding.module_title
-    });
   } catch (error) {
     console.error('❌ Error aplicando configuración al DOM:', error);
   }
@@ -63,8 +55,6 @@ export function removeConfigFromDOM(): void {
     root.removeAttribute('data-tp-accent');
     root.removeAttribute('data-tp-sidebar-icon');
     root.removeAttribute('data-tp-module-title');
-
-    console.log('🧹 Configuración removida del DOM');
   } catch (error) {
     console.error('❌ Error removiendo configuración del DOM:', error);
   }

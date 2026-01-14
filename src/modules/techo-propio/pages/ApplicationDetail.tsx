@@ -10,6 +10,7 @@ import { Card, Button } from '../components/common';
 import { StatusBadge, PriorityIndicator, StatusActionBar, ConfirmationModals } from '../components/application';
 import { formatDate, formatCurrency, formatShortAddress, formatDNI, formatPhone } from '../utils';
 import { EMPLOYMENT_SITUATION_OPTIONS } from '../utils/constants';
+import { formatDisabilityWithCharacteristics } from '../utils/pdfFieldMapping';
 // Los helpers ya no son necesarios - usamos datos directos del backend
 
 export const ApplicationDetail: React.FC = () => {
@@ -18,7 +19,7 @@ export const ApplicationDetail: React.FC = () => {
   const { selectedApplication, fetchApplication, isLoading } = useTechoPropio();
   
   // Hook para gestión de acciones
-  const { actions, showModal, closeModal, handleConfirm, isLoading: isActionLoading } = useApplicationActions(id);
+  const { actions, showModal, closeModal, handleConfirm, isLoading: isActionLoading, isPrinting } = useApplicationActions(id);
 
   useEffect(() => {
     if (id) fetchApplication(id);
@@ -74,6 +75,8 @@ export const ApplicationDetail: React.FC = () => {
       work_condition: (head_of_family_economic as any)?.work_condition || '',
       monthly_income: (head_of_family_economic as any)?.monthly_income || 0,
       disability_type: (head_of_family as any).disability_type || 'Ninguna',
+      disability_is_permanent: (head_of_family as any).disability_is_permanent || false,
+      disability_is_severe: (head_of_family as any).disability_is_severe || false,
       relationship: 'jefe',
       family_bond: 'Jefe de Familia'
     };
@@ -95,6 +98,8 @@ export const ApplicationDetail: React.FC = () => {
       employment_situation: (spouse_economic as any)?.employment_situation || '',
       monthly_income: (spouse_economic as any)?.monthly_income || 0,
       disability_type: (spouse as any).disability_type || 'Ninguna',
+      disability_is_permanent: (spouse as any).disability_is_permanent || false,
+      disability_is_severe: (spouse as any).disability_is_severe || false,
       relationship: 'conyuge',
       family_bond: 'Cónyuge'
     } : null;
@@ -162,6 +167,8 @@ export const ApplicationDetail: React.FC = () => {
             onReactivate={actions.reactivate}
             onDelete={actions.delete}
             onPrint={actions.print}
+            onDownload={actions.download}
+            isPrinting={isPrinting}
             disabled={isActionLoading}
           />
         </div>
@@ -199,7 +206,16 @@ export const ApplicationDetail: React.FC = () => {
             <div><span className="text-gray-600">Ocupación:</span> <span className="font-medium">{(realHeadOfFamily as any).occupation || 'asdddddddddd'}</span></div>
             <div><span className="text-gray-600">Situación Laboral:</span> <span className="font-medium">{EMPLOYMENT_SITUATION_OPTIONS.find(e => e.value === (realHeadOfFamily as any).employment_situation)?.label || 'Dependiente'}</span></div>
             <div><span className="text-gray-600">Ingreso Mensual:</span> <span className="font-medium text-green-700">{formatCurrency(Number((realHeadOfFamily as any).monthly_income || 0))}</span></div>
-            <div><span className="text-gray-600">Discapacidad:</span> <span className="font-medium">{(realHeadOfFamily as any).disability_type || 'ninguna'}</span></div>
+            <div>
+              <span className="text-gray-600">Discapacidad:</span>{' '}
+              <span className="font-medium">
+                {formatDisabilityWithCharacteristics(
+                  (realHeadOfFamily as any).disability_type,
+                  (realHeadOfFamily as any).disability_is_permanent,
+                  (realHeadOfFamily as any).disability_is_severe
+                )}
+              </span>
+            </div>
           </div>
         ) : (
           <p className="text-gray-500">No se encontraron datos del jefe de familia</p>
@@ -231,7 +247,16 @@ export const ApplicationDetail: React.FC = () => {
               <div><span className="text-gray-600">Situación Laboral:</span> <span className="font-medium">{spouseMember.employment_situation || '-'}</span></div>
               <div><span className="text-gray-600">Condición:</span> <span className="font-medium">{spouseMember.work_condition || '-'}</span></div>
               <div><span className="text-gray-600">Ingreso Mensual:</span> <span className="font-medium text-green-700">{formatCurrency(spouseMember.monthly_income || 0)}</span></div>
-              <div><span className="text-gray-600">Discapacidad:</span> <span className="font-medium">{spouseMember.disability_type || 'Ninguna'}</span></div>
+              <div>
+                <span className="text-gray-600">Discapacidad:</span>{' '}
+                <span className="font-medium">
+                  {formatDisabilityWithCharacteristics(
+                    spouseMember.disability_type,
+                    spouseMember.disability_is_permanent,
+                    spouseMember.disability_is_severe
+                  )}
+                </span>
+              </div>
             </div>
           </Card>
         );
@@ -270,7 +295,13 @@ export const ApplicationDetail: React.FC = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-2 mt-1 text-sm text-gray-600">
                     <span>Educación: {member.education_level || 'N/A'}</span>
-                    <span>Discapacidad: {member.disability_type || 'Ninguna'}</span>
+                    <span>
+                      Discapacidad: {formatDisabilityWithCharacteristics(
+                        member.disability_type,
+                        member.disability_is_permanent,
+                        member.disability_is_severe
+                      )}
+                    </span>
                   </div>
                   <div className="mt-2 text-xs text-orange-600 italic">
                     🏠 Carga familiar - Datos básicos + educación y discapacidad

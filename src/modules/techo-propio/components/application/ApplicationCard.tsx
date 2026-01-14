@@ -39,52 +39,46 @@ export const ApplicationCard: React.FC<ApplicationCardProps> = React.memo(({
   isLoading = false
 }) => {
   const { property_info } = application;
+  
+  // ✅ CORREGIDO: Verificar datos requeridos antes de usar hooks
+  const hasRequiredData = hasRequiredApplicantData(application);
 
-  // ✅ CORREGIDO: Verificar que la aplicación tenga datos mínimos requeridos
-  if (!hasRequiredApplicantData(application)) {
-    return (
-      <Card className="p-4">
-        <div className="text-center text-gray-500">
-          <p>⚠️ Datos de solicitante incompletos</p>
-          <p className="text-sm">ID: {application.id}</p>
-        </div>
-      </Card>
-    );
-  }
-
-  // ✅ MEJORA: useMemo para valores calculados
+  // ✅ MEJORA: useMemo para valores calculados (SIEMPRE se ejecutan, antes del return condicional)
   const canSubmit = useMemo(
-    () => application.status === ApplicationStatus.DRAFT && !!onSubmit,
-    [application.status, onSubmit]
+    () => hasRequiredData && application.status === ApplicationStatus.DRAFT && !!onSubmit,
+    [hasRequiredData, application.status, onSubmit]
   );
 
   const canEdit = useMemo(
-    () => !!onEdit && (
+    () => hasRequiredData && !!onEdit && (
       application.status === ApplicationStatus.DRAFT ||
       application.status === ApplicationStatus.ADDITIONAL_INFO_REQUIRED
     ),
-    [application.status, onEdit]
+    [hasRequiredData, application.status, onEdit]
   );
 
   const canDelete = useMemo(
-    () => !!onDelete && application.status === ApplicationStatus.DRAFT,
-    [application.status, onDelete]
+    () => hasRequiredData && !!onDelete && application.status === ApplicationStatus.DRAFT,
+    [hasRequiredData, application.status, onDelete]
   );
 
   // ✅ MEJORA: Memoizar datos formatados
-  const formattedData = useMemo(() => ({
-    fullName: getApplicantFullName(application),
-    dni: getApplicantDNI(application),
-    shortAddress: formatShortAddress(
-      property_info.district || '',
-      property_info.province || '',
-      property_info.department || ''
-    ),
-    totalIncome: formatCurrency(getTotalIncome(application)),
-    householdSize: application.household_size,
-    createdAt: formatDate(application.created_at),
-    updatedAt: formatDate(application.updated_at)
-  }), [application, property_info]);
+  const formattedData = useMemo(() => {
+    // Siempre calculamos los datos - si no hay datos válidos, usamos valores por defecto
+    return {
+      fullName: hasRequiredData ? getApplicantFullName(application) : 'Sin datos',
+      dni: hasRequiredData ? getApplicantDNI(application) : 'N/A',
+      shortAddress: formatShortAddress(
+        property_info?.district || '',
+        property_info?.province || '',
+        property_info?.department || ''
+      ),
+      totalIncome: formatCurrency(getTotalIncome(application)),
+      householdSize: application.household_size,
+      createdAt: formatDate(application.created_at),
+      updatedAt: formatDate(application.updated_at)
+    };
+  }, [hasRequiredData, application, property_info]);
 
   // ✅ MEJORA: useCallback para handlers
   const handleSubmitClick = useCallback((e: React.MouseEvent) => {
@@ -105,7 +99,7 @@ export const ApplicationCard: React.FC<ApplicationCardProps> = React.memo(({
   // ✅ MEJORA: Memoizar JSX de acciones
   // ✅ Actualizado para usar CSS Variables personalizadas
   const actions = useMemo(() => {
-    if (!showActions) return undefined;
+    if (!showActions || !hasRequiredData) return undefined;
 
     return (
       <div className="flex gap-2">
@@ -165,7 +159,19 @@ export const ApplicationCard: React.FC<ApplicationCardProps> = React.memo(({
         )}
       </div>
     );
-  }, [showActions, canSubmit, canEdit, canDelete, handleSubmitClick, handleEditClick, handleDeleteClick]);
+  }, [showActions, hasRequiredData, canSubmit, canEdit, canDelete, handleSubmitClick, handleEditClick, handleDeleteClick]);
+
+  // ✅ Return condicional DESPUÉS de los hooks
+  if (!hasRequiredData) {
+    return (
+      <Card className="p-4">
+        <div className="text-center text-gray-500">
+          <p>⚠️ Datos de solicitante incompletos</p>
+          <p className="text-sm">ID: {application.id}</p>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card hover onClick={onClick} actions={actions} className="transition-all relative">

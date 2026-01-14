@@ -55,13 +55,6 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
   React.useEffect(() => {
     if (isOpen) {
       const effectiveMemberType = editingMember?.member_type || memberType;
-      console.log('🔧 [ADD MEMBER MODAL] Opening with:', {
-        memberType: memberType,
-        editingMemberType: editingMember?.member_type,
-        effectiveMemberType: effectiveMemberType,
-        editingMember: editingMember
-      });
-      
       setCurrentMember(editingMember || { member_type: effectiveMemberType });
       setActiveTab('personal');
       setErrors({});
@@ -144,7 +137,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
         id: editingMember?.id || Date.now().toString(),
         member_type: memberType,
       } as HouseholdMember;
-      
+
       onSave(memberData);
       onClose();
     }
@@ -614,7 +607,20 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
                 label="Tipo de Discapacidad"
                 required
                 value={currentMember.disability_type || ''}
-                onChange={(e) => setCurrentMember({ ...currentMember, disability_type: e.target.value as DisabilityType })}
+                onChange={(e) => {
+                  const newDisabilityType = e.target.value as DisabilityType;
+                  // Si cambia a "Ninguna", limpiar los campos de permanente y severa
+                  if (newDisabilityType === DisabilityType.NONE) {
+                    setCurrentMember({
+                      ...currentMember,
+                      disability_type: newDisabilityType,
+                      disability_is_permanent: false,
+                      disability_is_severe: false
+                    });
+                  } else {
+                    setCurrentMember({ ...currentMember, disability_type: newDisabilityType });
+                  }
+                }}
                 options={DISABILITY_TYPE_OPTIONS}
                 error={errors.disability_type}
               />
@@ -631,6 +637,39 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
                 error={errors.monthly_income}
               />
             </div>
+
+            {/* ✅ NUEVO: Checkboxes de Permanente y Severa - Solo si tiene discapacidad */}
+            {currentMember.disability_type && currentMember.disability_type !== DisabilityType.NONE && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <h4 className="font-medium text-amber-800 mb-3">Características de la Discapacidad</h4>
+                <div className="flex flex-wrap gap-6">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={currentMember.disability_is_permanent || false}
+                      onChange={(e) => setCurrentMember({ ...currentMember, disability_is_permanent: e.target.checked })}
+                      className="h-5 w-5 text-amber-600 focus:ring-amber-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">
+                      Permanente
+                      <span className="block text-xs text-gray-500 font-normal">La discapacidad es de carácter permanente</span>
+                    </span>
+                  </label>
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={currentMember.disability_is_severe || false}
+                      onChange={(e) => setCurrentMember({ ...currentMember, disability_is_severe: e.target.checked })}
+                      className="h-5 w-5 text-amber-600 focus:ring-amber-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">
+                      Severa
+                      <span className="block text-xs text-gray-500 font-normal">La discapacidad es de grado severo</span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+            )}
 
             {/* Resumen de datos personales */}
             <div className="bg-gray-50 rounded-lg p-4">
@@ -745,7 +784,20 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
                       name="disability_type"
                       value={option.value}
                       checked={currentMember.disability_type === option.value}
-                      onChange={(e) => setCurrentMember({ ...currentMember, disability_type: e.target.value as DisabilityType })}
+                      onChange={(e) => {
+                        const newDisabilityType = e.target.value as DisabilityType;
+                        // Si cambia a "Ninguna", limpiar los campos de permanente y severa
+                        if (newDisabilityType === DisabilityType.NONE) {
+                          setCurrentMember({
+                            ...currentMember,
+                            disability_type: newDisabilityType,
+                            disability_is_permanent: false,
+                            disability_is_severe: false
+                          });
+                        } else {
+                          setCurrentMember({ ...currentMember, disability_type: newDisabilityType });
+                        }
+                      }}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                     />
                     <span className="ml-2 text-sm text-gray-700">{option.label}</span>
@@ -757,6 +809,39 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
               )}
             </div>
 
+            {/* ✅ NUEVO: Checkboxes de Permanente y Severa - Solo si tiene discapacidad */}
+            {currentMember.disability_type && currentMember.disability_type !== DisabilityType.NONE && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <h4 className="font-medium text-amber-800 mb-3">Características de la Discapacidad</h4>
+                <div className="flex flex-wrap gap-6">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={currentMember.disability_is_permanent || false}
+                      onChange={(e) => setCurrentMember({ ...currentMember, disability_is_permanent: e.target.checked })}
+                      className="h-5 w-5 text-amber-600 focus:ring-amber-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">
+                      Permanente
+                      <span className="block text-xs text-gray-500 font-normal">La discapacidad es de carácter permanente</span>
+                    </span>
+                  </label>
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={currentMember.disability_is_severe || false}
+                      onChange={(e) => setCurrentMember({ ...currentMember, disability_is_severe: e.target.checked })}
+                      className="h-5 w-5 text-amber-600 focus:ring-amber-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">
+                      Severa
+                      <span className="block text-xs text-gray-500 font-normal">La discapacidad es de grado severo</span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+            )}
+
             {/* Resumen específico para carga familiar */}
             <div className="bg-gray-50 rounded-lg p-4">
               <h4 className="font-medium text-gray-900 mb-2">Resumen de Carga Familiar</h4>
@@ -766,7 +851,16 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
                 <p><strong>Fecha de Nacimiento:</strong> {currentMember.birth_date ? new Date(currentMember.birth_date).toLocaleDateString('es-PE') : 'No especificada'}</p>
                 <p><strong>Vínculo:</strong> {FAMILY_BOND_OPTIONS.find(b => b.value === currentMember.family_bond)?.label || 'Sin especificar'}</p>
                 <p><strong>Educación:</strong> {EDUCATION_LEVEL_OPTIONS.find(e => e.value === currentMember.education_level)?.label || 'Sin especificar'}</p>
-                <p><strong>Discapacidad:</strong> {DISABILITY_TYPE_OPTIONS.find(d => d.value === currentMember.disability_type)?.label || 'Sin especificar'}</p>
+                <p>
+                  <strong>Discapacidad:</strong> {DISABILITY_TYPE_OPTIONS.find(d => d.value === currentMember.disability_type)?.label || 'Sin especificar'}
+                  {currentMember.disability_type && currentMember.disability_type !== DisabilityType.NONE && (
+                    <span className="ml-2 text-amber-600">
+                      {currentMember.disability_is_permanent && '(Permanente)'}
+                      {currentMember.disability_is_permanent && currentMember.disability_is_severe && ' '}
+                      {currentMember.disability_is_severe && '(Severa)'}
+                    </span>
+                  )}
+                </p>
               </div>
             </div>
           </div>

@@ -129,7 +129,6 @@ export function useTechoPropioConfig(): UseTechoPropioConfigResult {
       // Aplicar al DOM
       applyConfigToDOM(savedConfig);
 
-      console.log('✅ Configuración guardada exitosamente');
       return { success: true };
     } catch (err: any) {
       console.error('❌ Error guardando configuración:', err);
@@ -169,7 +168,6 @@ export function useTechoPropioConfig(): UseTechoPropioConfigResult {
       // Aplicar default al DOM
       applyConfigToDOM(DEFAULT_CONFIG);
 
-      console.log('✅ Configuración reseteada a default');
       return { success: true };
     } catch (err: any) {
       console.error('❌ Error reseteando configuración:', err);

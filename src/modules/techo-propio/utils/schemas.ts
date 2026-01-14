@@ -142,6 +142,8 @@ export const HouseholdMemberSchema = z.object({
   education_level: z.string().optional(),
   occupation: z.string().optional(),
   disability_type: z.string().optional(),
+  disability_is_permanent: z.boolean().optional(), // ✅ NUEVO: ¿La discapacidad es permanente?
+  disability_is_severe: z.boolean().optional(), // ✅ NUEVO: ¿La discapacidad es severa?
 
   // Información económica
   employment_situation: z.string().optional(),

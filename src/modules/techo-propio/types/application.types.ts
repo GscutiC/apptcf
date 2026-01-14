@@ -152,6 +152,8 @@ export interface ApplicantFormData {
   education_level?: EducationLevel;
   occupation?: string;
   disability_type?: DisabilityType;
+  disability_is_permanent?: boolean; // ✅ NUEVO: ¿La discapacidad es permanente?
+  disability_is_severe?: boolean; // ✅ NUEVO: ¿La discapacidad es severa?
   phone_number?: string;
   email?: string;
   is_main_applicant?: boolean;
@@ -199,6 +201,8 @@ export interface HouseholdMember {
   employment_condition?: EmploymentCondition; // ⚠️ DEPRECATED: usar work_condition en su lugar
   monthly_income?: number; // opcional para familia adicional
   disability_type?: DisabilityType; // opcional para familia adicional
+  disability_is_permanent?: boolean; // ✅ NUEVO: ¿La discapacidad es permanente?
+  disability_is_severe?: boolean; // ✅ NUEVO: ¿La discapacidad es severa?
   relationship?: FamilyRelationship;
   member_type: MemberType; // tipo de miembro
   payment_method?: PaymentMethod; // solo para jefe de familia

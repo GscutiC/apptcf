@@ -15,7 +15,7 @@ import {
   PropertyForm,
   ReviewStep
 } from '../components/forms';
-import { ApplicationFormData } from '../types';
+import { ApplicationFormData, MemberType } from '../types';
 import { storageService } from '../services';
 import { validateApplicantForm, validateEconomicForm, validatePropertyForm } from '../utils';
 import { normalizeToISODate } from '../utils/applicationHelpers';
@@ -262,8 +262,8 @@ export const NewApplication: React.FC = () => {
       return;
     }
 
-    const headOfFamilyMember = formData.household_members?.find(member => 
-      member.first_name === formData.head_of_family?.first_name && 
+    const headOfFamilyMember = formData.household_members?.find(member =>
+      member.first_name === formData.head_of_family?.first_name &&
       member.apellido_paterno === formData.head_of_family?.paternal_surname
     );
 
@@ -294,12 +294,15 @@ export const NewApplication: React.FC = () => {
       paternal_surname: formData.head_of_family?.paternal_surname || 'Sin Apellido',
       maternal_surname: formData.head_of_family?.maternal_surname || 'Sin Apellido',
       birth_date: normalizeToISODate(formData.head_of_family?.birth_date),
-      civil_status: formData.head_of_family?.civil_status || 'soltero',
-      education_level: formData.head_of_family?.education_level || 'secundaria_completa',
-      occupation: formData.head_of_family?.occupation,
+      // ✅ FIX: Priorizar el estado civil del household_members (actualizado en paso 2) sobre el inicial
+      civil_status: headOfFamilyMember?.marital_status || formData.head_of_family?.civil_status || 'soltero',
+      education_level: headOfFamilyMember?.education_level || formData.head_of_family?.education_level || 'secundaria_completa',
+      occupation: headOfFamilyMember?.occupation || formData.head_of_family?.occupation,
       phone_number: formData.head_of_family?.phone_number,
       email: formData.head_of_family?.email,
-      disability_type: formData.head_of_family?.disability_type || 'ninguna',
+      disability_type: headOfFamilyMember?.disability_type || formData.head_of_family?.disability_type || 'ninguna',
+      disability_is_permanent: headOfFamilyMember?.disability_is_permanent || formData.head_of_family?.disability_is_permanent || false,
+      disability_is_severe: headOfFamilyMember?.disability_is_severe || formData.head_of_family?.disability_is_severe || false,
       is_main_applicant: true
     };
 
@@ -315,10 +318,34 @@ export const NewApplication: React.FC = () => {
       is_main_applicant: true
     };
     
-    const spouseMember = formData.household_members?.find(member => 
-      member.member_type?.toString().includes('SPOUSE') || member.family_bond === 'conyuge'
+    // ✅ FIX: Buscar cónyuge con múltiples condiciones
+    const spouseMember = formData.household_members?.find(member =>
+      member.member_type === MemberType.SPOUSE ||
+      member.member_type?.toString() === 'CONYUGE' ||
+      member.member_type?.toString().toUpperCase().includes('SPOUSE') ||
+      member.family_bond === 'conyuge' ||
+      (member.relationship as string) === 'conyuge'
     );
-    
+
+    // ✅ NUEVO: Transformar datos del cónyuge correctamente
+    const transformedSpouse = spouseMember ? {
+      document_type: 'dni',
+      document_number: spouseMember.dni || '',
+      first_name: spouseMember.first_name || '',
+      paternal_surname: spouseMember.apellido_paterno || '',
+      maternal_surname: spouseMember.apellido_materno || '',
+      birth_date: normalizeToISODate(spouseMember.birth_date),
+      civil_status: spouseMember.marital_status || 'soltero',
+      education_level: spouseMember.education_level || 'secundaria_completa',
+      occupation: spouseMember.occupation || '',
+      disability_type: spouseMember.disability_type || 'ninguna',
+      disability_is_permanent: spouseMember.disability_is_permanent || false,  // ✅ NUEVO
+      disability_is_severe: spouseMember.disability_is_severe || false,  // ✅ NUEVO
+      is_main_applicant: false,
+      phone_number: (spouseMember as any).phone_number || null,
+      email: (spouseMember as any).email || null
+    } : null;
+
     const transformedSpouseEconomic = spouseMember ? {
       employment_situation: spouseMember.employment_situation || 'dependiente',
       monthly_income: spouseMember.monthly_income || 0,
@@ -331,13 +358,22 @@ export const NewApplication: React.FC = () => {
       is_main_applicant: false
     } : null;
 
-    // Transformar household_members: EXCLUIR jefe de familia (va por separado) para evitar DNI duplicado
+    // Transformar household_members: EXCLUIR jefe de familia Y cónyuge (van por separado) para evitar DNI duplicado
     const transformedHouseholdMembers = (formData.household_members || [])
-      .filter(member => 
+      .filter(member => {
         // Filtrar el jefe de familia basado en DNI para evitar duplicación
-        member.dni !== formData.head_of_family?.dni &&
-        member.dni !== formData.head_of_family?.document_number
-      )
+        const isHeadOfFamily = member.dni === formData.head_of_family?.dni ||
+                               member.dni === formData.head_of_family?.document_number;
+
+        // ✅ FIX: También filtrar el cónyuge si ya se envía como objeto separado
+        const isSpouse = spouseMember && (
+          member.dni === spouseMember.dni ||
+          member.member_type === MemberType.SPOUSE ||
+          member.member_type?.toString() === 'CONYUGE'
+        );
+
+        return !isHeadOfFamily && !isSpouse;
+      })
       .map((member, idx) => {
         const normalized_birth_date = normalizeToISODate(member.birth_date);
 
@@ -374,6 +410,8 @@ export const NewApplication: React.FC = () => {
           work_condition: member.work_condition || (member.employment_condition || 'FORMAL').toLowerCase(),
           monthly_income: member.monthly_income || 0,
           disability_type: member.disability_type || 'ninguna',
+          disability_is_permanent: member.disability_is_permanent || false,
+          disability_is_severe: member.disability_is_severe || false,
           relationship: relationshipValue,
           is_dependent: isDependentValue
         };
@@ -407,7 +445,7 @@ export const NewApplication: React.FC = () => {
       user_data: transformedUserData,
       head_of_family: transformedHeadOfFamily,
       head_of_family_economic: transformedHeadOfFamilyEconomic,
-      spouse: formData.spouse ? transformedHeadOfFamily : null,
+      spouse: transformedSpouse,  // ✅ FIX: Usar transformedSpouse en vez de transformedHeadOfFamily
       spouse_economic: transformedSpouseEconomic,
       household_members: transformedHouseholdMembers,
       property_info: transformedPropertyInfo,

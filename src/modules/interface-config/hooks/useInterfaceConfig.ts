@@ -429,12 +429,15 @@ export function useInterfaceConfig(): UseInterfaceConfigReturn {
 
   /**
    * Cargar configuracion inicial al montar
+   * CRÍTICO: NO incluir loadInitialConfig en dependencias - causa loops infinitos
+   * Usamos authLoaded directamente ya que es la única condición real de cambio
    */
   useEffect(() => {
-    if (!isInitializedRef.current && !timeoutTriggeredRef.current) {
+    if (!isInitializedRef.current && !timeoutTriggeredRef.current && authLoaded) {
       loadInitialConfig();
     }
-  }, [loadInitialConfig]); // REMOVIDO: isInitialized (ahora es ref)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoaded]); // CORREGIDO: Solo depender de authLoaded, no de loadInitialConfig
 
   // Retorno del hook
   return {

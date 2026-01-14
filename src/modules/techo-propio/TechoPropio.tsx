@@ -12,6 +12,8 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { TechoPropioProvider } from './context';
 import { ModuleAccessGuard, ErrorBoundary } from './components/common';
 import { TechoPropioLayout } from './components/layout';
+// Configuración visual del módulo
+import { TechoPropioConfigPanel } from './config/components/TechoPropioConfigPanel';
 
 // ✅ MEJORA: Lazy loading de páginas
 // Solo se cargan cuando el usuario navega a ellas
@@ -21,9 +23,6 @@ const ApplicationDetail = lazy(() => import('./pages/ApplicationDetail'));
 const NewApplication = lazy(() => import('./pages/NewApplication'));
 const EditApplication = lazy(() => import('./pages/EditApplication'));
 const ConvocationManagement = lazy(() => import('./components/ConvocationManagement'));
-
-// Configuración visual del módulo
-import { TechoPropioConfigPanel } from './config/components/TechoPropioConfigPanel';
 
 // Loading fallback component
 const LoadingFallback = () => (

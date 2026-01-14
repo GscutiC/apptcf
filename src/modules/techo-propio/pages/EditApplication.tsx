@@ -319,7 +319,12 @@ export const EditApplication: React.FC = () => {
       return;
     }
 
+    // ✅ FIX: Buscar jefe de familia por member_type, no solo por nombre
     const headOfFamilyMember = formData.household_members?.find(member =>
+      member.member_type === MemberType.HEAD_OF_FAMILY ||
+      member.member_type?.toString() === 'JEFE_FAMILIA' ||
+      (member.relationship as string) === 'jefe_familia'
+    ) || formData.household_members?.find(member =>
       member.first_name === formData.head_of_family?.first_name &&
       member.apellido_paterno === formData.head_of_family?.paternal_surname
     );
@@ -351,12 +356,15 @@ export const EditApplication: React.FC = () => {
       paternal_surname: formData.head_of_family?.paternal_surname || 'Sin Apellido',
       maternal_surname: formData.head_of_family?.maternal_surname || 'Sin Apellido',
       birth_date: normalizeToISODate(formData.head_of_family?.birth_date),
-      civil_status: formData.head_of_family?.civil_status || 'soltero',
-      education_level: formData.head_of_family?.education_level || 'secundaria_completa',
-      occupation: formData.head_of_family?.occupation,
+      // ✅ FIX: Priorizar el estado civil del household_members (actualizado en paso 2) sobre el inicial
+      civil_status: headOfFamilyMember?.marital_status || formData.head_of_family?.civil_status || 'soltero',
+      education_level: headOfFamilyMember?.education_level || formData.head_of_family?.education_level || 'secundaria_completa',
+      occupation: headOfFamilyMember?.occupation || formData.head_of_family?.occupation,
       phone_number: formData.head_of_family?.phone_number,
       email: formData.head_of_family?.email,
-      disability_type: formData.head_of_family?.disability_type || 'ninguna',
+      disability_type: headOfFamilyMember?.disability_type || formData.head_of_family?.disability_type || 'ninguna',
+      disability_is_permanent: headOfFamilyMember?.disability_is_permanent || formData.head_of_family?.disability_is_permanent || false,
+      disability_is_severe: headOfFamilyMember?.disability_is_severe || formData.head_of_family?.disability_is_severe || false,
       is_main_applicant: true
     };
 
@@ -380,11 +388,30 @@ export const EditApplication: React.FC = () => {
     };
 
     const spouseMember = formData.household_members?.find(member =>
-      member.member_type?.toString() === MemberType.SPOUSE || 
+      member.member_type?.toString() === MemberType.SPOUSE ||
       member.member_type?.toString() === 'CONYUGE' ||
       member.family_bond === 'conyuge' ||
       member.relationship === 'conyuge'
     );
+
+    // ✅ NUEVO: Transformar datos del cónyuge correctamente
+    const transformedSpouse = spouseMember ? {
+      document_type: 'dni',
+      document_number: spouseMember.dni || '',
+      first_name: spouseMember.first_name || '',
+      paternal_surname: spouseMember.apellido_paterno || '',
+      maternal_surname: spouseMember.apellido_materno || '',
+      birth_date: normalizeToISODate(spouseMember.birth_date),
+      civil_status: spouseMember.marital_status || 'soltero',
+      education_level: spouseMember.education_level || 'secundaria_completa',
+      occupation: spouseMember.occupation || '',
+      disability_type: spouseMember.disability_type || 'ninguna',
+      disability_is_permanent: spouseMember.disability_is_permanent || false,  // ✅ NUEVO
+      disability_is_severe: spouseMember.disability_is_severe || false,  // ✅ NUEVO
+      is_main_applicant: false,
+      phone_number: (spouseMember as any).phone_number || null,
+      email: (spouseMember as any).email || null
+    } : null;
 
     const transformedSpouseEconomic = spouseMember ? {
       employment_situation: spouseMember.employment_situation || 'dependiente',
@@ -422,11 +449,22 @@ export const EditApplication: React.FC = () => {
       ubigeo_validated: formData.property_info?.ubigeo_validated || false
     };
 
+    // ✅ FIX: EXCLUIR jefe de familia Y cónyuge (van por separado) para evitar DNI duplicado
     const transformedHouseholdMembers = (formData.household_members || [])
-      .filter(member =>
-        member.dni !== formData.head_of_family?.dni &&
-        member.dni !== formData.head_of_family?.document_number
-      )
+      .filter(member => {
+        // Filtrar el jefe de familia basado en DNI
+        const isHeadOfFamily = member.dni === formData.head_of_family?.dni ||
+                               member.dni === formData.head_of_family?.document_number;
+
+        // ✅ FIX: También filtrar el cónyuge si ya se envía como objeto separado
+        const isSpouse = spouseMember && (
+          member.dni === spouseMember.dni ||
+          member.member_type === MemberType.SPOUSE ||
+          member.member_type?.toString() === 'CONYUGE'
+        );
+
+        return !isHeadOfFamily && !isSpouse;
+      })
       .map((member, idx) => {
         const normalized_birth_date = normalizeToISODate(member.birth_date);
 
@@ -469,6 +507,8 @@ export const EditApplication: React.FC = () => {
           })() as 'formal' | 'informal',
           monthly_income: member.monthly_income || 0,
           disability_type: member.disability_type || 'ninguna',
+          disability_is_permanent: member.disability_is_permanent || false,
+          disability_is_severe: member.disability_is_severe || false,
           relationship: relationshipValue,
           is_dependent: isDependentValue
         };
@@ -481,7 +521,7 @@ export const EditApplication: React.FC = () => {
       user_data: transformedUserData,
       head_of_family: transformedHeadOfFamily,
       head_of_family_economic: transformedHeadOfFamilyEconomic,
-      spouse: formData.spouse ? transformedHeadOfFamily : null,
+      spouse: transformedSpouse,  // ✅ FIX: Usar transformedSpouse en vez de transformedHeadOfFamily
       spouse_economic: transformedSpouseEconomic,
       household_members: transformedHouseholdMembers,
       property_info: transformedPropertyInfo,

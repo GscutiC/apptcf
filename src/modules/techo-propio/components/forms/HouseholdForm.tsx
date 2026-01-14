@@ -15,7 +15,7 @@ import {
 } from '../../types';
 import { Button, Card } from '../common';
 import { AddMemberModal } from './AddMemberModal';
-import { 
+import {
   CIVIL_STATUS_OPTIONS,
   EDUCATION_LEVEL_OPTIONS,
   EMPLOYMENT_SITUATION_OPTIONS,
@@ -24,6 +24,7 @@ import {
   MEMBER_TYPE_OPTIONS,
   FAMILY_BOND_OPTIONS
 } from '../../utils';
+import { formatDisabilityWithCharacteristics } from '../../utils/pdfFieldMapping';
 
 interface HouseholdFormProps {
   data: HouseholdMember[];
@@ -148,7 +149,7 @@ export const HouseholdForm: React.FC<HouseholdFormProps> = ({
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-1 text-sm text-gray-600">
               <span>Situación: {EMPLOYMENT_SITUATION_OPTIONS.find(e => e.value === member.employment_situation)?.label || 'N/A'}</span>
               <span>Condición: {WORK_CONDITION_OPTIONS.find(c => c.value === (member.work_condition || member.employment_condition?.toLowerCase()))?.label || 'N/A'}</span>
-              <span>Discapacidad: {DISABILITY_TYPE_OPTIONS.find(d => d.value === member.disability_type)?.label || 'N/A'}</span>
+              <span>Discapacidad: {formatDisabilityWithCharacteristics(member.disability_type, member.disability_is_permanent, member.disability_is_severe)}</span>
               <span className="font-medium text-green-700">S/ {Number(member.monthly_income || 0).toFixed(2)}</span>
             </div>
           </>
@@ -180,7 +181,7 @@ export const HouseholdForm: React.FC<HouseholdFormProps> = ({
                 </div>
                 <div className="grid grid-cols-2 gap-2 mt-1 text-sm text-gray-600">
                   <span>Educación: {EDUCATION_LEVEL_OPTIONS.find(e => e.value === member.education_level)?.label || 'N/A'}</span>
-                  <span>Discapacidad: {DISABILITY_TYPE_OPTIONS.find(d => d.value === member.disability_type)?.label || 'Ninguna'}</span>
+                  <span>Discapacidad: {formatDisabilityWithCharacteristics(member.disability_type, member.disability_is_permanent, member.disability_is_severe)}</span>
                 </div>
                 <div className="mt-2 text-xs text-orange-600 italic">
                   🏠 Carga familiar - Datos básicos + educación y discapacidad

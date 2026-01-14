@@ -8,7 +8,6 @@ import { RoleProvider } from './modules/user-management/context/RoleContext';
 import { NotificationProvider } from './shared/components/ui/Notifications';
 import { AuthProvider } from './context/AuthContext';
 import { InterfaceConfigProvider, OptimizedConfigLoader } from './modules/interface-config';
-import { ConfigDiagnosticWrapper } from './modules/interface-config/components/ConfigDiagnosticWrapper';
 import { Layout } from './shared/components/layout';
 import { ProtectedRoute } from './shared/components/guards';
 import { ErrorBoundary } from './shared/components/ui/ErrorBoundary';
@@ -123,7 +122,6 @@ function App() {
       <PerformanceMonitor />
       
       <QueryClientProvider client={queryClient}>
-        <ConfigDiagnosticWrapper>
           {/* Router ANTES de ConfigLoader para carga no bloqueante */}
           <Router
             future={{
@@ -275,7 +273,6 @@ function App() {
             </InterfaceConfigProvider>
           </AuthProvider>
         </Router>
-        </ConfigDiagnosticWrapper>
         {/* React Query Devtools - solo visible en desarrollo */}
         <ReactQueryDevtools initialIsOpen={false} />
       </QueryClientProvider>

@@ -648,7 +648,7 @@ export class DOMConfigService {
       // Forzar repaint
       document.body.style.display = 'none';
       // Trigger reflow
-      document.body.offsetHeight;
+      void document.body.offsetHeight;
       document.body.style.display = '';
       
       logger.debug('🔄 Forzado refresh de estilos');

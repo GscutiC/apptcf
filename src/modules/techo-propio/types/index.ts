@@ -7,3 +7,6 @@ export * from './application.types';
 
 // Export all types from api.types
 export * from './api.types';
+
+// Export all types from pdf.types
+export * from './pdf.types';

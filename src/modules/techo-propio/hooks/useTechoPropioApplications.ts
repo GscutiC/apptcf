@@ -79,12 +79,6 @@ export const useTechoPropioApplications = () => {
     try {
       const response = await techoPropioApi.updateApplication(id, data);
 
-      // 🐛 DEBUG: Ver exactamente qué responde el backend
-      console.log('🔍 [UPDATE APPLICATION HOOK] Respuesta completa del backend:', response);
-      console.log('  - response.success:', response?.success);
-      console.log('  - response.data:', response?.data);
-      console.log('  - response.id:', (response as any)?.id);
-
       // Manejar ambos formatos de respuesta del backend
       if (response && (response.success === true || (response as any).id)) {
         setSuccess(SUCCESS_MESSAGES.APPLICATION_UPDATED);

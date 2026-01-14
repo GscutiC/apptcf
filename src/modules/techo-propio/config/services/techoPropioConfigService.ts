@@ -131,7 +131,6 @@ class TechoPropioConfigService {
         CONFIG_ENDPOINT,
         config
       );
-      console.log('✅ Configuración guardada exitosamente');
       return response.data;
     } catch (error) {
       console.error('❌ Error guardando configuración:', error);
@@ -149,7 +148,6 @@ class TechoPropioConfigService {
         CONFIG_ENDPOINT,
         configPartial
       );
-      console.log('✅ Configuración actualizada exitosamente');
       return response.data;
     } catch (error) {
       console.error('❌ Error actualizando configuración:', error);
@@ -164,7 +162,6 @@ class TechoPropioConfigService {
   async deleteMyConfig(): Promise<void> {
     try {
       await this.client.delete<TechoPropioConfigDeleteResponse>(CONFIG_ENDPOINT);
-      console.log('✅ Configuración eliminada exitosamente (reset a default)');
     } catch (error) {
       console.error('❌ Error eliminando configuración:', error);
       throw error;

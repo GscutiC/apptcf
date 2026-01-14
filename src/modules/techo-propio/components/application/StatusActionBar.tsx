@@ -20,8 +20,41 @@ interface StatusActionBarProps {
   onReactivate?: () => void;
   onDelete?: () => void;
   onPrint?: () => void;
+  onDownload?: () => void;
+  isPrinting?: boolean;
   disabled?: boolean;
 }
+
+/**
+ * Componente reutilizable para botones de PDF (Imprimir y Descargar)
+ */
+const PDFButtons: React.FC<{
+  onPrint?: () => void;
+  onDownload?: () => void;
+  isPrinting?: boolean;
+  disabled?: boolean;
+}> = ({ onPrint, onDownload, isPrinting = false, disabled = false }) => (
+  <>
+    <Button
+      onClick={onPrint}
+      variant="ghost"
+      disabled={disabled || isPrinting}
+      leftIcon={
+        isPrinting ? (
+          <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        ) : (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+          </svg>
+        )
+      }
+    >
+      {isPrinting ? 'Generando...' : 'Imprimir'}
+    </Button>
+  </>
+);
 
 export const StatusActionBar: React.FC<StatusActionBarProps> = ({
   application,
@@ -35,6 +68,8 @@ export const StatusActionBar: React.FC<StatusActionBarProps> = ({
   onReactivate,
   onDelete,
   onPrint,
+  onDownload,
+  isPrinting = false,
   disabled = false
 }) => {
   // Verificar que el ID existe
@@ -82,18 +117,7 @@ export const StatusActionBar: React.FC<StatusActionBarProps> = ({
             >
               Enviar
             </Button>
-            <Button
-              onClick={onPrint}
-              variant="ghost"
-              disabled={disabled}
-              leftIcon={
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                </svg>
-              }
-            >
-              Imprimir
-            </Button>
+            <PDFButtons onPrint={onPrint} onDownload={onDownload} isPrinting={isPrinting} disabled={disabled} />
           </>
         );
 
@@ -124,18 +148,7 @@ export const StatusActionBar: React.FC<StatusActionBarProps> = ({
             >
               Editar
             </Button>
-            <Button
-              onClick={onPrint}
-              variant="ghost"
-              disabled={disabled}
-              leftIcon={
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                </svg>
-              }
-            >
-              Imprimir
-            </Button>
+            <PDFButtons onPrint={onPrint} onDownload={onDownload} isPrinting={isPrinting} disabled={disabled} />
           </>
         );
 
@@ -178,18 +191,7 @@ export const StatusActionBar: React.FC<StatusActionBarProps> = ({
             >
               Solicitar Info
             </Button>
-            <Button
-              onClick={onPrint}
-              variant="ghost"
-              disabled={disabled}
-              leftIcon={
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                </svg>
-              }
-            >
-              Imprimir
-            </Button>
+            <PDFButtons onPrint={onPrint} onDownload={onDownload} isPrinting={isPrinting} disabled={disabled} />
           </>
         );
 
@@ -208,18 +210,7 @@ export const StatusActionBar: React.FC<StatusActionBarProps> = ({
             >
               Editar y Completar
             </Button>
-            <Button
-              onClick={onPrint}
-              variant="ghost"
-              disabled={disabled}
-              leftIcon={
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                </svg>
-              }
-            >
-              Imprimir
-            </Button>
+            <PDFButtons onPrint={onPrint} onDownload={onDownload} isPrinting={isPrinting} disabled={disabled} />
           </>
         );
 
@@ -238,18 +229,7 @@ export const StatusActionBar: React.FC<StatusActionBarProps> = ({
             >
               Revertir Aprobación
             </Button>
-            <Button
-              onClick={onPrint}
-              variant="ghost"
-              disabled={disabled}
-              leftIcon={
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                </svg>
-              }
-            >
-              Imprimir
-            </Button>
+            <PDFButtons onPrint={onPrint} onDownload={onDownload} isPrinting={isPrinting} disabled={disabled} />
           </>
         );
 
@@ -280,18 +260,7 @@ export const StatusActionBar: React.FC<StatusActionBarProps> = ({
             >
               Eliminar Definitivamente
             </Button>
-            <Button
-              onClick={onPrint}
-              variant="ghost"
-              disabled={disabled}
-              leftIcon={
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                </svg>
-              }
-            >
-              Imprimir
-            </Button>
+            <PDFButtons onPrint={onPrint} onDownload={onDownload} isPrinting={isPrinting} disabled={disabled} />
           </>
         );
 
@@ -322,35 +291,13 @@ export const StatusActionBar: React.FC<StatusActionBarProps> = ({
             >
               Eliminar Definitivamente
             </Button>
-            <Button
-              onClick={onPrint}
-              variant="ghost"
-              disabled={disabled}
-              leftIcon={
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                </svg>
-              }
-            >
-              Imprimir
-            </Button>
+            <PDFButtons onPrint={onPrint} onDownload={onDownload} isPrinting={isPrinting} disabled={disabled} />
           </>
         );
 
       default:
         return (
-          <Button
-            onClick={onPrint}
-            variant="ghost"
-            disabled={disabled}
-            leftIcon={
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-              </svg>
-            }
-          >
-            Imprimir
-          </Button>
+          <PDFButtons onPrint={onPrint} onDownload={onDownload} isPrinting={isPrinting} disabled={disabled} />
         );
     }
   };

@@ -257,7 +257,7 @@ export const PresetsPanel: React.FC<PresetsPanelProps> = ({
   };
 
   const handleDeletePreset = async (presetId: string) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar este preset?')) {
+    if (!window.confirm('¿Estás seguro de que quieres eliminar este preset?')) {
       return;
     }
 
